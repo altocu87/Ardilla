@@ -3,18 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SIGNALS, ALARMS } from "@/lib/constants";
+import { savePregEntry } from "@/lib/db";
+import SnailProgress from "@/components/SnailProgress";
 
 const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
-import { savePregEntry } from "@/lib/db";
-
-/* ── datos del formulario ─────────────────────────────────────────────────── */
-type FormData = {
-  signal:  string;
-  alarm:   string;
-  tension: string;
-};
-
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS   = 4;
 
 const BG_ANIMALS = [
   { emoji: "🐿️", size: "text-4xl", dur: "2.2s", delay: "0s",   left: "4%",  top: "8%"  },
@@ -24,7 +17,20 @@ const BG_ANIMALS = [
   { emoji: "🐀",  size: "text-4xl", dur: "2.1s", delay: "1.5s", left: "72%", top: "75%" },
 ];
 
-/* ── componentes pequeños ─────────────────────────────────────────────────── */
+const STEP_LABELS = [
+  "¿Qué señal notas en el abdomen?",
+  "¿Qué alarma aparece?",
+  "Frase reguladora",
+  "Suelta un 5% de tensión",
+];
+const STEP_HINTS = [
+  "Elige la que más se acerca ahora mismo",
+  "Elige la reacción mental que noto",
+  "Lee despacio. No hace falta hacer nada más.",
+  "Toca la zona donde puedes soltar un poco",
+];
+
+/* ── Fondo animado ─────────────────────────────────────────────────────────── */
 function AnimalsBackground({ speed = false }: { speed?: boolean }) {
   return (
     <>
@@ -46,41 +52,18 @@ function AnimalsBackground({ speed = false }: { speed?: boolean }) {
   );
 }
 
-function Dots({ step }: { step: number }) {
-  return (
-    <div className="flex items-center justify-center gap-2 py-3">
-      {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-        <div
-          key={i}
-          className={`flex items-center justify-center rounded-full font-bold text-xs transition-all duration-300 ${
-            i < step     ? "w-7 h-7 bg-orange-500 text-white"
-            : i === step ? "w-8 h-8 bg-white border-2 border-orange-500 text-orange-600 shadow-md scale-110"
-            : "w-7 h-7 bg-white/60 border border-slate-300 text-slate-400"
-          }`}
-        >
-          {i < step ? "✓" : i + 1}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Sel: lista desplegable de opciones (selección única) ─────────────────── */
+/* ── Lista de selección única ──────────────────────────────────────────────── */
 function Sel({
   options,
   value,
   onChange,
-  color,
+  activeClass,
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
-  color: "orange" | "rose";
+  activeClass: string;
 }) {
-  const active = color === "orange"
-    ? "bg-orange-100 border-orange-400 text-orange-800 font-semibold"
-    : "bg-rose-100 border-rose-400 text-rose-800 font-semibold";
-
   return (
     <div className="flex flex-col gap-2">
       {options.map(opt => (
@@ -88,7 +71,7 @@ function Sel({
           key={opt}
           onClick={() => onChange(opt)}
           className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] ${
-            value === opt ? active : "bg-white border-slate-200 text-slate-600"
+            value === opt ? activeClass : "bg-white border-slate-200 text-slate-600"
           }`}
         >
           {opt}
@@ -100,7 +83,7 @@ function Sel({
 
 /* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
 export default function P1() {
-  const router = useRouter();
+  const router  = useRouter();
   const [step,    setStep]    = useState(0);
   const [signal,  setSignal]  = useState("");
   const [alarm,   setAlarm]   = useState("");
@@ -108,43 +91,22 @@ export default function P1() {
   const [done,    setDone]    = useState(false);
   const [saving,  setSaving]  = useState(false);
 
-  const d: FormData = { signal, alarm, tension };
-
-  const ok = [
-    !!d.signal,
-    !!d.alarm,
-    true,           // paso 3 siempre válido
-    !!d.tension,
-  ][step];
-
-  const STEP_LABELS = [
-    "¿Qué señal notas en el abdomen?",
-    "¿Qué alarma aparece?",
-    "Frase reguladora",
-    "Suelta un 5% de tensión",
-  ];
-
-  const STEP_HINTS = [
-    "Elige la que más se acerca ahora mismo",
-    "Elige la reacción mental que noto",
-    "Lee despacio. No hace falta hacer nada más.",
-    "Toca la zona donde puedes soltar un poco",
-  ];
+  const ok = [!!signal, !!alarm, true, !!tension][step];
 
   async function finish() {
     setSaving(true);
     try {
       await savePregEntry({
-        situation: "Práctica 1 — Señal y alarma",
-        signal:      [d.signal],
-        alarm:       [d.alarm],
+        situation:   "Práctica 1 — Señal y alarma",
+        signal:      [signal],
+        alarm:       [alarm],
         habitual:    [],
-        newResponse: [d.tension],
+        newResponse: [tension],
         after:       [],
         mood:        "",
         savedAt:     new Date().toISOString(),
       });
-    } catch { /* guardar en segundo plano; no bloquear la UI */ }
+    } catch { /* no bloquear UI */ }
     setSaving(false);
     setDone(true);
   }
@@ -163,22 +125,18 @@ export default function P1() {
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-5 max-w-xs mx-auto">
           <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🌟</div>
           <h2 className="text-2xl font-bold text-orange-700">¡Práctica completada!</h2>
-
-          {/* Resumen */}
           <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">
-            <Row label="Señal" value={d.signal} />
+            <SummaryRow label="Señal"           value={signal}  />
             <div className="h-px bg-slate-100"/>
-            <Row label="Alarma" value={d.alarm} />
+            <SummaryRow label="Alarma"          value={alarm}   />
             <div className="h-px bg-slate-100"/>
-            <Row label="Tensión liberada" value={`${d.tension} →`} />
+            <SummaryRow label="Tensión liberada" value={`${tension} →`} />
           </div>
-
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 w-full">
             <p className="text-sm text-amber-800 italic leading-relaxed text-center">
               &ldquo;Esto es incómodo, pero ahora mismo puedo observarlo sin pelear.&rdquo;
             </p>
           </div>
-
           <button
             onClick={() => router.push("/formaciones")}
             className="w-full py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-200 active:scale-95 transition"
@@ -196,8 +154,8 @@ export default function P1() {
       <AnimalsBackground />
 
       {/* Cabecera */}
-      <div className="shrink-0 bg-white/60 backdrop-blur-sm border-b border-white/50 px-5 pt-5 pb-1 z-10">
-        <div className="flex items-center justify-between mb-1">
+      <div className="shrink-0 bg-white/60 backdrop-blur-sm border-b border-white/50 z-10">
+        <div className="flex items-center justify-between px-5 pt-4 pb-1">
           <div>
             <p className="text-[10px] text-orange-500 font-bold uppercase tracking-widest">
               Práctica 01 · Señal y alarma
@@ -211,7 +169,12 @@ export default function P1() {
             SALIR
           </Link>
         </div>
-        <Dots step={step} />
+        <SnailProgress
+          step={step}
+          total={TOTAL_STEPS}
+          railColor="bg-orange-400"
+          dotColor="bg-orange-500"
+        />
       </div>
 
       {/* Contenido */}
@@ -225,17 +188,24 @@ export default function P1() {
               {STEP_LABELS[step]}
             </h2>
 
-            {/* Paso 1: señal */}
             {step === 0 && (
-              <Sel options={SIGNALS} value={signal} onChange={setSignal} color="orange" />
+              <Sel
+                options={SIGNALS}
+                value={signal}
+                onChange={setSignal}
+                activeClass="bg-orange-100 border-orange-400 text-orange-800 font-semibold"
+              />
             )}
 
-            {/* Paso 2: alarma */}
             {step === 1 && (
-              <Sel options={ALARMS} value={alarm} onChange={setAlarm} color="rose" />
+              <Sel
+                options={ALARMS}
+                value={alarm}
+                onChange={setAlarm}
+                activeClass="bg-rose-100 border-rose-400 text-rose-800 font-semibold"
+              />
             )}
 
-            {/* Paso 3: frase reguladora (texto pasivo) */}
             {step === 2 && (
               <div className="flex flex-col gap-4">
                 <div className="rounded-2xl bg-amber-50 border border-amber-200 px-5 py-6 text-center">
@@ -252,7 +222,6 @@ export default function P1() {
               </div>
             )}
 
-            {/* Paso 4: botones de tensión */}
             {step === 3 && (
               <div className="flex flex-col gap-2">
                 {TENSION_ZONES.map(zone => (
@@ -308,7 +277,7 @@ export default function P1() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>

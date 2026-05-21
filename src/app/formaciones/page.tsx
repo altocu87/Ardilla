@@ -3,7 +3,7 @@ import Link from "next/link";
 // Rutas de cada práctica (las que aún no tienen página apuntan a formaciones)
 const EXERCISE_ROUTES: Record<string, string> = {
   "01": "/actividad/p1",
-  "02": "/formaciones",   // próximamente
+  "02": "/actividad/p2",
   "03": "/formaciones",   // próximamente
 };
 

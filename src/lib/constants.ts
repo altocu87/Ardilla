@@ -1,4 +1,4 @@
-// ── Práctica 01: Señal y alarma ──────────────────────────────────────────────
+// ── Práctica 01: Señal y alarma ─────────────────────────────────────────────
 
 export const SIGNALS: string[] = [
   "Noto presión en el abdomen",
@@ -25,4 +25,35 @@ export const TENSION_ZONES: string[] = [
   "Hombros",
   "Manos",
   "Abdomen",
+];
+
+// ── Práctica 02: Mapa de hiperalerta ─────────────────────────────────────────
+
+export const EMOTIONS: string[] = [
+  "Miedo",
+  "Rabia",
+  "Frustración",
+  "Impotencia",
+  "Asco",
+  "Desesperación",
+  "Ansiedad",
+  "Tristeza",
+];
+
+export const BODY_R: string[] = [
+  "Se tensa todo el cuerpo",
+  "Aprieto la mandíbula",
+  "Contengo la respiración",
+  "Me encojo hacia dentro",
+  "Se acelera el ritmo cardíaco",
+  "Aprieto las manos",
+];
+
+export const IMPULSES: string[] = [
+  "Comprobar si ha mejorado o empeorado",
+  "Buscar solución inmediata",
+  "Controlar lo que como",
+  "Evitar actividades",
+  "Quejarme o buscar apoyo urgente",
+  "Aislarme",
 ];
