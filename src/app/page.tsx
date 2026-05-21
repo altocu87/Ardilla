@@ -19,45 +19,36 @@ function greeting() {
   return "Buenas noches 🌙";
 }
 
-function AcornCrystalIcon() {
+/** Bellota iridiscente pequeña para el botón de tienda */
+function AcornSmall() {
   return (
     <>
       <style>{`
         @keyframes hue-crystal {
-          0%   { filter: hue-rotate(0deg)   saturate(2.2) brightness(1.25); }
-          100% { filter: hue-rotate(360deg) saturate(2.2) brightness(1.25); }
+          0%   { filter: hue-rotate(0deg)   saturate(2.4) brightness(1.3); }
+          100% { filter: hue-rotate(360deg) saturate(2.4) brightness(1.3); }
         }
-        @keyframes sp1 { 0%,100%{opacity:0;transform:scale(.4)} 50%{opacity:1;transform:scale(1.3)} }
-        @keyframes sp2 { 0%,100%{opacity:0;transform:scale(.4)} 40%{opacity:1;transform:scale(1.2)} }
-        @keyframes sp3 { 0%,100%{opacity:0;transform:scale(.4)} 60%{opacity:1;transform:scale(1.1)} }
       `}</style>
-      <div style={{ animation: "hue-crystal 3s linear infinite", display: "inline-block" }}>
-        <svg viewBox="0 0 68 90" width="58" height="78">
-          {/* Cap */}
-          <ellipse cx="34" cy="27" rx="30" ry="14" fill="#7dd3fc"/>
-          {[11,16,21,26,31,36,41,47,53].map(x => (
-            <line key={x} x1={x} y1="15" x2={x+3} y2="38" stroke="#38bdf8" strokeWidth="2" opacity="0.65"/>
+      <span style={{ animation: "hue-crystal 3s linear infinite", display: "inline-block" }}>
+        <svg viewBox="0 0 28 38" width="22" height="30">
+          {/* Sombrero */}
+          <ellipse cx="14" cy="11" rx="12" ry="5.5" fill="#7dd3fc"/>
+          {[6,9,12,15,18,21].map(x => (
+            <line key={x} x1={x} y1="6" x2={x+2} y2="16" stroke="#38bdf8" strokeWidth="1.4" opacity="0.7"/>
           ))}
-          <ellipse cx="34" cy="38" rx="30" ry="6" fill="#0ea5e9" opacity="0.85"/>
-          {/* Stem */}
-          <line x1="34" y1="13" x2="34" y2="4" stroke="#0369a1" strokeWidth="4" strokeLinecap="round"/>
-          {/* Body */}
-          <ellipse cx="34" cy="68" rx="26" ry="30" fill="#818cf8"/>
-          {/* Crystal facets */}
-          <path d="M16 55 Q24 48 30 57 Q23 66 16 55Z"  fill="white"   fillOpacity="0.38"/>
-          <path d="M46 60 Q53 53 56 64 Q51 73 46 60Z"  fill="#a5f3fc" fillOpacity="0.42"/>
-          <ellipse cx="34" cy="85" rx="9" ry="5"        fill="white"   fillOpacity="0.2"/>
-          <path d="M34 44 Q40 50 34 58 Q28 50 34 44Z"  fill="white"   fillOpacity="0.15"/>
-          {/* Sparkle dots */}
-          <circle cx="6"  cy="46" r="3"   fill="#f0abfc" style={{animation:"sp1 1.8s 0s   ease-in-out infinite"}}/>
-          <circle cx="62" cy="38" r="2.5" fill="#fde68a" style={{animation:"sp2 2.1s 0.6s ease-in-out infinite"}}/>
-          <circle cx="10" cy="75" r="2"   fill="#a5f3fc" style={{animation:"sp3 1.6s 1.1s ease-in-out infinite"}}/>
-          <circle cx="60" cy="70" r="2.5" fill="#f9a8d4" style={{animation:"sp1 2.3s 0.3s ease-in-out infinite"}}/>
-          {/* Star sparkle */}
-          <path d="M58 20 L59.5 15.5 L61 20 L65.5 21.5 L61 23 L59.5 27.5 L58 23 L53.5 21.5Z"
-            fill="#fef08a" opacity="0.95" style={{animation:"sp2 2.5s 0.8s ease-in-out infinite"}}/>
+          <ellipse cx="14" cy="15.5" rx="12" ry="2.5" fill="#0ea5e9" opacity="0.8"/>
+          {/* Palo */}
+          <line x1="14" y1="5.5" x2="14" y2="2" stroke="#0369a1" strokeWidth="2" strokeLinecap="round"/>
+          {/* Cuerpo */}
+          <ellipse cx="14" cy="28" rx="10" ry="12" fill="#818cf8"/>
+          {/* Reflejo cristal */}
+          <ellipse cx="9" cy="23" rx="3" ry="4.5" fill="white" fillOpacity="0.35" transform="rotate(-20 9 23)"/>
+          <ellipse cx="14" cy="37" rx="4" ry="2" fill="white" fillOpacity="0.2"/>
+          {/* Chispa */}
+          <circle cx="24" cy="10" r="1.5" fill="#fef08a" opacity="0.95"/>
+          <circle cx="2"  cy="20" r="1"   fill="#f0abfc" opacity="0.9"/>
         </svg>
-      </div>
+      </span>
     </>
   );
 }
@@ -78,8 +69,10 @@ export default function Home() {
   return (
     <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-sky-100 via-teal-50 to-emerald-100 overflow-hidden">
 
-      {/* ── PERFIL ── */}
-      <div className="shrink-0 px-5 pt-5">
+      {/* ── ZONA SUPERIOR: perfil + acceso tienda ── */}
+      <div className="shrink-0 px-5 pt-5 flex flex-col gap-2">
+
+        {/* Tarjeta de perfil */}
         <div className="bg-white/75 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-md flex items-center gap-3">
           <div className="shrink-0 w-14 h-14 rounded-full bg-teal-100 border-2 border-teal-300 flex items-center justify-center text-3xl shadow-sm">
             🐿️
@@ -107,6 +100,19 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Acceso rápido a la Tienda */}
+        <Link href="/tienda"
+          className="flex items-center justify-between px-4 py-2 rounded-xl active:scale-95 transition-transform"
+          style={{ background: "linear-gradient(90deg,#6366f1,#a855f7,#ec4899)" }}>
+          <div className="flex items-center gap-2">
+            <AcornSmall />
+            <span className="text-white font-bold text-sm">Tienda de recompensas</span>
+          </div>
+          <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full">
+            <span className="text-white text-xs font-bold">🌰 {loaded ? bellotas : "—"}</span>
+          </div>
+        </Link>
       </div>
 
       {/* ── SALUDO + ANIMALES ── */}
@@ -125,7 +131,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── BOTONES ── */}
+      {/* ── BOTONES PRINCIPALES ── */}
       <div className="shrink-0 px-5 pb-10 flex flex-col gap-3">
         <Link href="/registro"
           className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-teal-500 text-white font-bold text-xl shadow-lg shadow-teal-200 active:scale-95 transition-transform">
@@ -135,18 +141,6 @@ export default function Home() {
           className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-violet-500 text-white font-bold text-xl shadow-lg shadow-violet-200 active:scale-95 transition-transform">
           <span className="text-2xl">🎓</span> Ejercicios
         </Link>
-
-        {/* Tienda — botón especial con bellota iridiscente */}
-        <Link href="/tienda"
-          className="flex items-center justify-between w-full px-5 py-3 rounded-3xl text-white font-bold text-lg shadow-lg active:scale-95 transition-transform overflow-hidden relative"
-          style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 40%, #a855f7 70%, #ec4899 100%)" }}>
-          <div className="flex items-center gap-3">
-            <AcornCrystalIcon />
-            <span>Tienda de recompensas</span>
-          </div>
-          <span className="text-sm font-bold bg-white/20 px-2 py-1 rounded-full">🌰 {loaded ? bellotas : "—"}</span>
-        </Link>
-
         <Link href="/informacion"
           className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-amber-400 text-white font-bold text-xl shadow-lg shadow-amber-200 active:scale-95 transition-transform">
           <span className="text-2xl">ℹ️</span> Información
