@@ -374,8 +374,10 @@ export default function Opciones() {
   const [shopTitulos, setShopTitulos] = useState<TituloItem[]>([]);
   const [newTitulo,   setNewTitulo]   = useState("");
 
+  const [newTituloPrice,    setNewTituloPrice]    = useState("");
   const [editingTituloId,   setEditingTituloId]   = useState<string | null>(null);
   const [editingTituloText, setEditingTituloText] = useState("");
+  const [editingTituloPrice, setEditingTituloPrice] = useState("");
 
   const [adminMsg,   setAdminMsg]   = useState<string | null>(null);
   const [exporting,  setExporting]  = useState(false);
@@ -480,14 +482,14 @@ export default function Opciones() {
   /* ── Títulos ─────────────────────────────────────────────────────────────── */
   function addTitulo() {
     const t = newTitulo.trim(); if (!t) return;
-    const updated = [...shopTitulos, { id: `t_${Date.now()}`, text: t }];
-    setShopTitulos(updated); saveShopTitulos(updated); setNewTitulo("");
+    const updated = [...shopTitulos, { id: `t_${Date.now()}`, text: t, price: Number(newTituloPrice) || 0 }];
+    setShopTitulos(updated); saveShopTitulos(updated); setNewTitulo(""); setNewTituloPrice("");
   }
   function removeTitulo(id: string) { const u = shopTitulos.filter(t => t.id !== id); setShopTitulos(u); saveShopTitulos(u); }
-  function startEditTitulo(t: TituloItem) { setEditingTituloId(t.id); setEditingTituloText(t.text); }
+  function startEditTitulo(t: TituloItem) { setEditingTituloId(t.id); setEditingTituloText(t.text); setEditingTituloPrice(String(t.price ?? 0)); }
   function saveEditTitulo(id: string) {
     const text = editingTituloText.trim(); if (!text) return;
-    const u = shopTitulos.map(t => t.id === id ? { ...t, text } : t);
+    const u = shopTitulos.map(t => t.id === id ? { ...t, text, price: Number(editingTituloPrice) || 0 } : t);
     setShopTitulos(u); saveShopTitulos(u); setEditingTituloId(null);
   }
 
@@ -628,32 +630,49 @@ export default function Opciones() {
         {/* ══ 5. TÍTULOS ══════════════════════════════════════════════════════ */}
         <Section title="Títulos" emoji="🏷️" badge={shopTitulos.length > 0 ? `${shopTitulos.length}` : undefined}>
           <p className="text-xs text-slate-500 -mt-1">Títulos que aparecen al lado del nombre de Vicky.</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input value={newTitulo} onChange={e => setNewTitulo(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addTitulo()}
               placeholder="Ej: Maestra de la Calma 🌿"
-              className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 bg-white placeholder:text-slate-300"/>
-            <button onClick={addTitulo}
-              className="w-11 bg-violet-600 text-white rounded-xl font-bold text-xl active:scale-95 transition-all">+</button>
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 bg-white placeholder:text-slate-300"/>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-1.5 flex-1 border border-slate-200 rounded-xl px-3 py-2.5 bg-white">
+                <span className="text-sm shrink-0">🌰</span>
+                <input value={newTituloPrice} onChange={e => setNewTituloPrice(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Precio (0 = gratis)" inputMode="numeric"
+                  className="flex-1 text-sm focus:outline-none placeholder:text-slate-300 min-w-0"/>
+              </div>
+              <button onClick={addTitulo} disabled={!newTitulo.trim()}
+                className={`w-11 rounded-xl font-bold text-xl active:scale-95 transition-all ${newTitulo.trim() ? "bg-violet-600 text-white" : "bg-slate-200 text-slate-400"}`}>+</button>
+            </div>
           </div>
           {shopTitulos.length > 0 && (
             <div className="flex flex-col gap-1.5">
               {shopTitulos.map(t => (
                 <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   {editingTituloId === t.id ? (
-                    <div className="flex items-center gap-2 px-3 py-2">
+                    <div className="flex flex-col gap-2 px-3 py-2">
                       <input value={editingTituloText} onChange={e => setEditingTituloText(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && saveEditTitulo(t.id)}
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-violet-400"/>
-                      <button onClick={() => saveEditTitulo(t.id)}
-                        className="px-2 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold active:scale-95">✓</button>
-                      <button onClick={() => setEditingTituloId(null)}
-                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold active:scale-95">✗</button>
+                        className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-violet-400"/>
+                      <div className="flex gap-2">
+                        <div className="flex items-center gap-1 flex-1 border border-slate-200 rounded-lg px-2 py-1.5">
+                          <span className="text-xs shrink-0">🌰</span>
+                          <input value={editingTituloPrice} onChange={e => setEditingTituloPrice(e.target.value.replace(/\D/g, ""))}
+                            inputMode="numeric" placeholder="0"
+                            className="flex-1 text-xs focus:outline-none min-w-0 placeholder:text-slate-300"/>
+                        </div>
+                        <button onClick={() => saveEditTitulo(t.id)}
+                          className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold active:scale-95">✓</button>
+                        <button onClick={() => setEditingTituloId(null)}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold active:scale-95">✗</button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 px-3 py-2.5">
                       <span className="text-sm">🏷️</span>
                       <span className="flex-1 text-xs font-semibold text-slate-700">{t.text}</span>
+                      {(t.price ?? 0) > 0 && <span className="text-[10px] font-bold text-amber-600">🌰 {t.price}</span>}
                       <button onClick={() => startEditTitulo(t)}
                         className="w-7 h-7 flex items-center justify-center rounded-full text-violet-400 hover:bg-violet-50 text-sm">✏️</button>
                       <button onClick={() => removeTitulo(t.id)}

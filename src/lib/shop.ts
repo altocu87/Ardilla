@@ -18,6 +18,7 @@ export type AvatarItem = {
 export type TituloItem = {
   id: string;
   text: string;
+  price?: number;
 };
 
 // ── defaults ────────────────────────────────────────────────────────────────

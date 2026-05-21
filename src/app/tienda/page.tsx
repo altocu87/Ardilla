@@ -97,6 +97,22 @@ export default function Tienda() {
     showToast(newId ? "Título equipado ✓" : "Título desequipado");
   }
 
+  async function buyTitulo(t: TituloItem) {
+    const price = t.price ?? 0;
+    if (owned.includes(t.id) || bellotas < price || buying) return;
+    setBuying(t.id);
+    try {
+      const newBell = bellotas - price;
+      await upsertPlayerProfile({ bellotas: newBell });
+      const newOwned = [...owned, t.id];
+      setOwned(newOwned);
+      setOwnedState(newOwned);
+      setBellotas(newBell);
+      showToast(`¡Título "${t.text}" desbloqueado! 🏷️`);
+    } catch (e) { console.error(e); }
+    setBuying(null);
+  }
+
   // ── shared item card ──────────────────────────────────────────────────────
   function ItemCard({ item, accentGrad }: { item: ShopItem; accentGrad: string }) {
     const isOwned   = owned.includes(item.id);
@@ -262,19 +278,44 @@ export default function Tienda() {
         {/* ══ TAB: TÍTULOS ══ */}
         {tab === "titulos" && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-slate-400 px-1">Toca un título para equiparlo</p>
+            <p className="text-xs text-slate-400 px-1">Compra y equipa títulos para Vicky</p>
             {titulos.length === 0 ? (
               <EmptyShop emoji="🏷️" text="Aún no hay títulos. Añádelos en Ajustes." />
             ) : titulos.map(t => {
+              const price = t.price ?? 0;
+              const isOwned = price === 0 || owned.includes(t.id);
+              const canAfford = bellotas >= price;
               const isEq = eqTitulo === t.id;
+              const isBuying = buying === t.id;
               return (
-                <button key={t.id} onClick={() => equipTitulo(t.id)}
-                  className={`flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-left transition-all active:scale-[0.98] ${
-                    isEq ? "border-amber-400 bg-amber-50 shadow-md" : "border-slate-200 bg-white"
-                  }`}>
-                  <span className={`text-sm font-bold ${isEq ? "text-amber-800" : "text-slate-700"}`}>{t.text}</span>
-                  {isEq && <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full shrink-0">Equipado ✓</span>}
-                </button>
+                <div key={t.id} className={`rounded-2xl border-2 px-4 py-3 bg-white transition-all ${
+                  isEq ? "border-amber-400 bg-amber-50 shadow-md" : "border-slate-200"
+                }`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm font-bold block truncate ${isEq ? "text-amber-800" : "text-slate-700"}`}>{t.text}</span>
+                      {price > 0 && <span className="text-xs font-bold text-amber-600">🌰 {price}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isEq && <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">Equipado ✓</span>}
+                      {!isOwned ? (
+                        <button onClick={() => buyTitulo(t)} disabled={!canAfford || !!isBuying}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                            canAfford ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md" : "bg-slate-100 text-slate-400"
+                          }`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      ) : (
+                        <button onClick={() => equipTitulo(t.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                            isEq ? "bg-amber-200 text-amber-800" : "bg-violet-100 text-violet-700"
+                          }`}>
+                          {isEq ? "Desequipar" : "Equipar"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
