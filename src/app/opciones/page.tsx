@@ -1,6 +1,109 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+
+/* ── Pantalla de PIN ──────────────────────────────────────────────────────── */
+const PIN_CORRECTO = "8553";
+
+function PinGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin]       = useState("");
+  const [error, setError]   = useState(false);
+  const [shake, setShake]   = useState(false);
+
+  function handleKey(k: string | number) {
+    if (k === "⌫") {
+      setPin(p => p.slice(0, -1));
+      setError(false);
+      return;
+    }
+    if (pin.length >= 4) return;
+    const next = pin + String(k);
+    setPin(next);
+    setError(false);
+    if (next.length === 4) {
+      if (next === PIN_CORRECTO) {
+        onUnlock();
+      } else {
+        setError(true);
+        setShake(true);
+        setTimeout(() => { setShake(false); setPin(""); }, 700);
+      }
+    }
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes caracol-rage {
+          0%,100% { transform: rotate(-8deg) scale(1.05); }
+          50%      { transform: rotate(8deg) scale(1.12); }
+        }
+        @keyframes pin-shake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-10px); }
+          40%      { transform: translateX(10px); }
+          60%      { transform: translateX(-8px); }
+          80%      { transform: translateX(8px); }
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 px-6 select-none">
+
+        {/* Caracol enfadado */}
+        <div style={{ animation: "caracol-rage 0.6s ease-in-out infinite" }}
+          className="text-[110px] leading-none mb-1 drop-shadow-[0_0_24px_rgba(239,68,68,0.8)]">
+          🐌
+        </div>
+        <div className="flex gap-1 text-2xl mb-3">😡💢😡</div>
+
+        {/* Mensaje */}
+        <p className="text-red-500 font-black text-lg text-center uppercase tracking-widest leading-tight mb-1">
+          ⚠️ ESTA ZONA ESTÁ RESTRINGIDA
+        </p>
+        <p className="text-yellow-400 font-black text-base text-center uppercase tracking-wider mb-8">
+          SOLO PARA CARACOLES 🐌
+        </p>
+
+        {/* Indicador de dígitos */}
+        <div
+          className="flex gap-4 mb-7"
+          style={shake ? { animation: "pin-shake 0.6s ease-in-out" } : {}}
+        >
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${
+              pin.length > i
+                ? error ? "bg-red-500 border-red-500" : "bg-yellow-400 border-yellow-400"
+                : "border-slate-500"
+            }`} />
+          ))}
+        </div>
+
+        {/* Teclado numérico */}
+        <div className="grid grid-cols-3 gap-3 w-60">
+          {[1,2,3,4,5,6,7,8,9,"","0","⌫"].map((k, i) => (
+            <button
+              key={i}
+              onClick={() => k !== "" && handleKey(k)}
+              disabled={k === ""}
+              className={`h-14 rounded-2xl font-bold text-xl transition-all active:scale-90 ${
+                k === "" ? "invisible" :
+                k === "⌫" ? "bg-slate-800 text-red-400 hover:bg-slate-700" :
+                "bg-slate-800 text-white hover:bg-slate-700"
+              }`}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <p className="text-red-400 text-sm font-bold mt-5 animate-bounce">
+            ❌ PIN incorrecto, ¡impostor! Esto es zona caracol 🐌
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
 import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
   getShopBellotas, saveShopBellotas,
@@ -254,6 +357,9 @@ function RewardRow({
    PÁGINA PRINCIPAL
 ══════════════════════════════════════════════════════════════════════════════ */
 export default function Opciones() {
+  /* ── PIN gate ───────────────────────────────────────────────────────────── */
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+
   /* ── Estado ─────────────────────────────────────────────────────────────── */
   const [rewardsCfg,    setRewardsCfg]    = useState<RewardsConfig>(DEFAULT_REWARDS);
   const [rewardsSaved,  setRewardsSaved]  = useState(false);
@@ -433,6 +539,8 @@ export default function Opciones() {
   /* ════════════════════════════════════════════════════════════════════════ */
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-20">
+
+      {!pinUnlocked && <PinGate onUnlock={() => setPinUnlocked(true)} />}
 
       {/* Cabecera */}
       <header className="flex items-center gap-3 mb-8">
