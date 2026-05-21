@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SIGNALS, ALARMS } from "@/lib/constants";
 import { savePregEntry } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
+import { getRandomRegulatoryPhrase, type RegulatoryPhrase } from "@/lib/phrases";
 
 const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
 const TOTAL_STEPS   = 4;
@@ -90,6 +91,7 @@ export default function P1() {
   const [tension, setTension] = useState("");
   const [done,    setDone]    = useState(false);
   const [saving,  setSaving]  = useState(false);
+  const [regulPhrase, setRegulPhrase] = useState<RegulatoryPhrase | null>(null);
 
   const ok = [!!signal, !!alarm, true, !!tension][step];
 
@@ -108,6 +110,7 @@ export default function P1() {
       });
     } catch { /* no bloquear UI */ }
     setSaving(false);
+    setRegulPhrase(getRandomRegulatoryPhrase());
     setDone(true);
   }
 
@@ -119,30 +122,62 @@ export default function P1() {
 
   /* ── Celebración ── */
   if (done) {
+    const categoryColors: Record<string, { bg: string; border: string; badge: string; text: string; label: string }> = {
+      patitas:  { bg: "bg-orange-50",  border: "border-orange-200", badge: "bg-orange-100 text-orange-700", text: "text-orange-900", label: "text-orange-500" },
+      cabeza:   { bg: "bg-sky-50",     border: "border-sky-200",    badge: "bg-sky-100 text-sky-700",       text: "text-sky-900",   label: "text-sky-500"   },
+      corazon:  { bg: "bg-rose-50",    border: "border-rose-200",   badge: "bg-rose-100 text-rose-700",     text: "text-rose-900",  label: "text-rose-500"  },
+    };
+    const cc = regulPhrase ? (categoryColors[regulPhrase.category] ?? categoryColors.patitas) : categoryColors.patitas;
+
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-orange-100 via-amber-50 to-yellow-50 flex flex-col overflow-hidden">
         <AnimalsBackground speed />
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-5 max-w-xs mx-auto">
-          <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🌟</div>
-          <h2 className="text-2xl font-bold text-orange-700">¡Práctica completada!</h2>
-          <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">
-            <SummaryRow label="Señal"           value={signal}  />
-            <div className="h-px bg-slate-100"/>
-            <SummaryRow label="Alarma"          value={alarm}   />
-            <div className="h-px bg-slate-100"/>
-            <SummaryRow label="Tensión liberada" value={`${tension} →`} />
+        <div className="relative z-10 flex-1 overflow-y-auto px-6 py-10">
+          <div className="max-w-xs mx-auto flex flex-col items-center text-center gap-5">
+            <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🌟</div>
+            <h2 className="text-2xl font-bold text-orange-700">¡Práctica completada!</h2>
+
+            {/* Resumen */}
+            <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">
+              <SummaryRow label="Señal"           value={signal}  />
+              <div className="h-px bg-slate-100"/>
+              <SummaryRow label="Alarma"          value={alarm}   />
+              <div className="h-px bg-slate-100"/>
+              <SummaryRow label="Tensión liberada" value={`${tension} →`} />
+            </div>
+
+            {/* Frase clásica */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 w-full">
+              <p className="text-sm text-amber-800 italic leading-relaxed text-center">
+                &ldquo;Esto es incómodo, pero ahora mismo puedo observarlo sin pelear.&rdquo;
+              </p>
+            </div>
+
+            {/* Frase reguladora */}
+            {regulPhrase && (
+              <div className={`${cc.bg} ${cc.border} border-2 rounded-2xl px-5 py-4 w-full shadow-md`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">{regulPhrase.emoji}</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${cc.label}`}>
+                    {regulPhrase.label}
+                  </span>
+                </div>
+                <p className={`text-sm font-semibold leading-relaxed text-left ${cc.text}`}>
+                  &ldquo;{regulPhrase.text}&rdquo;
+                </p>
+                <p className="text-[10px] text-slate-400 mt-3 text-right italic">
+                  Repítela tres veces, respirando hondo 🌬️
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => router.push("/formaciones")}
+              className="w-full py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-200 active:scale-95 transition"
+            >
+              Volver a Ejercicios
+            </button>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 w-full">
-            <p className="text-sm text-amber-800 italic leading-relaxed text-center">
-              &ldquo;Esto es incómodo, pero ahora mismo puedo observarlo sin pelear.&rdquo;
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/formaciones")}
-            className="w-full py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-200 active:scale-95 transition"
-          >
-            Volver a Ejercicios
-          </button>
         </div>
       </div>
     );

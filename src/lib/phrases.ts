@@ -134,6 +134,58 @@ export const DEFAULT_PHRASES: string[] = [
   "El agua, el carbono, el hierro... somos química, pero tu espíritu es infinito.",
 ];
 
+// ── Frases reguladoras (Práctica 1) ─────────────────────────────────────────
+
+export type RegulatoryPhrase = {
+  category: "patitas" | "cabeza" | "corazon";
+  emoji: string;
+  label: string;
+  text: string;
+};
+
+export const REGULATORY_PHRASES: RegulatoryPhrase[] = [
+  /* 🐿️ Para frenar las patitas (Calma física) */
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Suelta la bellota, respira hondo... nadie te la va a quitar." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Baja la cola, relaja las orejitas. Estás a salvo aquí en la rama." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Inhala... exhala... el bosque no se va a congelar hoy." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Pies en la tierra, garritas flojas. Deja que el árbol te sostenga." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "No hay ningún depredador cerca. Es solo viento en las hojas." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Una respiración lenta por cada latido loco de mi corazoncito." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "El nido está calientito y seguro. No hay prisa por saltar." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Cierro los ojos un segundo. El mundo puede seguir girando sin mí." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Siento mi respiración... como el suave balanceo de mi rama favorita." },
+  { category: "patitas", emoji: "🐿️", label: "Para frenar las patitas", text: "Paso a paso, salto a salto. No tengo que cruzar todo el bosque ya mismo." },
+
+  /* 🧠 Para ordenar la cabeza (Enfoque y control) */
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "A ver, ardillita: una bellota a la vez. No puedes cargarlas todas juntas." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Este pensamiento es solo una hoja seca que se lleva el viento." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Mi mente está corriendo más rápido que mis patas. Es hora de sentarme." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "No tengo que resolver todo el invierno hoy. Solo importa este ratito." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Si se cae la rama, sé cómo planear. Confío en mis instintos." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "¿Esto es un peligro real o solo una sombra extraña en el arbusto?" },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Está bien no saber dónde escondí cada cosita. Ya aparecerán." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Un problema pequeño no es un incendio forestal. Vamos a enfriar la cabeza." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Paro el chip-chip-chip de mi mente. Silencio en la copa del árbol." },
+  { category: "cabeza", emoji: "🧠", label: "Para ordenar la cabeza", text: "Tengo el control de mis patitas y de mi respiración. Nada más importa." },
+
+  /* 🤎 Apapacho para el corazón (Autocompasión) */
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Está bien sentirse una ardilla asustada a veces. Es parte de ser chiquita." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "He sobrevivido a tormentas más grandes. Esta también pasará." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Soy una ardilla fuerte, lista y muy capaz." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "No pasa nada si hoy no recolecté suficiente. Mañana saldrá el sol." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Me permito descansar en mi madriguera sin sentir culpa." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Hice lo mejor que pude con las garras que tengo." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Mi valor no depende de cuántas bellotas junte en el día." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Abrazo mi colita esponjosa y me doy un momento de paz." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "El bosque es grande, pero yo tengo mi propio espacio seguro." },
+  { category: "corazon", emoji: "🤎", label: "Apapacho para el corazón", text: "Todo va a estar bien, pequeña ardilla. Respira." },
+];
+
+/** Devuelve una frase reguladora aleatoria. */
+export function getRandomRegulatoryPhrase(): RegulatoryPhrase {
+  return REGULATORY_PHRASES[Math.floor(Math.random() * REGULATORY_PHRASES.length)]!;
+}
+
 /** Devuelve una frase aleatoria del pool, incluyendo las frases personalizadas de localStorage. */
 export function getRandomPhrase(): string {
   let pool = [...DEFAULT_PHRASES];
