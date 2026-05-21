@@ -254,12 +254,16 @@ export default function P3() {
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5">Marca cada paso al completarlo</p>
           </div>
-          <Link
-            href="/formaciones"
-            className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold shadow-sm active:scale-95 transition"
+          <button
+            onClick={() => {
+              if (count > 0 && !confirm("¿Salir sin guardar? Perderás los pasos marcados.")) return;
+              router.push("/formaciones");
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold shadow-md active:scale-95 transition"
           >
+            <span className="text-base leading-none">✕</span>
             SALIR
-          </Link>
+          </button>
         </div>
       </div>
 

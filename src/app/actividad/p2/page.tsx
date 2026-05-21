@@ -226,12 +226,17 @@ export default function P2() {
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5">{STEP_HINTS[step]}</p>
           </div>
-          <Link
-            href="/formaciones"
-            className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold shadow-sm active:scale-95 transition"
+          <button
+            onClick={() => {
+              const hasProgress = !!signal || !!thought.trim() || !!emotion || !!body || !!impulse || !!need.trim();
+              if (hasProgress && !confirm("¿Salir sin guardar? Perderás lo que llevas hecho.")) return;
+              router.push("/formaciones");
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-bold shadow-md active:scale-95 transition"
           >
+            <span className="text-base leading-none">✕</span>
             SALIR
-          </Link>
+          </button>
         </div>
         <SnailProgress
           step={step}
