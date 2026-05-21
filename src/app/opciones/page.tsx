@@ -423,29 +423,35 @@ export default function Opciones() {
 
       <div className="flex flex-col gap-3">
 
-        {/* ══ 1. RECOMPENSAS ══════════════════════════════════════════════════ */}
-        <Section title="Recompensas por actividad" emoji="🏅" defaultOpen>
-          <p className="text-xs text-slate-400 -mt-1">
-            XP y bellotas 🌰 que se otorgan al completar cada actividad (una vez al día).
-          </p>
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl px-3 py-1">
-            {ACTIVITY_KEYS.map(k => (
-              <RewardRow key={k} actKey={k} cfg={rewardsCfg} onChange={handleRewardChange} />
-            ))}
+        {/* ══ 1. RECOMPENSAS (siempre abierta, destacada) ══════════════════════ */}
+        <div className="border-2 border-teal-300 rounded-2xl overflow-hidden bg-gradient-to-br from-teal-50 to-emerald-50 shadow-md">
+          <div className="px-4 py-3 bg-white/60 border-b border-teal-200 flex items-center gap-2">
+            <span className="text-xl">🏅</span>
+            <span className="text-sm font-bold text-teal-800">Recompensas por actividad</span>
           </div>
-          <div className="flex gap-2">
-            <button onClick={saveRewards}
-              className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${
-                rewardsSaved ? "bg-emerald-500" : "bg-teal-600 shadow-sm"
-              }`}>
-              {rewardsSaved ? "✓ Guardado" : "Guardar cambios"}
-            </button>
-            <button onClick={resetRewards}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium active:scale-95 transition-all">
-              Restablecer
-            </button>
+          <div className="px-4 py-3 flex flex-col gap-3">
+            <p className="text-xs text-slate-500">
+              XP y bellotas 🌰 que ganan los 6 tipos de actividad (una vez al día).
+            </p>
+            <div className="bg-white border border-slate-200 rounded-2xl px-3 py-1 shadow-sm">
+              {ACTIVITY_KEYS.map(k => (
+                <RewardRow key={k} actKey={k} cfg={rewardsCfg} onChange={handleRewardChange} />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveRewards}
+                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${
+                  rewardsSaved ? "bg-emerald-500" : "bg-teal-600 shadow-sm"
+                }`}>
+                {rewardsSaved ? "✓ Guardado" : "Guardar cambios"}
+              </button>
+              <button onClick={resetRewards}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium active:scale-95 transition-all">
+                Restablecer
+              </button>
+            </div>
           </div>
-        </Section>
+        </div>
 
         {/* ══ 2. TIENDA DE BELLOTAS ═══════════════════════════════════════════ */}
         <Section title="Tienda de Bellotas" emoji="🌰" badge={`${shopBell.length} artículos`}>

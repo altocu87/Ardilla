@@ -103,7 +103,10 @@ export default function Formaciones() {
           <p className="text-xs text-slate-400 font-semibold uppercase tracking-widest">Ejercicios</p>
           <h1 className="text-lg font-extrabold text-slate-800">Prácticas de regulación</h1>
         </div>
-        <span className="text-2xl">🐌</span>
+        <Link href="/historico/practicas"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-violet-100 text-violet-700 text-xs font-bold shadow-sm active:scale-95 transition-transform">
+          📋 Log
+        </Link>
       </header>
 
       {/* SUBTÍTULO */}

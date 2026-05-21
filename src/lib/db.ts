@@ -295,6 +295,12 @@ export async function getPracticeLogs(practice?: PracticeType): Promise<Practice
   }));
 }
 
+export async function deletePracticeLog(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("practice_logs").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /** Exporta todos los logs de todas las fuentes como objeto JSON descargable. */
 export async function exportAllLogs(): Promise<Record<string, unknown>> {
   const [diario, caca, emocional, practices] = await Promise.all([
