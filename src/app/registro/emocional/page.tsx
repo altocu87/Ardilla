@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getEmocionalLog, saveEmocionalEntry, updateEmocionalEntry } from "@/lib/db";
+import { awardXp } from "@/lib/profile";
 
 export const ESTADO_OPTS = [
   { emoji: "😌", label: "Calma" },
@@ -120,6 +121,7 @@ export default function RegistroEmocional() {
   const [phrase, setPhrase]             = useState("");
   const [mood, setMood]                 = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
+  const [xpGained, setXpGained]         = useState<{ xp: number; bellotas: number } | null>(null);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -163,6 +165,7 @@ export default function RegistroEmocional() {
         savedAt: now.toISOString(),
       });
       setSavedEntryId(id);
+      setXpGained(awardXp("emocional"));
     } catch (e) { console.error(e); }
   }
 
@@ -206,6 +209,13 @@ export default function RegistroEmocional() {
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-4 max-w-xs mx-auto">
           <div className="text-8xl" style={{ animation: "bounce 0.65s ease-in-out infinite" }}>🌸</div>
           <h2 className="text-2xl font-bold text-rose-600">¡Minuto completado!</h2>
+          {xpGained && (
+            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+              <span className="text-lg font-bold text-rose-500">+{xpGained.xp} XP</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-lg font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+            </div>
+          )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full">
             <p className="text-slate-700 text-sm font-medium leading-relaxed italic">&quot;{phrase}&quot;</p>
           </div>

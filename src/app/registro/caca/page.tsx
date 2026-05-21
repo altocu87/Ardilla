@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCacaLog, saveCacaEntry } from "@/lib/db";
+import { awardXp } from "@/lib/profile";
 
 /* ──────────────── datos ──────────────── */
 
@@ -76,6 +77,7 @@ export default function RegistroCaca() {
   const [bristol, setBristol] = useState<number | null>(null);
   const [sensacion, setSensacion] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [xpGained, setXpGained] = useState<{ xp: number; bellotas: number } | null>(null);
 
   useEffect(() => {
     async function check() {
@@ -103,6 +105,7 @@ export default function RegistroCaca() {
         sensacion,
         savedAt: now.toISOString(),
       });
+      setXpGained(awardXp("caca"));
     } catch (e) { console.error(e); }
   }
 
@@ -114,6 +117,13 @@ export default function RegistroCaca() {
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-5 max-w-xs mx-auto">
           <div className="text-8xl" style={{ animation: "bounce 0.65s ease-in-out infinite" }}>🐱</div>
           <h2 className="text-2xl font-bold text-amber-700">¡Registrado!</h2>
+          {xpGained && (
+            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+              <span className="text-lg font-bold text-amber-600">+{xpGained.xp} XP</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-lg font-bold text-amber-500">+{xpGained.bellotas} 🌰</span>
+            </div>
+          )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white w-full">
             <p className="text-slate-600 text-sm font-medium italic">
               &quot;¡Registrado en los anales de la historia! 💩&quot;
