@@ -142,7 +142,7 @@ export default function RegistroDiario() {
   const [phrase, setPhrase] = useState("");
   const [mood, setMood] = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
-  const [xpGained, setXpGained] = useState<{ xp: number; bellotas: number } | null>(null);
+  const [xpGained, setXpGained] = useState<import("@/lib/profile").AwardResult | null>(null);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -197,7 +197,7 @@ export default function RegistroDiario() {
         savedAt: now.toISOString(),
       });
       setSavedEntryId(id);
-      setXpGained(awardXp("diario"));
+      setXpGained(await awardXp("diario"));
     } catch (e) { console.error(e); }
   }
 
@@ -245,10 +245,21 @@ export default function RegistroDiario() {
           <div className="text-8xl" style={{ animation: "bounce 0.65s ease-in-out infinite" }}>🐿️</div>
           <h2 className="text-2xl font-bold text-teal-700">¡Registro guardado!</h2>
           {xpGained && (
-            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
-              <span className="text-lg font-bold text-teal-600">+{xpGained.xp} XP</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-lg font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+            <div className="flex flex-col items-center gap-2 w-full">
+              <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+                <span className="text-lg font-bold text-teal-600">+{xpGained.xp} XP</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-lg font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+              </div>
+              {xpGained.streakBonus && (
+                <div className="flex items-center gap-2 bg-amber-400 rounded-2xl px-4 py-2 shadow-md">
+                  <span className="text-xl">🔥</span>
+                  <div className="text-left">
+                    <p className="text-white text-xs font-extrabold leading-tight">{xpGained.streakBonus.label}</p>
+                    <p className="text-amber-100 text-[10px]">+{xpGained.streakBonus.bellotas} 🌰{xpGained.streakBonus.xp > 0 ? ` · +${xpGained.streakBonus.xp} XP` : ""}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full">

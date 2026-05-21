@@ -252,3 +252,41 @@ export async function deleteEmocionalEntry(id: string): Promise<void> {
   const { error } = await supabase.from("emocional_logs").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ─── PlayerProfile (player_profile) ─────────────────────────────────────────
+
+export type PlayerProfile = {
+  xp: number;
+  bellotas: number;
+  dailyAwards: Record<string, boolean>;
+  streakAwards: number[];
+};
+
+export async function getPlayerProfile(): Promise<PlayerProfile> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("player_profile")
+    .select("xp, bellotas, daily_awards, streak_awards")
+    .eq("user_key", "vicky")
+    .maybeSingle();
+  if (!data) return { xp: 0, bellotas: 0, dailyAwards: {}, streakAwards: [] };
+  return {
+    xp:           (data.xp as number)                              ?? 0,
+    bellotas:     (data.bellotas as number)                        ?? 0,
+    dailyAwards:  (data.daily_awards  as Record<string, boolean>)  ?? {},
+    streakAwards: (data.streak_awards as number[])                 ?? [],
+  };
+}
+
+export async function upsertPlayerProfile(patch: Partial<PlayerProfile>): Promise<void> {
+  const supabase = createClient();
+  const row: Record<string, unknown> = { user_key: "vicky" };
+  if ("xp"           in patch) row.xp            = patch.xp;
+  if ("bellotas"     in patch) row.bellotas       = patch.bellotas;
+  if ("dailyAwards"  in patch) row.daily_awards   = patch.dailyAwards;
+  if ("streakAwards" in patch) row.streak_awards  = patch.streakAwards;
+  const { error } = await supabase
+    .from("player_profile")
+    .upsert(row, { onConflict: "user_key" });
+  if (error) throw error;
+}

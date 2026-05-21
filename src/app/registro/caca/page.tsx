@@ -105,7 +105,7 @@ export default function RegistroCaca() {
         sensacion,
         savedAt: now.toISOString(),
       });
-      setXpGained(awardXp("caca"));
+      setXpGained(await awardXp("caca"));
     } catch (e) { console.error(e); }
   }
 
