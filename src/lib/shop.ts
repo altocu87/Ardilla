@@ -19,29 +19,16 @@ export type TituloItem = {
 };
 
 // ── defaults ────────────────────────────────────────────────────────────────
-const DEFAULT_BELLOTAS: ShopItem[] = [
-  { id: "b1", emoji: "🌸", name: "Pétalo de calma",      desc: "Una flor de calma para tu diario",          price: 20 },
-  { id: "b2", emoji: "🎨", name: "Paleta de colores",    desc: "Desbloquea más colores en los registros",    price: 40 },
-  { id: "b3", emoji: "🧸", name: "Peluche de apoyo",     desc: "Un recordatorio de que no estás sola",       price: 60 },
-  { id: "b4", emoji: "🌈", name: "Arco iris de premios", desc: "Fondo arcoíris en la pantalla principal",    price: 120 },
-];
-
-const DEFAULT_RATA: ShopItem[] = [
-  { id: "r1", emoji: "🐀", name: "La Rata Sabia",     desc: "La rata sabe lo que necesitas. Quizás.",  price: 30  },
-  { id: "r2", emoji: "🧀", name: "Queso de la suerte",desc: "Un queso especial para días difíciles",   price: 50  },
-  { id: "r3", emoji: "🔮", name: "Bola de cristal",   desc: "Predice tu próximo registro perfecto",    price: 80  },
-  { id: "r4", emoji: "🌙", name: "Noche de rata",     desc: "Tema oscuro misterioso para la app",      price: 150 },
-];
-
+// Vacíos: los artículos se gestionan desde Ajustes.
+const DEFAULT_BELLOTAS: ShopItem[]  = [];
+const DEFAULT_RATA:     ShopItem[]  = [];
 const DEFAULT_AVATARES: AvatarItem[] = [];
+const DEFAULT_TITULOS:  TituloItem[] = [];
 
-const DEFAULT_TITULOS: TituloItem[] = [
-  { id: "t1", text: "Ardilla Novata 🌱" },
-  { id: "t2", text: "Ardilla Valiente 💪" },
-  { id: "t3", text: "Maestra de la Calma 🌿" },
-  { id: "t4", text: "Exploradora del Cuerpo 🫀" },
-  { id: "t5", text: "Reina de las Bellotas 👑" },
-];
+// IDs hardcodeados de la versión anterior — se limpian automáticamente.
+const LEGACY_BELL_IDS   = ["b1","b2","b3","b4"];
+const LEGACY_RATA_IDS   = ["r1","r2","r3","r4"];
+const LEGACY_TITULO_IDS = ["t1","t2","t3","t4","t5"];
 
 // ── helpers localStorage ─────────────────────────────────────────────────────
 function load<T>(key: string, fallback: T[]): T[] {
@@ -55,6 +42,23 @@ function save<T>(key: string, data: T[]): void {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* noop */ }
 }
 
+/** Elimina los artículos predeterminados de la versión anterior del localStorage. */
+export function cleanupLegacyDefaults(): void {
+  try {
+    const bell = load<ShopItem>("shop_bellotas", []);
+    const filtBell = bell.filter(i => !LEGACY_BELL_IDS.includes(i.id));
+    if (filtBell.length !== bell.length) save("shop_bellotas", filtBell);
+
+    const rata = load<ShopItem>("shop_rata", []);
+    const filtRata = rata.filter(i => !LEGACY_RATA_IDS.includes(i.id));
+    if (filtRata.length !== rata.length) save("shop_rata", filtRata);
+
+    const tit = load<TituloItem>("shop_titulos", []);
+    const filtTit = tit.filter(i => !LEGACY_TITULO_IDS.includes(i.id));
+    if (filtTit.length !== tit.length) save("shop_titulos", filtTit);
+  } catch { /* noop */ }
+}
+
 // ── Bellotas shop ────────────────────────────────────────────────────────────
 export function getShopBellotas(): ShopItem[]        { return load("shop_bellotas", DEFAULT_BELLOTAS); }
 export function saveShopBellotas(items: ShopItem[])  { save("shop_bellotas", items); }
@@ -64,7 +68,7 @@ export function getShopRata(): ShopItem[]            { return load("shop_rata", 
 export function saveShopRata(items: ShopItem[])      { save("shop_rata", items); }
 
 // ── Avatares ─────────────────────────────────────────────────────────────────
-export function getShopAvatares(): AvatarItem[]      { return load("shop_avatares", DEFAULT_AVATARES); }
+export function getShopAvatares(): AvatarItem[]       { return load("shop_avatares", DEFAULT_AVATARES); }
 export function saveShopAvatares(items: AvatarItem[]) { save("shop_avatares", items); }
 
 // ── Títulos ──────────────────────────────────────────────────────────────────

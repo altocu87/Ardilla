@@ -253,7 +253,8 @@ export async function deleteEmocionalEntry(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// ─── PlayerProfile (player_profile) ─────────────────────────────────────────
+// ─── PlayerProfile (localStorage) ────────────────────────────────────────────
+// Guardado en localStorage para evitar dependencias de esquema en Supabase.
 
 export type PlayerProfile = {
   xp: number;
@@ -262,31 +263,25 @@ export type PlayerProfile = {
   streakAwards: number[];
 };
 
+const PROFILE_LS_KEY = "player_profile_v1";
+
 export async function getPlayerProfile(): Promise<PlayerProfile> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("player_profile")
-    .select("xp, bellotas, daily_awards, streak_awards")
-    .eq("user_key", "vicky")
-    .maybeSingle();
-  if (!data) return { xp: 0, bellotas: 0, dailyAwards: {}, streakAwards: [] };
-  return {
-    xp:           (data.xp as number)                              ?? 0,
-    bellotas:     (data.bellotas as number)                        ?? 0,
-    dailyAwards:  (data.daily_awards  as Record<string, boolean>)  ?? {},
-    streakAwards: (data.streak_awards as number[])                 ?? [],
-  };
+  try {
+    const stored = localStorage.getItem(PROFILE_LS_KEY);
+    if (stored) return JSON.parse(stored) as PlayerProfile;
+  } catch { /* noop */ }
+  return { xp: 0, bellotas: 0, dailyAwards: {}, streakAwards: [] };
 }
 
 export async function upsertPlayerProfile(patch: Partial<PlayerProfile>): Promise<void> {
-  const supabase = createClient();
-  const row: Record<string, unknown> = { user_key: "vicky" };
-  if ("xp"           in patch) row.xp            = patch.xp;
-  if ("bellotas"     in patch) row.bellotas       = patch.bellotas;
-  if ("dailyAwards"  in patch) row.daily_awards   = patch.dailyAwards;
-  if ("streakAwards" in patch) row.streak_awards  = patch.streakAwards;
-  const { error } = await supabase
-    .from("player_profile")
-    .upsert(row, { onConflict: "user_key" });
-  if (error) throw error;
+  try {
+    const current = await getPlayerProfile();
+    const updated: PlayerProfile = {
+      xp:           "xp"           in patch ? (patch.xp           ?? current.xp)           : current.xp,
+      bellotas:     "bellotas"     in patch ? (patch.bellotas     ?? current.bellotas)     : current.bellotas,
+      dailyAwards:  "dailyAwards"  in patch ? (patch.dailyAwards  ?? current.dailyAwards)  : current.dailyAwards,
+      streakAwards: "streakAwards" in patch ? (patch.streakAwards ?? current.streakAwards) : current.streakAwards,
+    };
+    localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(updated));
+  } catch { /* noop */ }
 }
