@@ -116,7 +116,7 @@ export default function RegistroCaca() {
           <h2 className="text-2xl font-bold text-amber-700">¡Registrado!</h2>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white w-full">
             <p className="text-slate-600 text-sm font-medium italic">
-              "¡Registrado en los anales de la historia! 💩"
+              &quot;¡Registrado en los anales de la historia! 💩&quot;
             </p>
           </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-2">

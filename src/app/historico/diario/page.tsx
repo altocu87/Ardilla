@@ -26,16 +26,6 @@ function arr(v: unknown): string[] {
   return [];
 }
 
-function exportText(e: Entry): string {
-  return [
-    `Situación:\t${e.situation}`,
-    `Señal:\t${arr(e.signal).join(", ")}`,
-    `Alarma:\t${arr(e.alarm).join(", ")}`,
-    `Habitual:\t${arr(e.habitual).join(", ")}`,
-    `Nuevo:\t${arr(e.newResponse).join(", ")}`,
-    `Después:\t${arr(e.after).join(", ")}`,
-  ].join("\n");
-}
 
 function calcStreak(log: Log): number {
   const today = new Date();

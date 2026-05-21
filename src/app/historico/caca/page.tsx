@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { getCacaLog, saveCacaEntry, updateCacaEntry, deleteCacaEntry, CacaEntry, CacaLog } from "@/lib/db";
+import { getCacaLog, updateCacaEntry, deleteCacaEntry, CacaEntry, CacaLog } from "@/lib/db";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";

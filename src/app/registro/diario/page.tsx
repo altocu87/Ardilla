@@ -85,16 +85,6 @@ const STEPS: Step[] = [
   { key: "after",     label: "¿Hubo algún cambio?", type: "buttons", options: AFTER, color: "border-slate-200 text-slate-600", activeColor: "bg-sky-100 border-sky-400 text-sky-800 font-semibold" },
 ];
 
-function exportText(d: FormData): string {
-  return [
-    `Situación:\t${d.situation}`,
-    `Señal:\t${d.signal.join(", ")}`,
-    `Alarma:\t${d.alarm.join(", ")}`,
-    `Habitual:\t${d.habitual.join(", ")}`,
-    `Nuevo:\t${d.newResponse.join(", ")}`,
-    `Después:\t${d.after.join(", ")}`,
-  ].join("\n");
-}
 
 function Dots({ step }: { step: number }) {
   return (
@@ -150,12 +140,10 @@ export default function RegistroDiario() {
   const [done, setDone] = useState(false);
   const [phrase, setPhrase] = useState("");
   const [mood, setMood] = useState("");
-  const [todayKey, setTodayKey] = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    setTodayKey(today);
     async function check() {
       try {
         const log = await getPregLog();
@@ -254,7 +242,7 @@ export default function RegistroDiario() {
           <div className="text-8xl" style={{ animation: "bounce 0.65s ease-in-out infinite" }}>🐿️</div>
           <h2 className="text-2xl font-bold text-teal-700">¡Registro guardado!</h2>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full">
-            <p className="text-slate-700 text-sm font-medium leading-relaxed italic">"{phrase}"</p>
+            <p className="text-slate-700 text-sm font-medium leading-relaxed italic">&quot;{phrase}&quot;</p>
           </div>
 
           {/* Selector de estado de ánimo */}
