@@ -18,7 +18,9 @@ export default function Navbar() {
     pathname === "/informacion" ||
     pathname === "/registro" ||
     pathname === "/registro/diario" ||
-    pathname === "/historico/diario"
+    pathname === "/registro/caca" ||
+    pathname === "/historico/diario" ||
+    pathname === "/historico/caca"
   ) return null;
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg">

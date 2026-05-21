@@ -5,6 +5,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { SIGNALS, ALARMS, REGULAT, AFTER } from "@/lib/constants";
+import { getPregLog, getCacaLog, PregEntry, PregLog, updatePregEntry, deletePregEntry } from "@/lib/db";
+import type { CacaLog } from "@/lib/db";
 
 const HABITUAL = [
   "Vigilar y comprobar",
@@ -15,19 +17,8 @@ const HABITUAL = [
   "Aislarme",
 ];
 
-type Entry = {
-  situation: string;
-  signal: string[];
-  alarm: string[];
-  habitual: string[];
-  newResponse: string[];
-  after: string[];
-  mood?: string;
-  savedAt: string;
-  export?: string;
-};
-
-type Log = Record<string, Entry>;
+type Entry = PregEntry;
+type Log = PregLog;
 
 function arr(v: unknown): string[] {
   if (Array.isArray(v)) return v as string[];
@@ -124,12 +115,22 @@ function MultiButtons({
 
 export default function HistoricoDiario() {
   const [log, setLog] = useState<Log>({});
+  const [cacaLog, setCacaLog] = useState<CacaLog>({});
   const [editing, setEditing] = useState<{ date: string; entry: Entry } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
 
   useEffect(() => {
-    setLog(JSON.parse(localStorage.getItem("preg_log") || "{}"));
+    async function load() {
+      try {
+        const [pregLog, cLog] = await Promise.all([getPregLog(), getCacaLog()]);
+        setLog(pregLog);
+        setCacaLog(cLog);
+      } catch (e) { console.error(e); }
+    }
+    load();
   }, []);
 
   const entries = useMemo(
@@ -155,32 +156,62 @@ export default function HistoricoDiario() {
     });
   }, [log]);
 
-  const heatmap = useMemo(() => {
-    const today = new Date();
-    const todayKey = today.toISOString().slice(0, 10);
-    return Array.from({ length: 28 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() - 27 + i);
-      const key = d.toISOString().slice(0, 10);
-      return { key, has: !!log[key], isToday: key === todayKey };
-    });
-  }, [log]);
+  const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-  function deleteEntry(date: string) {
-    const updated = { ...log };
-    delete updated[date];
-    localStorage.setItem("preg_log", JSON.stringify(updated));
-    setLog(updated);
-    setConfirmDelete(null);
+  const calendarCells = useMemo(() => {
+    const firstDay = new Date(calYear, calMonth, 1);
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstDow = (firstDay.getDay() + 6) % 7;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const cells: (null | { key: string; day: number; isFuture: boolean })[] = Array(firstDow).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      cells.push({ key, day: d, isFuture: key > todayKey });
+    }
+    return cells;
+  }, [calYear, calMonth]);
+
+  const isCurrentMonth = calYear === new Date().getFullYear() && calMonth === new Date().getMonth();
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+    else setCalMonth(m => m - 1);
   }
 
-  function saveEdit() {
+  function nextMonth() {
+    if (isCurrentMonth) return;
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+    else setCalMonth(m => m + 1);
+  }
+
+  async function deleteEntry(date: string) {
+    const entry = log[date];
+    if (!entry?.id) return;
+    try {
+      await deletePregEntry(entry.id);
+      const updated = { ...log };
+      delete updated[date];
+      setLog(updated);
+      setConfirmDelete(null);
+    } catch (e) { console.error(e); }
+  }
+
+  async function saveEdit() {
     if (!editing) return;
     const { date, entry } = editing;
-    const updated = { ...log, [date]: { ...entry, export: exportText(entry) } };
-    localStorage.setItem("preg_log", JSON.stringify(updated));
-    setLog(updated);
-    setEditing(null);
+    try {
+      await updatePregEntry(entry.id, {
+        situation: entry.situation,
+        signal: arr(entry.signal),
+        alarm: arr(entry.alarm),
+        habitual: arr(entry.habitual),
+        newResponse: arr(entry.newResponse),
+        after: arr(entry.after),
+        mood: entry.mood,
+      });
+      setLog({ ...log, [date]: entry });
+      setEditing(null);
+    } catch (e) { console.error(e); }
   }
 
   function setEditArr(key: keyof Entry, val: string[]) {
@@ -191,8 +222,9 @@ export default function HistoricoDiario() {
   if (entries.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-sky-100 via-teal-50 to-emerald-100 flex flex-col">
-        <header className="flex items-center gap-3 px-5 pt-8 pb-4 max-w-lg mx-auto w-full">
+        <header className="flex items-center gap-2 px-5 pt-8 pb-4 max-w-lg mx-auto w-full">
           <Link href="/registro" className="w-9 h-9 flex items-center justify-center rounded-full bg-white/70 text-slate-600 text-lg shadow-sm">←</Link>
+          <Link href="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-white/70 text-slate-600 text-lg shadow-sm">🏠</Link>
           <h1 className="text-xl font-bold text-slate-800">Log Diario</h1>
         </header>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-4">
@@ -213,8 +245,9 @@ export default function HistoricoDiario() {
         {/* Header */}
         <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-white/60 shadow-sm">
           <div className="flex items-center justify-between px-5 pt-5 pb-3 max-w-lg mx-auto">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link href="/registro" className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 text-lg">←</Link>
+              <Link href="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 text-lg">🏠</Link>
               <div>
                 <h1 className="text-lg font-bold text-slate-800 leading-tight">Log Diario</h1>
                 <p className="text-xs text-slate-400">{entries.length} registros</p>
@@ -270,24 +303,38 @@ export default function HistoricoDiario() {
             </div>
           )}
 
-          {/* Heatmap 4 semanas */}
+          {/* Calendario mensual */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <p className="text-xs font-semibold text-slate-500 mb-3">Últimas 4 semanas</p>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 text-sm active:scale-95 transition">←</button>
+              <p className="text-sm font-semibold text-slate-700">{MONTH_NAMES[calMonth]} {calYear}</p>
+              <button onClick={nextMonth} disabled={isCurrentMonth}
+                className={`w-7 h-7 flex items-center justify-center rounded-full text-sm active:scale-95 transition ${isCurrentMonth ? "bg-slate-50 text-slate-300 cursor-default" : "bg-slate-100 text-slate-600"}`}>→</button>
+            </div>
+            <div className="grid grid-cols-7 gap-1">
               {["L", "M", "X", "J", "V", "S", "D"].map((l) => (
-                <p key={l} className="text-center text-[9px] text-slate-300 font-semibold">{l}</p>
+                <p key={l} className="text-center text-[9px] text-slate-300 font-semibold pb-1">{l}</p>
               ))}
-              {heatmap.map((d, i) => {
-                const moodEmoji = d.has ? (log[d.key]?.mood ?? "") : "";
+              {calendarCells.map((cell, i) => {
+                if (!cell) return <div key={`pad-${i}`} />;
+                const hasEntry = !!log[cell.key];
+                const moodEmoji = hasEntry ? (log[cell.key]?.mood ?? "") : "";
+                const hasCaca = (cacaLog[cell.key]?.length ?? 0) > 0;
+                const isToday = cell.key === new Date().toISOString().slice(0, 10);
                 return (
-                  <div key={i} title={d.key}
-                    className={`aspect-square rounded-md transition-all flex items-center justify-center text-[11px] leading-none ${
-                      d.has ? "bg-teal-500 shadow-sm shadow-teal-200"
-                      : d.isToday ? "border-2 border-teal-300 bg-teal-50"
+                  <div key={cell.key} title={cell.key}
+                    className={`aspect-square rounded-md relative flex items-center justify-center leading-none ${
+                      hasEntry ? "bg-teal-500 shadow-sm shadow-teal-200 text-[26px]"
+                      : isToday ? "border-2 border-teal-300 bg-teal-50"
+                      : cell.isFuture ? "bg-white"
                       : "bg-slate-100"
                     }`}
                   >
-                    {moodEmoji || ""}
+                    <span className={`absolute top-0.5 left-1 text-[7px] font-bold leading-none ${hasEntry ? "text-white/70" : cell.isFuture ? "text-slate-200" : "text-slate-400"}`}>{cell.day}</span>
+                    {moodEmoji}
+                    {hasCaca && !cell.isFuture && (
+                      <span className="absolute bottom-0.5 right-0.5 text-[13px] leading-none drop-shadow-sm">💩</span>
+                    )}
                   </div>
                 );
               })}

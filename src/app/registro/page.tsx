@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getPregLog, getCacaLog } from "@/lib/db";
 
 function SquirrelIcon() {
   return (
@@ -165,24 +166,33 @@ export default function Registro() {
   const [weekDots, setWeekDots] = useState<{ label: string; hasEntry: boolean; isToday: boolean }[]>([]);
 
   useEffect(() => {
-    const pregLog = JSON.parse(localStorage.getItem("preg_log") || "{}");
-    const pregDates = Object.keys(pregLog).sort().reverse();
-    if (pregDates.length > 0) setLastDiario(pregLog[pregDates[0]]?.savedAt ?? null);
-    setStreak(calcStreak(pregLog));
-    setWeekDots(getWeekDots(pregLog));
-
-    const cacaLog = JSON.parse(localStorage.getItem("caca_log") || "{}");
-    const cacaDates = Object.keys(cacaLog).sort().reverse();
-    if (cacaDates.length > 0) setLastCaca(cacaLog[cacaDates[0]]?.savedAt ?? null);
+    async function load() {
+      try {
+        const [pregLog, cacaLog] = await Promise.all([getPregLog(), getCacaLog()]);
+        const pregDates = Object.keys(pregLog).sort().reverse();
+        if (pregDates.length > 0) setLastDiario(pregLog[pregDates[0]]?.savedAt ?? null);
+        setStreak(calcStreak(pregLog));
+        setWeekDots(getWeekDots(pregLog));
+        const allCaca = Object.values(cacaLog).flat().sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+        if (allCaca.length > 0) setLastCaca(allCaca[0].savedAt);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    load();
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-100 via-teal-50 to-emerald-100 flex flex-col pb-20">
       <div className="max-w-lg mx-auto w-full px-5 pt-10 flex flex-col gap-5">
 
-        <div className="text-center mb-1">
-          <h1 className="text-3xl font-bold text-slate-700 tracking-tight">Registro</h1>
-          <p className="text-slate-400 text-sm mt-1">¿Qué quieres registrar hoy?</p>
+        <div className="flex items-center justify-between mb-1">
+          <Link href="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-white/70 text-slate-600 text-lg shadow-sm">🏠</Link>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-slate-700 tracking-tight">Registro</h1>
+            <p className="text-slate-400 text-sm mt-1">¿Qué quieres registrar hoy?</p>
+          </div>
+          <div className="w-9" />
         </div>
 
         {/* Racha + mini-semana con bellotas */}
@@ -227,7 +237,7 @@ export default function Registro() {
             href="/historico/diario"
             className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-3xl bg-teal-100 text-teal-700 shadow-md active:scale-95 transition-transform min-w-[72px]"
           >
-            <span className="text-3xl">📋</span>
+            <span className="text-5xl">📋</span>
             <span className="text-xs font-bold text-center">Log</span>
           </Link>
         </div>
@@ -252,7 +262,7 @@ export default function Registro() {
             href="/historico/caca"
             className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-3xl bg-amber-100 text-amber-700 shadow-md active:scale-95 transition-transform min-w-[72px]"
           >
-            <span className="text-3xl">📋</span>
+            <span className="text-5xl">📋</span>
             <span className="text-xs font-bold text-center">Log</span>
           </Link>
         </div>

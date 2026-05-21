@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SIGNALS, ALARMS, REGULAT, AFTER } from "@/lib/constants";
+import { getPregLog, savePregEntry, updatePregEntry } from "@/lib/db";
 
 const DEFAULT_PHRASES = [
   "Cada vez que observas, le quitas poder al síntoma 🌱",
@@ -150,12 +151,18 @@ export default function RegistroDiario() {
   const [phrase, setPhrase] = useState("");
   const [mood, setMood] = useState("");
   const [todayKey, setTodayKey] = useState("");
+  const [savedEntryId, setSavedEntryId] = useState("");
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     setTodayKey(today);
-    const log = JSON.parse(localStorage.getItem("preg_log") || "{}");
-    if (log[today]) setAlreadyDone(true);
+    async function check() {
+      try {
+        const log = await getPregLog();
+        if (log[today]) setAlreadyDone(true);
+      } catch (e) { console.error(e); }
+    }
+    check();
   }, []);
 
   const current = STEPS[step];
@@ -184,22 +191,31 @@ export default function RegistroDiario() {
     if (step > 0) setStep((s) => s - 1);
   }
 
-  function save() {
+  async function save() {
     const now = new Date();
-    const date = now.toISOString().slice(0, 10);
-    const existing = JSON.parse(localStorage.getItem("preg_log") || "{}");
-    existing[date] = { ...data, mood: "", savedAt: now.toISOString(), export: exportText(data) };
-    localStorage.setItem("preg_log", JSON.stringify(existing));
     setPhrase(getRandomPhrase());
     setDone(true);
+    try {
+      const id = await savePregEntry({
+        situation: data.situation,
+        signal: data.signal,
+        alarm: data.alarm,
+        habitual: data.habitual,
+        newResponse: data.newResponse,
+        after: data.after,
+        mood: "",
+        savedAt: now.toISOString(),
+      });
+      setSavedEntryId(id);
+    } catch (e) { console.error(e); }
   }
 
-  function saveMood(selectedMood: string) {
+  async function saveMood(selectedMood: string) {
     setMood(selectedMood);
-    const existing = JSON.parse(localStorage.getItem("preg_log") || "{}");
-    if (existing[todayKey]) {
-      existing[todayKey].mood = selectedMood;
-      localStorage.setItem("preg_log", JSON.stringify(existing));
+    if (savedEntryId) {
+      try {
+        await updatePregEntry(savedEntryId, { mood: selectedMood });
+      } catch (e) { console.error(e); }
     }
   }
 
@@ -247,8 +263,8 @@ export default function RegistroDiario() {
             <div className="flex justify-around gap-1">
               {MOODS.map((m) => (
                 <button key={m.emoji} onClick={() => saveMood(m.emoji)}
-                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all active:scale-90 ${
-                    mood === m.emoji ? "bg-teal-100 scale-110 shadow-md" : "hover:bg-slate-50"
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all active:scale-95 ${
+                    mood === m.emoji ? "bg-teal-100 ring-2 ring-teal-400 shadow-sm" : "hover:bg-slate-50"
                   }`}
                 >
                   <span className="text-3xl">{m.emoji}</span>
