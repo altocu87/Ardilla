@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { SIGNALS, EMOTIONS, BODY_R, IMPULSES } from "@/lib/constants";
 import { savePracticeLog } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
