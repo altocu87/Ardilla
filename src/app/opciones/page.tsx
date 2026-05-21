@@ -11,6 +11,7 @@ import {
   ShopItem, AvatarItem, TituloItem,
 } from "@/lib/shop";
 import { getPlayerProfile, upsertPlayerProfile, exportAllLogs } from "@/lib/db";
+import { pushToCloud, pullFromCloud, pushAllToCloud } from "@/lib/cloudsync";
 import {
   getRewardsConfig, saveRewardsConfig,
   ACTIVITY_KEYS, ACTIVITY_LABELS, DEFAULT_REWARDS,
@@ -314,6 +315,7 @@ export default function Opciones() {
   function saveCustomPhrases(phrases: string[]) {
     setCustomPhrases(phrases);
     localStorage.setItem("custom_phrases", JSON.stringify(phrases));
+    pushToCloud("custom_phrases", phrases);
   }
   function addPhrase() { const t = newPhrase.trim(); if (!t) return; saveCustomPhrases([...customPhrases, t]); setNewPhrase(""); }
   function removePhrase(i: number) { saveCustomPhrases(customPhrases.filter((_, j) => j !== i)); }
@@ -325,10 +327,14 @@ export default function Opciones() {
     reader.onload = (ev) => {
       const b64 = ev.target?.result as string;
       localStorage.setItem("snail_image", b64); setSnailImage(b64);
+      pushToCloud("snail_image", b64);
     };
     reader.readAsDataURL(file);
   }
-  function removeSnailImage() { localStorage.removeItem("snail_image"); setSnailImage(null); }
+  function removeSnailImage() {
+    localStorage.removeItem("snail_image"); setSnailImage(null);
+    pushToCloud("snail_image", "");
+  }
 
   /* ── Bellotas ────────────────────────────────────────────────────────────── */
   function addBell(item: Omit<ShopItem,"id">) {
@@ -404,6 +410,19 @@ export default function Opciones() {
       showAdminMsg("✓ Premios diarios reiniciados");
     } catch { showAdminMsg("Error al reiniciar"); }
   }
+  async function pullCloud() {
+    try {
+      await pullFromCloud();
+      showAdminMsg("✓ Datos descargados de la nube. Recarga la página.");
+    } catch { showAdminMsg("Error al descargar"); }
+  }
+  async function pushCloud() {
+    try {
+      await pushAllToCloud();
+      showAdminMsg("✓ Datos subidos a la nube");
+    } catch { showAdminMsg("Error al subir"); }
+  }
+
   async function resetAllProgress() {
     try {
       await upsertPlayerProfile({ xp: 0, bellotas: 0, dailyAwards: {}, streakAwards: [] });
@@ -612,7 +631,28 @@ export default function Opciones() {
 
         {/* ══ 9. ADMINISTRACIÓN ═══════════════════════════════════════════════ */}
         <Section title="Administración" emoji="🔧">
-          <p className="text-xs text-slate-400 -mt-1">Opciones para reiniciar datos del sistema de recompensas.</p>
+          <p className="text-xs text-slate-400 -mt-1">Sincronización con Supabase y reinicio de datos.</p>
+
+          {/* Sincronización */}
+          <div className="bg-sky-50 border border-sky-200 rounded-xl px-4 py-3 flex flex-col gap-2">
+            <div>
+              <p className="text-sm font-semibold text-sky-800">☁️ Sincronización con la nube</p>
+              <p className="text-xs text-sky-600 mt-0.5 leading-snug">
+                Los cambios se suben automáticamente. Usa estos botones para forzar la sincronización entre dispositivos.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={pullCloud}
+                className="flex-1 px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold active:scale-95 shadow-sm">
+                ⬇️ Bajar de la nube
+              </button>
+              <button onClick={pushCloud}
+                className="flex-1 px-3 py-2 rounded-xl bg-sky-500 text-white text-xs font-bold active:scale-95 shadow-sm">
+                ⬆️ Subir a la nube
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-4 py-3">
               <div>

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { getPlayerProfile } from "@/lib/db";
+import { pullFromCloud } from "@/lib/cloudsync";
 import { getLevelInfo } from "@/lib/profile";
 import {
   getShopBellotas, getShopTitulos,
@@ -242,8 +243,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    loadProfile();
-    loadEquipped();
+    // 1) Pull desde Supabase ANTES de cargar el perfil local → fuente de verdad
+    pullFromCloud().finally(() => { loadProfile(); loadEquipped(); });
 
     // Refresca XP/bellotas al volver a la página (después de una práctica o registro)
     const refresh = () => { loadProfile(); loadEquipped(); };

@@ -1,3 +1,5 @@
+import { pushToCloud } from "./cloudsync";
+
 // ── tipos ──────────────────────────────────────────────────────────────────
 export type ShopItem = {
   id: string;
@@ -40,6 +42,7 @@ function load<T>(key: string, fallback: T[]): T[] {
 
 function save<T>(key: string, data: T[]): void {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* noop */ }
+  pushToCloud(key, data);
 }
 
 /** Elimina los artículos predeterminados de la versión anterior del localStorage. */
@@ -87,6 +90,7 @@ export function setEquippedAvatar(id: string | null) {
     if (id) localStorage.setItem("active_avatar", id);
     else localStorage.removeItem("active_avatar");
   } catch { /* noop */ }
+  pushToCloud("active_avatar", id ?? "");
 }
 
 export function getEquippedTitulo(): string | null   {
@@ -97,4 +101,5 @@ export function setEquippedTitulo(id: string | null) {
     if (id) localStorage.setItem("active_titulo", id);
     else localStorage.removeItem("active_titulo");
   } catch { /* noop */ }
+  pushToCloud("active_titulo", id ?? "");
 }

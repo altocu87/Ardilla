@@ -1,4 +1,5 @@
 import { createClient } from "./supabase";
+import { pushToCloud } from "./cloudsync";
 
 // ─── Preg (activity_logs) ────────────────────────────────────────────────────
 
@@ -342,5 +343,6 @@ export async function upsertPlayerProfile(patch: Partial<PlayerProfile>): Promis
       streakAwards: "streakAwards" in patch ? (patch.streakAwards ?? current.streakAwards) : current.streakAwards,
     };
     localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(updated));
+    pushToCloud(PROFILE_LS_KEY, updated);
   } catch { /* noop */ }
 }

@@ -1,4 +1,6 @@
-// Configuración de recompensas por actividad — guardada en localStorage.
+// Configuración de recompensas por actividad — guardada en localStorage y Supabase.
+import { pushToCloud } from "./cloudsync";
+
 
 export type ActivityKey = "diario" | "caca" | "emocional" | "p1" | "p2" | "p3";
 
@@ -42,4 +44,5 @@ export function getRewardsConfig(): RewardsConfig {
 
 export function saveRewardsConfig(cfg: RewardsConfig): void {
   try { localStorage.setItem(LS_KEY, JSON.stringify(cfg)); } catch { /* noop */ }
+  pushToCloud(LS_KEY, cfg);
 }
