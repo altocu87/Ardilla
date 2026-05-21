@@ -168,3 +168,87 @@ export async function deleteCacaEntry(id: string): Promise<void> {
   const { error } = await supabase.from("caca_logs").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ─── Emocional (emocional_logs) ──────────────────────────────────────────────
+
+export type EmocionalEntry = {
+  id: string;
+  estado: string;
+  estadoEmoji: string;
+  donde: string[];
+  intensidad: number;
+  necesidad: string[];
+  mood?: string;
+  savedAt: string;
+};
+
+export type EmocionalLog = Record<string, EmocionalEntry>;
+
+function rowToEmocional(row: Record<string, unknown>): [string, EmocionalEntry] {
+  const savedAt = row.logged_at as string;
+  const date = new Date(savedAt).toISOString().slice(0, 10);
+  return [date, {
+    id: row.id as string,
+    estado: (row.estado as string) || "",
+    estadoEmoji: (row.estado_emoji as string) || "",
+    donde: (row.donde as string[]) || [],
+    intensidad: (row.intensidad as number) ?? 0,
+    necesidad: (row.necesidad as string[]) || [],
+    mood: (row.mood as string) || undefined,
+    savedAt,
+  }];
+}
+
+export async function getEmocionalLog(): Promise<EmocionalLog> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("emocional_logs")
+    .select("id, estado, estado_emoji, donde, intensidad, necesidad, mood, logged_at")
+    .order("logged_at", { ascending: false });
+  if (error) throw error;
+  const log: EmocionalLog = {};
+  for (const row of data ?? []) {
+    const [date, entry] = rowToEmocional(row as Record<string, unknown>);
+    if (!log[date]) log[date] = entry;
+  }
+  return log;
+}
+
+export async function saveEmocionalEntry(entry: Omit<EmocionalEntry, "id">): Promise<string> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("emocional_logs")
+    .insert({
+      user_id: null,
+      estado: entry.estado,
+      estado_emoji: entry.estadoEmoji,
+      donde: entry.donde,
+      intensidad: entry.intensidad,
+      necesidad: entry.necesidad,
+      mood: entry.mood || null,
+      logged_at: entry.savedAt,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return (data as { id: string }).id;
+}
+
+export async function updateEmocionalEntry(id: string, patch: Partial<Omit<EmocionalEntry, "id" | "savedAt">>): Promise<void> {
+  const supabase = createClient();
+  const update: Record<string, unknown> = {};
+  if ("estado"      in patch) update.estado       = patch.estado;
+  if ("estadoEmoji" in patch) update.estado_emoji = patch.estadoEmoji;
+  if ("donde"       in patch) update.donde        = patch.donde;
+  if ("intensidad"  in patch) update.intensidad   = patch.intensidad;
+  if ("necesidad"   in patch) update.necesidad    = patch.necesidad;
+  if ("mood"        in patch) update.mood         = patch.mood || null;
+  const { error } = await supabase.from("emocional_logs").update(update).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEmocionalEntry(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("emocional_logs").delete().eq("id", id);
+  if (error) throw error;
+}

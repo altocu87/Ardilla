@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getPregLog, getCacaLog } from "@/lib/db";
+import { getPregLog, getCacaLog, getEmocionalLog } from "@/lib/db";
 
 function SquirrelIcon() {
   return (
@@ -29,6 +29,30 @@ function SquirrelIcon() {
       <line x1="58" y1="101" x2="58" y2="96" stroke="#4a2508" strokeWidth="2.5" strokeLinecap="round" />
       <ellipse cx="58" cy="116" rx="11" ry="12" fill="#a0622a" />
       <ellipse cx="58" cy="116" rx="8" ry="9" fill="#b87835" />
+    </svg>
+  );
+}
+
+function HeartWavesIcon() {
+  return (
+    <svg viewBox="0 0 120 120" width="110" height="110" xmlns="http://www.w3.org/2000/svg">
+      {/* Ondas exteriores */}
+      <ellipse cx="60" cy="62" rx="44" ry="40" fill="none" stroke="#fecdd3" strokeWidth="3" opacity="0.5"/>
+      <ellipse cx="60" cy="62" rx="34" ry="31" fill="none" stroke="#fda4af" strokeWidth="3" opacity="0.6"/>
+      <ellipse cx="60" cy="62" rx="24" ry="22" fill="none" stroke="#fb7185" strokeWidth="2.5" opacity="0.7"/>
+      {/* Corazón */}
+      <path d="M60 85 C60 85 28 66 28 46 C28 36 36 28 46 28 C52 28 58 32 60 36 C62 32 68 28 74 28 C84 28 92 36 92 46 C92 66 60 85 60 85Z"
+        fill="#fb7185"/>
+      <path d="M60 80 C60 80 34 64 34 47 C34 39 40 33 48 33 C53 33 58 37 60 40 C62 37 67 33 72 33 C80 33 86 39 86 47 C86 64 60 80 60 80Z"
+        fill="#fda4af"/>
+      {/* Brillo */}
+      <ellipse cx="47" cy="43" rx="6" ry="4" fill="white" fillOpacity="0.35" transform="rotate(-20 47 43)"/>
+      {/* Puntos corporales */}
+      <circle cx="42" cy="70" r="3" fill="#fda4af" opacity="0.7"/>
+      <circle cx="60" cy="98" r="3" fill="#fda4af" opacity="0.7"/>
+      <circle cx="78" cy="70" r="3" fill="#fda4af" opacity="0.7"/>
+      <circle cx="30" cy="60" r="2.5" fill="#fecdd3" opacity="0.8"/>
+      <circle cx="90" cy="60" r="2.5" fill="#fecdd3" opacity="0.8"/>
     </svg>
   );
 }
@@ -160,21 +184,24 @@ function getWeekDots(log: Record<string, unknown>) {
 }
 
 export default function Registro() {
-  const [lastDiario, setLastDiario] = useState<string | null>(null);
-  const [lastCaca, setLastCaca] = useState<string | null>(null);
-  const [streak, setStreak] = useState(0);
-  const [weekDots, setWeekDots] = useState<{ label: string; hasEntry: boolean; isToday: boolean }[]>([]);
+  const [lastDiario,    setLastDiario]    = useState<string | null>(null);
+  const [lastCaca,      setLastCaca]      = useState<string | null>(null);
+  const [lastEmocional, setLastEmocional] = useState<string | null>(null);
+  const [streak,    setStreak]    = useState(0);
+  const [weekDots,  setWeekDots]  = useState<{ label: string; hasEntry: boolean; isToday: boolean }[]>([]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [pregLog, cacaLog] = await Promise.all([getPregLog(), getCacaLog()]);
+        const [pregLog, cacaLog, emocLog] = await Promise.all([getPregLog(), getCacaLog(), getEmocionalLog()]);
         const pregDates = Object.keys(pregLog).sort().reverse();
         if (pregDates.length > 0) setLastDiario(pregLog[pregDates[0]]?.savedAt ?? null);
         setStreak(calcStreak(pregLog));
         setWeekDots(getWeekDots(pregLog));
         const allCaca = Object.values(cacaLog).flat().sort((a, b) => b.savedAt.localeCompare(a.savedAt));
         if (allCaca.length > 0) setLastCaca(allCaca[0].savedAt);
+        const emocDates = Object.keys(emocLog).sort().reverse();
+        if (emocDates.length > 0) setLastEmocional(emocLog[emocDates[0]]?.savedAt ?? null);
       } catch (e) {
         console.error(e);
       }
@@ -261,6 +288,32 @@ export default function Registro() {
           <Link
             href="/historico/caca"
             className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-3xl bg-amber-100 text-amber-700 shadow-md active:scale-95 transition-transform min-w-[72px]"
+          >
+            <span className="text-5xl">📋</span>
+            <span className="text-xs font-bold text-center">Log</span>
+          </Link>
+        </div>
+
+        {/* Registro Emocional */}
+        <div className="flex gap-3 items-stretch">
+          <Link
+            href="/registro/emocional"
+            className="flex flex-col items-center justify-center gap-3 flex-1 py-8 rounded-3xl bg-rose-400 text-white shadow-xl shadow-rose-200 active:scale-95 transition-transform"
+          >
+            <div className="bg-white/20 rounded-2xl p-3">
+              <HeartWavesIcon />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">Registro Emocional</span>
+            <span className="text-rose-100 text-[11px] font-medium text-center px-2">Práctica diaria · 1 minuto</span>
+            {lastEmocional ? (
+              <span className="text-rose-100 text-xs font-medium">Último: {formatLastDate(lastEmocional)}</span>
+            ) : (
+              <span className="text-rose-100 text-xs font-medium">Sin registros aún</span>
+            )}
+          </Link>
+          <Link
+            href="/historico/emocional"
+            className="flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-3xl bg-rose-100 text-rose-700 shadow-md active:scale-95 transition-transform min-w-[72px]"
           >
             <span className="text-5xl">📋</span>
             <span className="text-xs font-bold text-center">Log</span>
