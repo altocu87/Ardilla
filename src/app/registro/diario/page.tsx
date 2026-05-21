@@ -3,31 +3,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SIGNALS, ALARMS, REGULAT, AFTER } from "@/lib/constants";
+import { getRandomPhrase as getCentralPhrase } from "@/lib/phrases";
 import { getPregLog, savePregEntry, updatePregEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
 
-const DEFAULT_PHRASES = [
-  "Cada vez que observas, le quitas poder al síntoma 🌱",
-  "Observar no es sufrir, es aprender 💙",
-  "Tu sistema nervioso puede aprender calma 🌿",
-  "El malestar es temporal, tu capacidad de regularte es permanente ⭐",
-  "Hoy también lo intentaste. Eso cuenta 🤍",
-  "Notar ya es avanzar 🐌",
-  "Cada pequeño paso suma 💪",
-  "¡Hola Vicky! Te queremos mucho 🌟",
-  "Eres más fuerte de lo que crees 🌸",
-  "Cuidarte es lo más valiente que puedes hacer 🦋",
-];
-
-function getRandomPhrase(): string {
-  try {
-    const custom: string[] = JSON.parse(localStorage.getItem("custom_phrases") || "[]");
-    const pool = [...DEFAULT_PHRASES, ...custom];
-    return pool[Math.floor(Math.random() * pool.length)];
-  } catch {
-    return DEFAULT_PHRASES[0];
-  }
-}
+function getRandomPhrase(): string { return getCentralPhrase(); }
 
 const HABITUAL = [
   "Vigilar y comprobar",

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getEmocionalLog, saveEmocionalEntry, updateEmocionalEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
+import { getRandomPhrase as getCentralPhrase } from "@/lib/phrases";
 
 export const ESTADO_OPTS = [
   { emoji: "😌", label: "Calma" },
@@ -29,15 +30,6 @@ export const NECESIDAD_OPTS = [
 
 const DONDE_OPTS = ["Pecho", "Garganta", "Abdomen", "Mandíbula", "Espalda", "Manos", "Piernas"];
 
-const DEFAULT_PHRASES = [
-  "Notar ya es avanzar 🌱",
-  "Tu cuerpo habla. Hoy le escuchaste 💙",
-  "Un minuto al día construye seguridad poco a poco 🌿",
-  "El cuerpo aprende: sentir no es peligroso ⭐",
-  "Hoy te diste un minuto de presencia. Eso cuenta 🤍",
-  "Cada vez que observas, entrenas la calma 🐌",
-  "No buscas perfección, buscas orientación 🌸",
-];
 
 const BG_ANIMALS = [
   { emoji: "🐌", size: "text-4xl", dur: "2.2s", delay: "0s",   left: "6%",  top: "12%" },
@@ -57,9 +49,7 @@ const MOODS = [
 
 const TOTAL_STEPS = 4;
 
-function getRandomPhrase() {
-  return DEFAULT_PHRASES[Math.floor(Math.random() * DEFAULT_PHRASES.length)];
-}
+function getRandomPhrase() { return getCentralPhrase(); }
 
 function AnimalsBackground({ speed = false }: { speed?: boolean }) {
   return (

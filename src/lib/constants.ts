@@ -57,3 +57,24 @@ export const IMPULSES: string[] = [
   "Quejarme o buscar apoyo urgente",
   "Aislarme",
 ];
+
+// ── Registro Diario ───────────────────────────────────────────────────────────
+
+export const REGULAT: string[] = [
+  "Respiración lenta y profunda",
+  "Me moví o di un paseo",
+  "Distracción o actividad",
+  "Calor local (manta, bolsa caliente)",
+  "Observé la sensación sin reaccionar",
+  "Hablé con alguien",
+  "Me estiré o hice algo suave",
+  "Descansé o me eché",
+];
+
+export const AFTER: string[] = [
+  "Mejoró bastante",
+  "Mejoró un poco",
+  "Sin cambio apreciable",
+  "Empeoró un poco",
+  "Pasó solo con el tiempo",
+];

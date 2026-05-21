@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
   getShopBellotas, saveShopBellotas,
   getShopRata,     saveShopRata,
@@ -11,15 +12,7 @@ import {
 } from "@/lib/shop";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 
-const DEFAULT_PHRASES = [
-  "¡Hola Vicky! Te queremos mucho 🤍",
-  "Cada registro es un paso adelante 🌱",
-  "Tus emociones siempre tienen sentido 💙",
-  "Eres más fuerte de lo que crees 💪",
-  "Hoy también cuenta 🌟",
-  "Pequeños pasos, grandes cambios 🐌",
-  "Cuidarte es lo más valiente que puedes hacer 🌿",
-];
+// DEFAULT_PHRASES se importa de @/lib/phrases (pool global de ~110 frases)
 
 const EMOJIS_BELL = ["🌰","🎁","🎮","🎵","🌈","🎭","🌟","⭐","🏆","🎯","💎","👑","🌸","🦋","🎨","🧸","🪄","🍀","🌺","🎠","🪆","🫧","🌙","✨","🎪"];
 const EMOJIS_RATA = ["🐀","🐭","🧀","🔮","🗡️","🧙","💀","🦇","⚡","🌑","💫","🃏","🎲","🌙","🔴","🕷️","👁️","☠️","🪄","🎴","🧪","🌑","🔪","🎭","🕰️"];
@@ -203,6 +196,45 @@ function Section({ title, emoji, children }: { title: string; emoji: string; chi
   );
 }
 
+/* ── Lista colapsable de frases predeterminadas ───────────────────────────── */
+function PhraseSection({ phrases }: { phrases: string[] }) {
+  const [open, setOpen] = useState(false);
+  const preview = phrases.slice(0, 3);
+  return (
+    <div className="mb-5">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-left mb-2"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Predeterminadas</span>
+          <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">{phrases.length}</span>
+        </div>
+        <span className={`text-slate-400 text-lg transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
+      </button>
+      {!open && (
+        <div className="flex flex-col gap-1.5">
+          {preview.map((p, i) => (
+            <div key={i} className="bg-slate-50 rounded-xl px-4 py-2 text-xs text-slate-400 border border-slate-100 italic truncate">
+              &ldquo;{p}&rdquo;
+            </div>
+          ))}
+          <p className="text-[10px] text-slate-400 text-center mt-0.5">… y {phrases.length - 3} más</p>
+        </div>
+      )}
+      {open && (
+        <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+          {phrases.map((p, i) => (
+            <div key={i} className="bg-slate-50 rounded-xl px-4 py-2.5 text-xs text-slate-500 border border-slate-200 leading-snug">
+              {p}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
 export default function Opciones() {
   const [customPhrases, setCustomPhrases] = useState<string[]>([]);
@@ -354,12 +386,10 @@ export default function Opciones() {
       <section className="mb-8">
         <h2 className="text-base font-semibold text-slate-700 mb-1">Frases motivadoras</h2>
         <p className="text-xs text-slate-400 mb-4">Aparecen en la pantalla de celebración al guardar un registro.</p>
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Predeterminadas</p>
-        <div className="flex flex-col gap-2 mb-5">
-          {DEFAULT_PHRASES.map((p, i) => (
-            <div key={i} className="bg-slate-50 rounded-xl px-4 py-2.5 text-sm text-slate-500 border border-slate-200">{p}</div>
-          ))}
-        </div>
+
+        {/* Predeterminadas — colapsable */}
+        <PhraseSection phrases={DEFAULT_PHRASES} />
+
         {customPhrases.length > 0 && (
           <>
             <p className="text-[11px] font-semibold text-teal-600 uppercase tracking-wide mb-2">Tus frases</p>
