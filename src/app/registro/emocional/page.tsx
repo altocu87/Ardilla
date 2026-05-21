@@ -155,8 +155,10 @@ export default function RegistroEmocional() {
         savedAt: now.toISOString(),
       });
       setSavedEntryId(id);
+    } catch (e) { console.error("saveEmocionalEntry error:", e); }
+    try {
       setXpGained(await awardXp("emocional"));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("awardXp error:", e); }
   }
 
   async function saveMood(selectedMood: string) {

@@ -177,8 +177,10 @@ export default function RegistroDiario() {
         savedAt: now.toISOString(),
       });
       setSavedEntryId(id);
+    } catch (e) { console.error("savePregEntry error:", e); }
+    try {
       setXpGained(await awardXp("diario"));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("awardXp error:", e); }
   }
 
   async function saveMood(selectedMood: string) {

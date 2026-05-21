@@ -65,7 +65,8 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
   const key   = `${type}_${today}`;
   try {
     const profile = await getPlayerProfile();
-    if (profile.dailyAwards[key]) return null;
+    const dailyAwards = profile.dailyAwards ?? {};
+    if (dailyAwards[key]) return null;
 
     const cfg    = getRewardsConfig();
     const reward = cfg[type] ?? { xp: 10, bellotas: 2 };
@@ -92,7 +93,7 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
     await upsertPlayerProfile({
       xp:           newXp,
       bellotas:     newBellotas,
-      dailyAwards:  { ...profile.dailyAwards, [key]: true },
+      dailyAwards:  { ...dailyAwards, [key]: true },
       streakAwards: newStreakAwards,
     });
 

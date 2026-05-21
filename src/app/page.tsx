@@ -244,6 +244,18 @@ export default function Home() {
   useEffect(() => {
     loadProfile();
     loadEquipped();
+
+    // Refresca XP/bellotas al volver a la página (después de una práctica o registro)
+    const refresh = () => { loadProfile(); loadEquipped(); };
+    const onVis   = () => { if (!document.hidden) refresh(); };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [loadProfile, loadEquipped]);
 
   function handleEquipAvatar(emoji: string | null) {

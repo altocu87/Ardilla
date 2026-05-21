@@ -105,8 +105,10 @@ export default function RegistroCaca() {
         sensacion,
         savedAt: now.toISOString(),
       });
+    } catch (e) { console.error("saveCacaEntry error:", e); }
+    try {
       setXpGained(await awardXp("caca"));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("awardXp error:", e); }
   }
 
   /* ── celebración ── */
