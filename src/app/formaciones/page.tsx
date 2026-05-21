@@ -4,7 +4,7 @@ import Link from "next/link";
 const EXERCISE_ROUTES: Record<string, string> = {
   "01": "/actividad/p1",
   "02": "/actividad/p2",
-  "03": "/formaciones",   // próximamente
+  "03": "/actividad/p3",
 };
 
 const EXERCISES = [
