@@ -5,6 +5,9 @@ import Link from "next/link";
 import { getEmocionalLog, saveEmocionalEntry, updateEmocionalEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
 import { getRandomPhrase as getCentralPhrase } from "@/lib/phrases";
+import { generarSobre, type SobreReward } from "@/lib/sobre";
+import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import SobreModal from "@/components/SobreModal";
 
 export const ESTADO_OPTS = [
   { emoji: "😌", label: "Calma" },
@@ -111,7 +114,10 @@ export default function RegistroEmocional() {
   const [phrase, setPhrase]             = useState("");
   const [mood, setMood]                 = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
-  const [xpGained, setXpGained]         = useState<{ xp: number; bellotas: number } | null>(null);
+  const [xpGained, setXpGained]         = useState<import("@/lib/profile").AwardResult | null>(null);
+  const [sobreOpen, setSobreOpen]       = useState(false);
+  const [sobreReward, setSobreReward]   = useState<SobreReward | null>(null);
+  const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -159,6 +165,12 @@ export default function RegistroEmocional() {
     try {
       setXpGained(await awardXp("emocional"));
     } catch (e) { console.error("awardXp error:", e); }
+    try {
+      const mision = await completeMission("emocional");
+      setMisionResult(mision);
+    } catch (e) { console.error("completeMission error:", e); }
+    setSobreReward(generarSobre());
+    setSobreOpen(true);
   }
 
   async function saveMood(selectedMood: string) {
@@ -206,6 +218,18 @@ export default function RegistroEmocional() {
               <span className="text-lg font-bold text-rose-500">+{xpGained.xp} XP</span>
               <span className="text-slate-300">·</span>
               <span className="text-lg font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+              {xpGained.multiplier && (
+                <span className="text-xs font-bold text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">×{xpGained.multiplier}</span>
+              )}
+            </div>
+          )}
+          {misionResult && (
+            <div className="flex items-center gap-2 bg-emerald-500 rounded-2xl px-4 py-2 shadow-md w-full justify-center">
+              <span className="text-xl">{misionResult.mission.emoji}</span>
+              <div className="text-left">
+                <p className="text-white text-xs font-extrabold leading-tight">¡Misión completada!</p>
+                <p className="text-emerald-100 text-[10px]">{misionResult.mission.label} · +{misionResult.mission.bellotas}🌰 +{misionResult.mission.xp}XP{misionResult.isBonus ? ` · BONUS +${misionResult.bonusBellotas}🌰 +${misionResult.bonusXp}XP` : ""}</p>
+              </div>
             </div>
           )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full">
@@ -232,6 +256,9 @@ export default function RegistroEmocional() {
             Volver al registro
           </button>
         </div>
+        {sobreOpen && sobreReward && (
+          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
+        )}
       </div>
     );
   }

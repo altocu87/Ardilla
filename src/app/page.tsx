@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { getPlayerProfile } from "@/lib/db";
+import { getPlayerProfile, getPregLog } from "@/lib/db";
 import { pullFromCloud } from "@/lib/cloudsync";
 import { getLevelInfo } from "@/lib/profile";
 import {
@@ -10,14 +10,94 @@ import {
   getEquippedTitulo, setEquippedTitulo,
   type ShopItem, type TituloItem,
 } from "@/lib/shop";
+import {
+  getMascotConfig, getDaysSinceLastActivity, computeMascotState,
+  MASCOT_STATE_INFO, type MascotState,
+} from "@/lib/mascot";
+import MisionesPanel from "@/components/MisionesPanel";
 
-const ANIMALS = [
-  { emoji: "🐌", size: "text-4xl", dur: "2.2s", delay: "0s" },
-  { emoji: "🐿️", size: "text-5xl", dur: "1.9s", delay: "0.3s" },
-  { emoji: "🐱", size: "text-5xl", dur: "2.0s", delay: "0.5s" },
-  { emoji: "🐈", size: "text-6xl", dur: "2.4s", delay: "0.7s" },
-  { emoji: "🐈‍⬛", size: "text-7xl", dur: "2.1s", delay: "1.0s" },
-];
+/* ── Mascota ─────────────────────────────────────────────────────────────── */
+function MascotDisplay({ state }: { state: MascotState }) {
+  const info = MASCOT_STATE_INFO[state];
+
+  return (
+    <>
+      <style>{`
+        @keyframes mascot-muy-feliz {
+          0%,100% { transform: translateY(0) scale(1); }
+          25%      { transform: translateY(-18px) scale(1.08); }
+          75%      { transform: translateY(-9px) scale(1.04); }
+        }
+        @keyframes mascot-feliz {
+          0%,100% { transform: translateY(0); }
+          50%      { transform: translateY(-12px); }
+        }
+        @keyframes mascot-neutral {
+          0%,100% { transform: scale(1); }
+          50%      { transform: scale(1.04); }
+        }
+        @keyframes mascot-triste {
+          0%,100% { transform: translateY(0) rotate(-3deg); }
+          50%      { transform: translateY(6px) rotate(3deg); }
+        }
+        @keyframes mascot-dormida {
+          0%,100% { transform: scale(1) translateY(0); opacity: 0.85; }
+          50%      { transform: scale(1.02) translateY(3px); opacity: 0.7; }
+        }
+        @keyframes mascot-enfadada {
+          0%,100% { transform: translateX(0) rotate(0deg); }
+          15%      { transform: translateX(-6px) rotate(-4deg); }
+          30%      { transform: translateX(6px) rotate(4deg); }
+          45%      { transform: translateX(-5px) rotate(-3deg); }
+          60%      { transform: translateX(5px) rotate(3deg); }
+          75%      { transform: translateX(-3px) rotate(-2deg); }
+        }
+        .mascot-muy-feliz { animation: mascot-muy-feliz 0.7s ease-in-out infinite; }
+        .mascot-feliz     { animation: mascot-feliz 2s ease-in-out infinite; }
+        .mascot-neutral   { animation: mascot-neutral 3s ease-in-out infinite; }
+        .mascot-triste    { animation: mascot-triste 3.5s ease-in-out infinite; }
+        .mascot-dormida   { animation: mascot-dormida 4s ease-in-out infinite; }
+        .mascot-enfadada  { animation: mascot-enfadada 0.8s ease-in-out infinite; }
+      `}</style>
+
+      <div className="flex flex-col items-center gap-3 w-full">
+        {/* Glow circle behind mascot */}
+        <div className="relative flex items-center justify-center">
+          <div
+            className="absolute rounded-full w-28 h-28 blur-xl opacity-60"
+            style={{ background: info.glowColor }}
+          />
+          <span
+            className={`text-8xl select-none relative z-10 ${info.animationClass}`}
+            style={{
+              filter: `drop-shadow(0 0 16px ${info.glowColor})`,
+              ...(state === "triste" || state === "dormida" ? { filter: `drop-shadow(0 0 12px ${info.glowColor}) saturate(0.4) brightness(0.9)` } : {}),
+              ...(state === "enfadada" ? { filter: `drop-shadow(0 0 16px ${info.glowColor}) saturate(1.8) hue-rotate(-20deg)` } : {}),
+            }}
+          >
+            {info.emoji}
+          </span>
+        </div>
+
+        {/* Speech bubble */}
+        <div
+          className="relative bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-lg border border-white/60 max-w-[220px]"
+          style={{ boxShadow: `0 4px 20px ${info.glowColor}` }}
+        >
+          {/* Bubble tail */}
+          <div
+            className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-2 overflow-hidden"
+          >
+            <div className="w-4 h-4 bg-white/90 border-l border-t border-white/60 rotate-45 -translate-y-2" />
+          </div>
+          <p className="text-center text-sm font-semibold text-slate-700 leading-snug">
+            {info.message}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -355,6 +435,9 @@ export default function Home() {
   const [bellotas, setBellotas] = useState(0);
   const [loaded,   setLoaded]   = useState(false);
 
+  /* Mascot state */
+  const [mascotState, setMascotState] = useState<MascotState>("neutral");
+
   /* Avatar / título */
   const [equippedAvatar,   setEquippedAvatarState]   = useState<string | null>(null);
   const [equippedTituloId, setEquippedTituloIdState] = useState<string | null>(null);
@@ -392,12 +475,31 @@ export default function Home() {
     setOwnedTitulos(allTit.filter(t => owned.includes(t.id)));
   }, []);
 
+  const loadMascot = useCallback(() => {
+    const cfg = getMascotConfig();
+    Promise.all([getDaysSinceLastActivity(), getPregLog()])
+      .then(([days, log]) => {
+        const today = new Date();
+        let streak = 0;
+        for (let i = 0; i < 365; i++) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          if (log[d.toISOString().slice(0, 10)]) streak++;
+          else break;
+        }
+        setMascotState(computeMascotState(days, streak, cfg));
+      })
+      .catch(() => {
+        setMascotState("neutral");
+      });
+  }, []);
+
   useEffect(() => {
     // 1) Pull desde Supabase ANTES de cargar el perfil local → fuente de verdad
-    pullFromCloud().finally(() => { loadProfile(); loadEquipped(); });
+    pullFromCloud().finally(() => { loadProfile(); loadEquipped(); loadMascot(); });
 
     // Refresca XP/bellotas al volver a la página (después de una práctica o registro)
-    const refresh = () => { loadProfile(); loadEquipped(); };
+    const refresh = () => { loadProfile(); loadEquipped(); loadMascot(); };
     const onVis   = () => { if (!document.hidden) refresh(); };
     window.addEventListener("focus", refresh);
     window.addEventListener("pageshow", refresh);
@@ -407,7 +509,7 @@ export default function Home() {
       window.removeEventListener("pageshow", refresh);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [loadProfile, loadEquipped]);
+  }, [loadProfile, loadEquipped, loadMascot]);
 
   function handleEquipAvatar(emoji: string | null) {
     setEquippedAvatar(emoji);
@@ -488,7 +590,7 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* ── SALUDO + ANIMALES ── */}
+      {/* ── SALUDO + MASCOTA ── */}
       <div className="flex-1 min-h-0 px-5 py-2 flex flex-col">
         <div className="flex-1 min-h-0 relative rounded-3xl overflow-hidden shadow-xl border border-white/20">
           {/* Fondo de escena */}
@@ -505,24 +607,21 @@ export default function Home() {
             boxShadow: "inset 0 0 60px rgba(0,0,0,0.35)",
           }}/>
           {/* Contenido */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-4 py-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 py-6">
             <div className="text-center">
               <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1"
                 style={{ textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>¡Hola, Vicky!</h1>
               <p className="text-white/90 text-sm font-semibold"
                 style={{ textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}>{greeting()}</p>
             </div>
-            <div className="flex items-end justify-center gap-4 w-full px-2">
-              {ANIMALS.map((a, i) => (
-                <span key={i} className={`${a.size} select-none`}
-                  style={{ display: "inline-block", animation: `bounce ${a.dur} ease-in-out infinite`, animationDelay: a.delay, filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.4))" }}>
-                  {a.emoji}
-                </span>
-              ))}
-            </div>
+            {/* Mascota */}
+            <MascotDisplay state={mascotState} />
           </div>
         </div>
       </div>
+
+      {/* ── MISIONES DEL DÍA ── */}
+      <MisionesPanel />
 
       {/* ── BOTONES PRINCIPALES ── */}
       <div className="shrink-0 px-5 pb-10 flex flex-col gap-3">

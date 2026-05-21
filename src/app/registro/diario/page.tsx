@@ -6,6 +6,9 @@ import { SIGNALS, ALARMS, REGULAT, AFTER } from "@/lib/constants";
 import { getRandomPhrase as getCentralPhrase } from "@/lib/phrases";
 import { getPregLog, savePregEntry, updatePregEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
+import { generarSobre, type SobreReward } from "@/lib/sobre";
+import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import SobreModal from "@/components/SobreModal";
 
 function getRandomPhrase(): string { return getCentralPhrase(); }
 
@@ -123,6 +126,9 @@ export default function RegistroDiario() {
   const [mood, setMood] = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
   const [xpGained, setXpGained] = useState<import("@/lib/profile").AwardResult | null>(null);
+  const [sobreOpen, setSobreOpen] = useState(false);
+  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -181,6 +187,13 @@ export default function RegistroDiario() {
     try {
       setXpGained(await awardXp("diario"));
     } catch (e) { console.error("awardXp error:", e); }
+    try {
+      const mision = await completeMission("diario");
+      setMisionResult(mision);
+    } catch (e) { console.error("completeMission error:", e); }
+    // Always show sobre after activity
+    setSobreReward(generarSobre());
+    setSobreOpen(true);
   }
 
   async function saveMood(selectedMood: string) {
@@ -232,6 +245,9 @@ export default function RegistroDiario() {
                 <span className="text-lg font-bold text-teal-600">+{xpGained.xp} XP</span>
                 <span className="text-slate-300">·</span>
                 <span className="text-lg font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+                {xpGained.multiplier && (
+                  <span className="text-xs font-bold text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">×{xpGained.multiplier}</span>
+                )}
               </div>
               {xpGained.streakBonus && (
                 <div className="flex items-center gap-2 bg-amber-400 rounded-2xl px-4 py-2 shadow-md">
@@ -242,6 +258,15 @@ export default function RegistroDiario() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {misionResult && (
+            <div className="flex items-center gap-2 bg-emerald-500 rounded-2xl px-4 py-2 shadow-md w-full justify-center">
+              <span className="text-xl">{misionResult.mission.emoji}</span>
+              <div className="text-left">
+                <p className="text-white text-xs font-extrabold leading-tight">¡Misión completada!</p>
+                <p className="text-emerald-100 text-[10px]">{misionResult.mission.label} · +{misionResult.mission.bellotas}🌰 +{misionResult.mission.xp}XP{misionResult.isBonus ? ` · BONUS +${misionResult.bonusBellotas}🌰 +${misionResult.bonusXp}XP` : ""}</p>
+              </div>
             </div>
           )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full">
@@ -271,6 +296,10 @@ export default function RegistroDiario() {
             Volver al registro
           </button>
         </div>
+        {/* Sobre misterioso */}
+        {sobreOpen && sobreReward && (
+          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
+        )}
       </div>
     );
   }

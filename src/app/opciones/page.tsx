@@ -120,6 +120,10 @@ import {
   ACTIVITY_KEYS, ACTIVITY_LABELS, DEFAULT_REWARDS,
   type RewardsConfig,
 } from "@/lib/rewards";
+import {
+  getMascotConfig, saveMascotConfig, DEFAULT_MASCOT_CONFIG,
+  type MascotConfig,
+} from "@/lib/mascot";
 
 const EMOJIS_BELL = ["🌰","🎁","🎮","🎵","🌈","🎭","🌟","⭐","🏆","🎯","💎","👑","🌸","🦋","🎨","🧸","🪄","🍀","🌺","🎠","🪆","🫧","🌙","✨","🎪"];
 const EMOJIS_RATA = ["🐀","🐭","🧀","🔮","🗡️","🧙","💀","🦇","⚡","🌑","💫","🃏","🎲","🌙","🔴","🕷️","👁️","☠️","🪄","🎴","🧪","🌑","🔪","🎭","🕰️"];
@@ -382,6 +386,10 @@ export default function Opciones() {
   const [adminMsg,   setAdminMsg]   = useState<string | null>(null);
   const [exporting,  setExporting]  = useState(false);
 
+  /* ── Mascota ─────────────────────────────────────────────────────────────── */
+  const [mascotCfg,   setMascotCfg]   = useState<MascotConfig>(DEFAULT_MASCOT_CONFIG);
+  const [mascotSaved, setMascotSaved] = useState(false);
+
   const avInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -396,6 +404,7 @@ export default function Opciones() {
     setShopAv(getShopAvatares());
     setShopTitulos(getShopTitulos());
     setRewardsCfg(getRewardsConfig());
+    setMascotCfg(getMascotConfig());
   }, []);
 
   function showAdminMsg(msg: string) {
@@ -417,6 +426,18 @@ export default function Opciones() {
     setRewardsCfg({ ...DEFAULT_REWARDS });
     saveRewardsConfig({ ...DEFAULT_REWARDS });
     showAdminMsg("✓ Recompensas restauradas a valores por defecto");
+  }
+
+  /* ── Mascota ─────────────────────────────────────────────────────────────── */
+  function saveMascot() {
+    saveMascotConfig(mascotCfg);
+    setMascotSaved(true);
+    setTimeout(() => setMascotSaved(false), 2000);
+  }
+  function handleMascotNum(field: keyof MascotConfig, val: string) {
+    const n = Math.max(0, parseInt(val) || 0);
+    setMascotCfg(prev => ({ ...prev, [field]: n }));
+    setMascotSaved(false);
   }
 
   /* ── Frases ──────────────────────────────────────────────────────────────── */
@@ -743,7 +764,55 @@ export default function Opciones() {
           )}
         </Section>
 
-        {/* ══ 8. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
+        {/* ══ 8. MASCOTA ══════════════════════════════════════════════════════ */}
+        <Section title="Mascota" emoji="🐿️">
+          <p className="text-xs text-slate-400 -mt-1">
+            Personaliza el comportamiento y nombre de la ardilla mascota.
+          </p>
+
+          {/* Nombre */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nombre de la mascota</p>
+            <input
+              value={mascotCfg.nombre}
+              onChange={e => { setMascotCfg(prev => ({ ...prev, nombre: e.target.value })); setMascotSaved(false); }}
+              placeholder="Ardilla"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 bg-white placeholder:text-slate-300"
+            />
+          </div>
+
+          {/* Threshold inputs */}
+          <div className="flex flex-col gap-2">
+            {([
+              { field: "diasTriste" as const,   label: "Días sin actividad → triste",    emoji: "💙" },
+              { field: "diasDormida" as const,  label: "Días sin actividad → dormida",   emoji: "💤" },
+              { field: "diasEnfadada" as const, label: "Días sin actividad → enfadada",  emoji: "😤" },
+              { field: "rachaFeliz" as const,   label: "Racha para \"muy feliz\"",        emoji: "🥳" },
+            ] as { field: keyof MascotConfig; label: string; emoji: string }[]).map(({ field, label, emoji }) => (
+              <div key={field} className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-base shrink-0">{emoji}</span>
+                  <p className="text-xs font-medium text-slate-600 leading-tight">{label}</p>
+                </div>
+                <input
+                  type="number" min={0} max={99}
+                  value={typeof mascotCfg[field] === "number" ? (mascotCfg[field] as number) : 0}
+                  onChange={e => handleMascotNum(field, e.target.value)}
+                  className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-teal-400 shrink-0"
+                />
+              </div>
+            ))}
+          </div>
+
+          <button onClick={saveMascot}
+            className={`w-full py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${
+              mascotSaved ? "bg-emerald-500" : "bg-teal-600 shadow-sm"
+            }`}>
+            {mascotSaved ? "✓ Guardado" : "Guardar configuración"}
+          </button>
+        </Section>
+
+        {/* ══ 9. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
         <Section title="Exportar datos" emoji="📤">
           <p className="text-xs text-slate-400 -mt-1">
             Descarga todos los registros (diario, caca, emocional, prácticas) en un archivo JSON.

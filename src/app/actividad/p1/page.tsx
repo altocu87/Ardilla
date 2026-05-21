@@ -6,6 +6,9 @@ import { savePracticeLog } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
 import { getRandomRegulatoryPhrase, type RegulatoryPhrase } from "@/lib/phrases";
 import { awardXp, type AwardResult } from "@/lib/profile";
+import { generarSobre, type SobreReward } from "@/lib/sobre";
+import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import SobreModal from "@/components/SobreModal";
 
 const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
 const TOTAL_STEPS   = 4;
@@ -93,6 +96,9 @@ export default function P1() {
   const [saving,     setSaving]     = useState(false);
   const [regulPhrase, setRegulPhrase] = useState<RegulatoryPhrase | null>(null);
   const [xpGained,   setXpGained]   = useState<AwardResult | null>(null);
+  const [sobreOpen,  setSobreOpen]  = useState(false);
+  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   const ok = [!!signal, !!alarm, true, !!tension][step];
 
@@ -105,8 +111,14 @@ export default function P1() {
       const award = await awardXp("p1");
       setXpGained(award);
     } catch { /* no bloquear UI */ }
+    try {
+      const mision = await completeMission("p1");
+      setMisionResult(mision);
+    } catch { /* no bloquear UI */ }
     setSaving(false);
     setRegulPhrase(getRandomRegulatoryPhrase());
+    setSobreReward(generarSobre());
+    setSobreOpen(true);
     setDone(true);
   }
 
@@ -139,6 +151,18 @@ export default function P1() {
                 <span className="text-base font-bold text-teal-600">+{xpGained.xp} XP</span>
                 <span className="text-slate-300">·</span>
                 <span className="text-base font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+                {xpGained.multiplier && (
+                  <span className="text-xs font-bold text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">×{xpGained.multiplier}</span>
+                )}
+              </div>
+            )}
+            {misionResult && (
+              <div className="flex items-center gap-2 bg-emerald-500 rounded-2xl px-4 py-2 shadow-md w-full justify-center">
+                <span className="text-xl">{misionResult.mission.emoji}</span>
+                <div className="text-left">
+                  <p className="text-white text-xs font-extrabold leading-tight">¡Misión completada!</p>
+                  <p className="text-emerald-100 text-[10px]">{misionResult.mission.label} · +{misionResult.mission.bellotas}🌰 +{misionResult.mission.xp}XP{misionResult.isBonus ? ` · BONUS +${misionResult.bonusBellotas}🌰 +${misionResult.bonusXp}XP` : ""}</p>
+                </div>
               </div>
             )}
 
@@ -184,6 +208,9 @@ export default function P1() {
             </button>
           </div>
         </div>
+        {sobreOpen && sobreReward && (
+          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
+        )}
       </div>
     );
   }
