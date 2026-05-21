@@ -96,8 +96,7 @@ export default function P1() {
   const [saving,     setSaving]     = useState(false);
   const [regulPhrase, setRegulPhrase] = useState<RegulatoryPhrase | null>(null);
   const [xpGained,   setXpGained]   = useState<AwardResult | null>(null);
-  const [sobreOpen,  setSobreOpen]  = useState(false);
-  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   const ok = [!!signal, !!alarm, true, !!tension][step];
@@ -117,8 +116,7 @@ export default function P1() {
     } catch { /* no bloquear UI */ }
     setSaving(false);
     setRegulPhrase(getRandomRegulatoryPhrase());
-    setSobreReward(generarSobre());
-    setSobreOpen(true);
+    setSobreData(generarSobre());
     setDone(true);
   }
 
@@ -208,9 +206,7 @@ export default function P1() {
             </button>
           </div>
         </div>
-        {sobreOpen && sobreReward && (
-          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
-        )}
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }

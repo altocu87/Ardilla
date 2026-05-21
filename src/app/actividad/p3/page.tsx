@@ -149,8 +149,7 @@ export default function P3() {
   const [done,     setDone]   = useState(false);
   const [saving,   setSaving] = useState(false);
   const [xpGained, setXpGained] = useState<AwardResult | null>(null);
-  const [sobreOpen,  setSobreOpen]    = useState(false);
-  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   const count = TASKS.filter(x => ch[x.k]).length;
@@ -175,8 +174,7 @@ export default function P3() {
       setMisionResult(mision);
     } catch { /* no bloquear UI */ }
     setSaving(false);
-    setSobreReward(generarSobre());
-    setSobreOpen(true);
+    setSobreData(generarSobre());
     setDone(true);
   }
 
@@ -259,9 +257,7 @@ export default function P3() {
             Volver a Ejercicios
           </button>
         </div>
-        {sobreOpen && sobreReward && (
-          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
-        )}
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }

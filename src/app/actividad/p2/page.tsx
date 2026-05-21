@@ -132,8 +132,7 @@ export default function P2() {
   const [done,     setDone]     = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [xpGained, setXpGained] = useState<AwardResult | null>(null);
-  const [sobreOpen,  setSobreOpen]    = useState(false);
-  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   const ok = [
@@ -159,8 +158,7 @@ export default function P2() {
       setMisionResult(mision);
     } catch { /* no bloquear UI */ }
     setSaving(false);
-    setSobreReward(generarSobre());
-    setSobreOpen(true);
+    setSobreData(generarSobre());
     setDone(true);
   }
 
@@ -231,9 +229,7 @@ export default function P2() {
             </button>
           </div>
         </div>
-        {sobreOpen && sobreReward && (
-          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
-        )}
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }

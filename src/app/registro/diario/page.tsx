@@ -126,8 +126,7 @@ export default function RegistroDiario() {
   const [mood, setMood] = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
   const [xpGained, setXpGained] = useState<import("@/lib/profile").AwardResult | null>(null);
-  const [sobreOpen, setSobreOpen] = useState(false);
-  const [sobreReward, setSobreReward] = useState<SobreReward | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   useEffect(() => {
@@ -192,8 +191,7 @@ export default function RegistroDiario() {
       setMisionResult(mision);
     } catch (e) { console.error("completeMission error:", e); }
     // Always show sobre after activity
-    setSobreReward(generarSobre());
-    setSobreOpen(true);
+    setSobreData(generarSobre());
   }
 
   async function saveMood(selectedMood: string) {
@@ -297,9 +295,7 @@ export default function RegistroDiario() {
           </button>
         </div>
         {/* Sobre misterioso */}
-        {sobreOpen && sobreReward && (
-          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
-        )}
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }

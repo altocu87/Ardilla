@@ -115,8 +115,7 @@ export default function RegistroEmocional() {
   const [mood, setMood]                 = useState("");
   const [savedEntryId, setSavedEntryId] = useState("");
   const [xpGained, setXpGained]         = useState<import("@/lib/profile").AwardResult | null>(null);
-  const [sobreOpen, setSobreOpen]       = useState(false);
-  const [sobreReward, setSobreReward]   = useState<SobreReward | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   useEffect(() => {
@@ -169,8 +168,7 @@ export default function RegistroEmocional() {
       const mision = await completeMission("emocional");
       setMisionResult(mision);
     } catch (e) { console.error("completeMission error:", e); }
-    setSobreReward(generarSobre());
-    setSobreOpen(true);
+    setSobreData(generarSobre());
   }
 
   async function saveMood(selectedMood: string) {
@@ -256,9 +254,7 @@ export default function RegistroEmocional() {
             Volver al registro
           </button>
         </div>
-        {sobreOpen && sobreReward && (
-          <SobreModal reward={sobreReward} onClose={() => setSobreOpen(false)} />
-        )}
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }
