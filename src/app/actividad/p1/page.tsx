@@ -3,9 +3,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SIGNALS, ALARMS } from "@/lib/constants";
-import { savePregEntry } from "@/lib/db";
+import { savePracticeLog } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
 import { getRandomRegulatoryPhrase, type RegulatoryPhrase } from "@/lib/phrases";
+import { awardXp, type AwardResult } from "@/lib/profile";
 
 const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
 const TOTAL_STEPS   = 4;
@@ -89,25 +90,21 @@ export default function P1() {
   const [signal,  setSignal]  = useState("");
   const [alarm,   setAlarm]   = useState("");
   const [tension, setTension] = useState("");
-  const [done,    setDone]    = useState(false);
-  const [saving,  setSaving]  = useState(false);
+  const [done,       setDone]       = useState(false);
+  const [saving,     setSaving]     = useState(false);
   const [regulPhrase, setRegulPhrase] = useState<RegulatoryPhrase | null>(null);
+  const [xpGained,   setXpGained]   = useState<AwardResult | null>(null);
 
   const ok = [!!signal, !!alarm, true, !!tension][step];
 
   async function finish() {
     setSaving(true);
     try {
-      await savePregEntry({
-        situation:   "Práctica 1 — Señal y alarma",
-        signal:      [signal],
-        alarm:       [alarm],
-        habitual:    [],
-        newResponse: [tension],
-        after:       [],
-        mood:        "",
-        savedAt:     new Date().toISOString(),
-      });
+      await savePracticeLog("p1", { signal, alarm, tension });
+    } catch { /* no bloquear UI */ }
+    try {
+      const award = await awardXp("p1");
+      setXpGained(award);
     } catch { /* no bloquear UI */ }
     setSaving(false);
     setRegulPhrase(getRandomRegulatoryPhrase());
@@ -136,6 +133,15 @@ export default function P1() {
           <div className="max-w-xs mx-auto flex flex-col items-center text-center gap-5">
             <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🌟</div>
             <h2 className="text-2xl font-bold text-orange-700">¡Práctica completada!</h2>
+
+            {/* Badge XP */}
+            {xpGained && (
+              <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+                <span className="text-base font-bold text-teal-600">+{xpGained.xp} XP</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-base font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+              </div>
+            )}
 
             {/* Resumen */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">

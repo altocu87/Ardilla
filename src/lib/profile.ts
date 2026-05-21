@@ -1,10 +1,9 @@
 import { getPlayerProfile, upsertPlayerProfile, getPregLog } from "./db";
+import { getRewardsConfig, type ActivityKey } from "./rewards";
 export type { PlayerProfile } from "./db";
 
-export type RegisterType = "diario" | "caca" | "emocional";
-
-const XP_REWARDS: Record<RegisterType, number>       = { diario: 30, caca: 15, emocional: 20 };
-const BELLOTAS_REWARDS: Record<RegisterType, number> = { diario:  5, caca:  3, emocional:  4 };
+/** Alias para compatibilidad – todos los tipos de actividad premiable */
+export type RegisterType = ActivityKey;
 
 export const STREAK_MILESTONES = [
   { days: 3,  label: "¡3 días seguidos!",      bellotas: 10,  xp: 0   },
@@ -56,9 +55,10 @@ async function getCurrentStreak(): Promise<number> {
 }
 
 /**
- * Premia XP y bellotas por completar un registro.
+ * Premia XP y bellotas por completar una actividad.
  * Devuelve null si ya se premió hoy este tipo.
  * Para "diario" también comprueba hitos de racha.
+ * Las cantidades de XP/bellotas se leen desde la config de Ajustes.
  */
 export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
   const today = new Date().toISOString().slice(0, 10);
@@ -67,8 +67,11 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
     const profile = await getPlayerProfile();
     if (profile.dailyAwards[key]) return null;
 
-    let newXp       = profile.xp       + XP_REWARDS[type];
-    let newBellotas = profile.bellotas  + BELLOTAS_REWARDS[type];
+    const cfg    = getRewardsConfig();
+    const reward = cfg[type] ?? { xp: 10, bellotas: 2 };
+
+    let newXp       = profile.xp       + reward.xp;
+    let newBellotas = profile.bellotas  + reward.bellotas;
     const newStreakAwards = [...(profile.streakAwards ?? [])];
     let streakBonus: AwardResult["streakBonus"] = undefined;
 
@@ -79,7 +82,6 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
           newXp       += m.xp;
           newBellotas += m.bellotas;
           newStreakAwards.push(m.days);
-          // Keep the highest new milestone for the badge
           if (!streakBonus || m.days > (STREAK_MILESTONES.find(x => x.label === streakBonus!.label)?.days ?? 0)) {
             streakBonus = { label: m.label, bellotas: m.bellotas, xp: m.xp };
           }
@@ -94,7 +96,7 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
       streakAwards: newStreakAwards,
     });
 
-    return { xp: XP_REWARDS[type], bellotas: BELLOTAS_REWARDS[type], streakBonus };
+    return { xp: reward.xp, bellotas: reward.bellotas, streakBonus };
   } catch (e) {
     console.error("awardXp error:", e);
     return null;

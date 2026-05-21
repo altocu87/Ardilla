@@ -253,6 +253,59 @@ export async function deleteEmocionalEntry(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ─── Practice Logs (practice_logs) ──────────────────────────────────────────
+// Tabla Supabase: practice_logs (id uuid pk, practice text, data jsonb, logged_at timestamptz)
+
+export type PracticeType = "p1" | "p2" | "p3";
+
+export type PracticeLogEntry = {
+  id: string;
+  practice: PracticeType;
+  data: Record<string, unknown>;
+  loggedAt: string;
+};
+
+export async function savePracticeLog(
+  practice: PracticeType,
+  data: Record<string, unknown>,
+): Promise<string> {
+  const supabase = createClient();
+  const { data: row, error } = await supabase
+    .from("practice_logs")
+    .insert({ practice, data, logged_at: new Date().toISOString() })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return (row as { id: string }).id;
+}
+
+export async function getPracticeLogs(practice?: PracticeType): Promise<PracticeLogEntry[]> {
+  const supabase = createClient();
+  const base = supabase
+    .from("practice_logs")
+    .select("id, practice, data, logged_at")
+    .order("logged_at", { ascending: false });
+  const { data, error } = practice ? await base.eq("practice", practice) : await base;
+  if (error) throw error;
+  return (data ?? []).map(row => ({
+    id:       (row as Record<string, unknown>).id      as string,
+    practice: (row as Record<string, unknown>).practice as PracticeType,
+    data:     (row as Record<string, unknown>).data     as Record<string, unknown>,
+    loggedAt: (row as Record<string, unknown>).logged_at as string,
+  }));
+}
+
+/** Exporta todos los logs de todas las fuentes como objeto JSON descargable. */
+export async function exportAllLogs(): Promise<Record<string, unknown>> {
+  const [diario, caca, emocional, practices] = await Promise.all([
+    getPregLog().catch(() => ({})),
+    getCacaLog().catch(() => ({})),
+    getEmocionalLog().catch(() => ({})),
+    getPracticeLogs().catch(() => []),
+  ]);
+  return { diario, caca, emocional, practices, exportedAt: new Date().toISOString() };
+}
+
 // ─── PlayerProfile (localStorage) ────────────────────────────────────────────
 // Guardado en localStorage para evitar dependencias de esquema en Supabase.
 

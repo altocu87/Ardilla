@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SIGNALS, EMOTIONS, BODY_R, IMPULSES } from "@/lib/constants";
-import { savePregEntry } from "@/lib/db";
+import { savePracticeLog } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
+import { awardXp, type AwardResult } from "@/lib/profile";
 
 const TOTAL_STEPS = 6;
 
@@ -126,8 +127,9 @@ export default function P2() {
   const [body,    setBody]    = useState("");
   const [impulse, setImpulse] = useState("");
   const [need,    setNeed]    = useState("");
-  const [done,    setDone]    = useState(false);
-  const [saving,  setSaving]  = useState(false);
+  const [done,     setDone]     = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [xpGained, setXpGained] = useState<AwardResult | null>(null);
 
   const ok = [
     !!signal,
@@ -141,17 +143,12 @@ export default function P2() {
   async function finish() {
     setSaving(true);
     try {
-      await savePregEntry({
-        situation:   thought,
-        signal:      [signal],
-        alarm:       [emotion],
-        habitual:    [impulse],
-        newResponse: [need],
-        after:       [body],
-        mood:        emotion,
-        savedAt:     new Date().toISOString(),
-      });
+      await savePracticeLog("p2", { signal, thought, emotion, body, impulse, need });
     } catch { /* guardar en segundo plano */ }
+    try {
+      const award = await awardXp("p2");
+      setXpGained(award);
+    } catch { /* no bloquear UI */ }
     setSaving(false);
     setDone(true);
   }
@@ -171,6 +168,14 @@ export default function P2() {
           <div className="max-w-xs mx-auto flex flex-col items-center gap-5">
             <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🗺️</div>
             <h2 className="text-2xl font-bold text-violet-700 text-center">¡Mapa completado!</h2>
+
+            {xpGained && (
+              <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+                <span className="text-base font-bold text-teal-600">+{xpGained.xp} XP</span>
+                <span className="text-slate-300">·</span>
+                <span className="text-base font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+              </div>
+            )}
 
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full flex flex-col gap-3">
               <SummaryRow label="Sensación"   value={signal}  />

@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { savePregEntry } from "@/lib/db";
+import { savePracticeLog } from "@/lib/db";
+import { awardXp, type AwardResult } from "@/lib/profile";
 
 /* ── Tareas somáticas ──────────────────────────────────────────────────────── */
 const TASKS = [
@@ -142,9 +143,10 @@ function SquirrelMoodBar({ count, total }: { count: number; total: number }) {
 /* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
 export default function P3() {
   const router = useRouter();
-  const [ch,     setCh]    = useState<CheckState>(INIT_STATE);
-  const [done,   setDone]  = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [ch,       setCh]     = useState<CheckState>(INIT_STATE);
+  const [done,     setDone]   = useState(false);
+  const [saving,   setSaving] = useState(false);
+  const [xpGained, setXpGained] = useState<AwardResult | null>(null);
 
   const count = TASKS.filter(x => ch[x.k]).length;
   const all   = count === TASKS.length;
@@ -156,16 +158,12 @@ export default function P3() {
   async function finish() {
     setSaving(true);
     try {
-      await savePregEntry({
-        situation:   "Práctica 3 — Orientación suave",
-        signal:      TASKS.filter(x => ch[x.k]).map(x => x.k),
-        alarm:       [],
-        habitual:    [],
-        newResponse: TASKS.map(x => x.k),
-        after:       [],
-        mood:        "orientada",
-        savedAt:     new Date().toISOString(),
-      });
+      const completedTasks = TASKS.filter(x => ch[x.k]).map(x => x.k);
+      await savePracticeLog("p3", { completedTasks, totalTasks: TASKS.length });
+    } catch { /* no bloquear UI */ }
+    try {
+      const award = await awardXp("p3");
+      setXpGained(award);
     } catch { /* no bloquear UI */ }
     setSaving(false);
     setDone(true);
@@ -201,6 +199,14 @@ export default function P3() {
           </div>
 
           <h2 className="text-2xl font-bold text-teal-700">¡Orientación completada!</h2>
+
+          {xpGained && (
+            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+              <span className="text-base font-bold text-teal-600">+{xpGained.xp} XP</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-base font-bold text-amber-600">+{xpGained.bellotas} 🌰</span>
+            </div>
+          )}
 
           {/* Resumen de pasos */}
           <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full flex flex-col gap-2">
