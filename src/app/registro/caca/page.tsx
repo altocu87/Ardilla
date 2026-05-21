@@ -6,6 +6,7 @@ import { getCacaLog, saveCacaEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import { applyActivityToStats } from "@/lib/mascot";
 import SobreModal from "@/components/SobreModal";
 
 /* ──────────────── datos ──────────────── */
@@ -118,6 +119,7 @@ export default function RegistroCaca() {
       const mision = await completeMission("caca");
       setMisionResult(mision);
     } catch (e) { console.error("completeMission error:", e); }
+    try { applyActivityToStats("caca"); } catch { /* noop */ }
     setSobreData(generarSobre());
   }
 

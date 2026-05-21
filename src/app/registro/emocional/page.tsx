@@ -7,6 +7,7 @@ import { awardXp } from "@/lib/profile";
 import { getRandomPhrase as getCentralPhrase } from "@/lib/phrases";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import { applyActivityToStats } from "@/lib/mascot";
 import SobreModal from "@/components/SobreModal";
 
 export const ESTADO_OPTS = [
@@ -168,6 +169,7 @@ export default function RegistroEmocional() {
       const mision = await completeMission("emocional");
       setMisionResult(mision);
     } catch (e) { console.error("completeMission error:", e); }
+    try { applyActivityToStats("emocional"); } catch { /* noop */ }
     setSobreData(generarSobre());
   }
 

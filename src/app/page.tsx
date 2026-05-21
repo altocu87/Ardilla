@@ -11,10 +11,10 @@ import {
   type ShopItem, type TituloItem,
 } from "@/lib/shop";
 import {
-  getMascotConfig, getDaysSinceLastActivity, computeMascotState,
-  MASCOT_STATE_INFO, type MascotState,
+  getMascotConfig, getDaysSinceLastActivity, computeMascotStateFromStats,
+  getTamagotchiStats, MASCOT_STATE_INFO, type MascotState, type TamagotchiStats,
 } from "@/lib/mascot";
-import MisionesPanel from "@/components/MisionesPanel";
+import MisionesModal from "@/components/MisionesModal";
 
 /* ── Mascota ─────────────────────────────────────────────────────────────── */
 function MascotDisplay({ state }: { state: MascotState }) {
@@ -407,8 +407,10 @@ export default function Home() {
   const [bellotas, setBellotas] = useState(0);
   const [loaded,   setLoaded]   = useState(false);
 
-  /* Mascot state */
-  const [mascotState, setMascotState] = useState<MascotState>("neutral");
+  /* Mascot + tamagotchi */
+  const [mascotState,    setMascotState]    = useState<MascotState>("neutral");
+  const [tamaStats,      setTamaStats]      = useState<TamagotchiStats | null>(null);
+  const [showMisiones,   setShowMisiones]   = useState(false);
 
   /* Avatar / título */
   const [equippedAvatar,   setEquippedAvatarState]   = useState<string | null>(null);
@@ -448,9 +450,11 @@ export default function Home() {
   }, []);
 
   const loadMascot = useCallback(() => {
-    const cfg = getMascotConfig();
+    const cfg   = getMascotConfig();
+    const stats = getTamagotchiStats();
+    setTamaStats(stats);
     Promise.all([getDaysSinceLastActivity(), getPregLog()])
-      .then(([days, log]) => {
+      .then(([, log]) => {
         const today = new Date();
         let streak = 0;
         for (let i = 0; i < 365; i++) {
@@ -459,7 +463,9 @@ export default function Home() {
           if (log[d.toISOString().slice(0, 10)]) streak++;
           else break;
         }
-        setMascotState(computeMascotState(days, streak, cfg));
+        const fresh = getTamagotchiStats();
+        setTamaStats(fresh);
+        setMascotState(computeMascotStateFromStats(fresh, streak, cfg));
       })
       .catch(() => {
         setMascotState("neutral");
@@ -565,14 +571,44 @@ export default function Home() {
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{
             boxShadow: "inset 0 0 60px rgba(0,0,0,0.35)",
           }}/>
-          {/* Tienda — icono flotante en esquina */}
+          {/* Misiones — icono flotante esquina izquierda */}
+          <button
+            onClick={() => setShowMisiones(true)}
+            className="absolute top-3 left-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 transition-transform border border-white/20">
+            <span className="text-base">📋</span>
+          </button>
+          {/* Tienda — icono flotante esquina derecha */}
           <Link href="/tienda"
             className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 transition-transform border border-white/20">
             <span className="text-base">🛒</span>
             {loaded && <span className="text-[11px] font-bold text-white">{bellotas}🌰</span>}
           </Link>
+          {/* Tamagotchi stats — barra inferior */}
+          {tamaStats && (
+            <div className="absolute bottom-3 left-3 right-3 z-10">
+              <div className="bg-black/35 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex flex-col gap-1.5">
+                {([
+                  { key: "vitalidad", label: "Vitalidad", emoji: "⚡", color: "#fbbf24", val: tamaStats.vitalidad },
+                  { key: "salud",     label: "Salud",     emoji: "💚", color: "#34d399", val: tamaStats.salud },
+                  { key: "ánimo",     label: "Ánimo",     emoji: "🌸", color: "#c084fc", val: tamaStats.animo },
+                ] as const).map(({ key, label, emoji, color, val }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="text-[11px] w-4 text-center">{emoji}</span>
+                    <span className="text-[9px] text-white/65 w-11 font-semibold tracking-wide">{label}</span>
+                    <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${val}%`, background: color }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-white/60 w-5 text-right font-bold">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Contenido */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 py-6">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 pt-10 pb-24">
             <div className="text-center">
               <h1 className="text-3xl font-extrabold text-white tracking-tight mb-1"
                 style={{ textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>¡Hola, Vicky!</h1>
@@ -584,9 +620,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {/* ── MISIONES DEL DÍA ── */}
-      <MisionesPanel />
 
       {/* ── BOTONES 2×2 ── */}
       <div className="shrink-0 px-5 pb-6 grid grid-cols-2 gap-2">
@@ -620,6 +653,8 @@ export default function Home() {
           onEquipTitulo={handleEquipTitulo}
         />
       )}
+      {/* ── Modal misiones ── */}
+      {showMisiones && <MisionesModal onClose={() => setShowMisiones(false)} />}
     </div>
   );
 }

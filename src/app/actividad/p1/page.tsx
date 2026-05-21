@@ -8,6 +8,7 @@ import { getRandomRegulatoryPhrase, type RegulatoryPhrase } from "@/lib/phrases"
 import { awardXp, type AwardResult } from "@/lib/profile";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import { applyActivityToStats } from "@/lib/mascot";
 import SobreModal from "@/components/SobreModal";
 
 const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
@@ -114,6 +115,7 @@ export default function P1() {
       const mision = await completeMission("p1");
       setMisionResult(mision);
     } catch { /* no bloquear UI */ }
+    try { applyActivityToStats("p1"); } catch { /* noop */ }
     setSaving(false);
     setRegulPhrase(getRandomRegulatoryPhrase());
     setSobreData(generarSobre());
