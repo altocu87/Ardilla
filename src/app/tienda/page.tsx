@@ -208,16 +208,25 @@ export default function Tienda() {
         {tab === "rata" && (
           <div className="flex flex-col gap-3">
             {/* Banner temático */}
-            <div className="rounded-2xl p-4 text-center"
-              style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95)" }}>
-              <span className="text-4xl">🐀</span>
-              <p className="text-white font-extrabold mt-1">Tienda de La Rata</p>
-              <p className="text-violet-300 text-xs mt-0.5">Artículos misteriosos y especiales</p>
+            <div className="rounded-2xl p-4 text-center relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg,#1a0a00,#3b1a08,#5c2a10)" }}>
+              {/* detalles decorativos */}
+              <span className="absolute top-2 left-3 text-xs opacity-20 select-none">🌑🌑🌑</span>
+              <span className="absolute bottom-2 right-3 text-xs opacity-20 select-none">🌑🌑🌑</span>
+              <span className="text-5xl drop-shadow-lg">🐀</span>
+              <p className="text-amber-200 font-extrabold text-base mt-1 tracking-wide">La Tienda de La Rata</p>
+              <p className="text-amber-400/80 text-[11px] mt-1 italic leading-snug">
+                &ldquo;Artículos carísimos para una rata muy caprichosa.<br/>
+                ¿De verdad crees que te lo mereces?&rdquo;
+              </p>
+              <div className="mt-2 inline-block bg-amber-900/40 border border-amber-700/40 rounded-full px-3 py-0.5">
+                <span className="text-[10px] text-amber-300 font-bold tracking-wider uppercase">⚠️ Precios de rata tacaña</span>
+              </div>
             </div>
             {itemsRata.length === 0 ? (
-              <EmptyShop emoji="🐀" text="Aún no hay artículos de La Rata. Añádelos en Ajustes." />
+              <EmptyShop emoji="🐀" text="La Rata aún no ha decidido qué vender. Añade artículos en Ajustes." />
             ) : itemsRata.map(item => (
-              <ItemCard key={item.id} item={item} accentGrad="from-violet-600 to-purple-800" />
+              <ItemCard key={item.id} item={item} accentGrad="from-amber-900 to-stone-800" />
             ))}
           </div>
         )}
