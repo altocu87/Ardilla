@@ -1,5 +1,11 @@
 "use client";
 import Link from "next/link";
+// Rutas de cada práctica (las que aún no tienen página apuntan a formaciones)
+const EXERCISE_ROUTES: Record<string, string> = {
+  "01": "/actividad/p1",
+  "02": "/formaciones",   // próximamente
+  "03": "/formaciones",   // próximamente
+};
 
 const EXERCISES = [
   {
@@ -110,9 +116,10 @@ export default function Formaciones() {
       {/* CARDS */}
       <div className="relative flex-1 overflow-y-auto px-4 pb-8 flex flex-col gap-4 z-10">
         {EXERCISES.map((ex) => (
-          <button
+          <Link
             key={ex.id}
-            className={`card-btn w-full text-left rounded-3xl bg-gradient-to-br ${ex.bg} ${ex.shadow} shadow-lg border ${ex.border} p-5 transition-transform active:scale-95`}
+            href={EXERCISE_ROUTES[ex.id] ?? "/formaciones"}
+            className={`card-btn block w-full text-left rounded-3xl bg-gradient-to-br ${ex.bg} ${ex.shadow} shadow-lg border ${ex.border} p-5 transition-transform active:scale-95`}
           >
             {/* Número y título */}
             <div className="flex items-start justify-between gap-2 mb-3">
@@ -147,7 +154,7 @@ export default function Formaciones() {
 
             {/* Flecha */}
             <div className={`flex justify-end mt-3 ${ex.textMid} text-xl`}>→</div>
-          </button>
+          </Link>
         ))}
       </div>
     </div>

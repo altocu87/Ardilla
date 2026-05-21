@@ -22,7 +22,8 @@ export default function Navbar() {
     pathname === "/registro/emocional" ||
     pathname === "/historico/diario" ||
     pathname === "/historico/caca" ||
-    pathname === "/historico/emocional"
+    pathname === "/historico/emocional" ||
+    pathname.startsWith("/actividad/")
   ) return null;
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg">

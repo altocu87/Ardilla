@@ -1,83 +1,318 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SIGNALS, ALARMS } from "@/lib/constants";
 
+const TENSION_ZONES = ["Mandíbula", "Hombros", "Manos", "Abdomen"];
+import { savePregEntry } from "@/lib/db";
+
+/* ── datos del formulario ─────────────────────────────────────────────────── */
+type FormData = {
+  signal:  string;
+  alarm:   string;
+  tension: string;
+};
+
+const TOTAL_STEPS = 4;
+
+const BG_ANIMALS = [
+  { emoji: "🐿️", size: "text-4xl", dur: "2.2s", delay: "0s",   left: "4%",  top: "8%"  },
+  { emoji: "🐌",  size: "text-5xl", dur: "2.0s", delay: "0.5s", left: "78%", top: "5%"  },
+  { emoji: "🐈",  size: "text-5xl", dur: "2.4s", delay: "0.8s", left: "82%", top: "45%" },
+  { emoji: "🐈‍⬛", size: "text-6xl", dur: "1.9s", delay: "1.1s", left: "3%",  top: "65%" },
+  { emoji: "🐀",  size: "text-4xl", dur: "2.1s", delay: "1.5s", left: "72%", top: "75%" },
+];
+
+/* ── componentes pequeños ─────────────────────────────────────────────────── */
+function AnimalsBackground({ speed = false }: { speed?: boolean }) {
+  return (
+    <>
+      {BG_ANIMALS.map((a, i) => (
+        <span
+          key={i}
+          className={`${a.size} select-none absolute pointer-events-none opacity-15`}
+          style={{
+            left: a.left, top: a.top, display: "inline-block",
+            animation: speed
+              ? `bounce 0.7s ease-in-out ${i * 0.12}s infinite`
+              : `bounce ${a.dur} ease-in-out ${a.delay} infinite`,
+          }}
+        >
+          {a.emoji}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function Dots({ step }: { step: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 py-3">
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+        <div
+          key={i}
+          className={`flex items-center justify-center rounded-full font-bold text-xs transition-all duration-300 ${
+            i < step     ? "w-7 h-7 bg-orange-500 text-white"
+            : i === step ? "w-8 h-8 bg-white border-2 border-orange-500 text-orange-600 shadow-md scale-110"
+            : "w-7 h-7 bg-white/60 border border-slate-300 text-slate-400"
+          }`}
+        >
+          {i < step ? "✓" : i + 1}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Sel: lista desplegable de opciones (selección única) ─────────────────── */
+function Sel({
+  options,
+  value,
+  onChange,
+  color,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  color: "orange" | "rose";
+}) {
+  const active = color === "orange"
+    ? "bg-orange-100 border-orange-400 text-orange-800 font-semibold"
+    : "bg-rose-100 border-rose-400 text-rose-800 font-semibold";
+
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map(opt => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] ${
+            value === opt ? active : "bg-white border-slate-200 text-slate-600"
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
 export default function P1() {
   const router = useRouter();
-  const [signals, setSignals] = useState<string[]>([]);
-  const [alarms, setAlarms] = useState<string[]>([]);
-  const [intensity, setIntensity] = useState(5);
+  const [step,    setStep]    = useState(0);
+  const [signal,  setSignal]  = useState("");
+  const [alarm,   setAlarm]   = useState("");
+  const [tension, setTension] = useState("");
+  const [done,    setDone]    = useState(false);
+  const [saving,  setSaving]  = useState(false);
 
-  function toggle(arr: string[], setArr: (v: string[]) => void, val: string) {
-    setArr(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
+  const d: FormData = { signal, alarm, tension };
+
+  const ok = [
+    !!d.signal,
+    !!d.alarm,
+    true,           // paso 3 siempre válido
+    !!d.tension,
+  ][step];
+
+  const STEP_LABELS = [
+    "¿Qué señal notas en el abdomen?",
+    "¿Qué alarma aparece?",
+    "Frase reguladora",
+    "Suelta un 5% de tensión",
+  ];
+
+  const STEP_HINTS = [
+    "Elige la que más se acerca ahora mismo",
+    "Elige la reacción mental que noto",
+    "Lee despacio. No hace falta hacer nada más.",
+    "Toca la zona donde puedes soltar un poco",
+  ];
+
+  async function finish() {
+    setSaving(true);
+    try {
+      await savePregEntry({
+        situation: "Práctica 1 — Señal y alarma",
+        signal:      [d.signal],
+        alarm:       [d.alarm],
+        habitual:    [],
+        newResponse: [d.tension],
+        after:       [],
+        mood:        "",
+        savedAt:     new Date().toISOString(),
+      });
+    } catch { /* guardar en segundo plano; no bloquear la UI */ }
+    setSaving(false);
+    setDone(true);
   }
 
   function next() {
-    if (signals.length === 0) return;
-    sessionStorage.setItem("p1", JSON.stringify({ signals, alarms, intensity }));
-    router.push("/actividad/p2");
+    if (!ok) return;
+    if (step < TOTAL_STEPS - 1) { setStep(s => s + 1); return; }
+    finish();
   }
 
+  /* ── Celebración ── */
+  if (done) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-b from-orange-100 via-amber-50 to-yellow-50 flex flex-col overflow-hidden">
+        <AnimalsBackground speed />
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-5 max-w-xs mx-auto">
+          <div className="text-8xl" style={{ animation: "bounce 0.7s ease-in-out infinite" }}>🌟</div>
+          <h2 className="text-2xl font-bold text-orange-700">¡Práctica completada!</h2>
+
+          {/* Resumen */}
+          <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">
+            <Row label="Señal" value={d.signal} />
+            <div className="h-px bg-slate-100"/>
+            <Row label="Alarma" value={d.alarm} />
+            <div className="h-px bg-slate-100"/>
+            <Row label="Tensión liberada" value={`${d.tension} →`} />
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 w-full">
+            <p className="text-sm text-amber-800 italic leading-relaxed text-center">
+              &ldquo;Esto es incómodo, pero ahora mismo puedo observarlo sin pelear.&rdquo;
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push("/formaciones")}
+            className="w-full py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-200 active:scale-95 transition"
+          >
+            Volver a Ejercicios
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Formulario ── */
   return (
-    <div className="max-w-lg mx-auto px-4 pt-8 pb-4">
-      <p className="text-xs text-teal-500 font-semibold uppercase tracking-widest mb-1">Paso 1 de 4</p>
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">¿Qué señales notas?</h1>
-      <p className="text-sm text-slate-500 mb-6">Marca todo lo que sientes en este momento.</p>
+    <div className="fixed inset-0 bg-gradient-to-b from-orange-100 via-amber-50 to-yellow-50 flex flex-col overflow-hidden">
+      <AnimalsBackground />
 
-      <h2 className="text-sm font-semibold text-slate-600 mb-2">Señales físicas</h2>
-      <div className="flex flex-col gap-2 mb-6">
-        {SIGNALS.map((s) => (
-          <button
-            key={s}
-            onClick={() => toggle(signals, setSignals, s)}
-            className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
-              signals.includes(s)
-                ? "bg-teal-100 border-teal-400 text-teal-800 font-medium"
-                : "bg-white border-slate-200 text-slate-600 hover:border-teal-300"
-            }`}
+      {/* Cabecera */}
+      <div className="shrink-0 bg-white/60 backdrop-blur-sm border-b border-white/50 px-5 pt-5 pb-1 z-10">
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <p className="text-[10px] text-orange-500 font-bold uppercase tracking-widest">
+              Práctica 01 · Señal y alarma
+            </p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{STEP_HINTS[step]}</p>
+          </div>
+          <Link
+            href="/formaciones"
+            className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold shadow-sm active:scale-95 transition"
           >
-            {s}
-          </button>
-        ))}
+            SALIR
+          </Link>
+        </div>
+        <Dots step={step} />
       </div>
 
-      <h2 className="text-sm font-semibold text-slate-600 mb-2">Señales de alarma</h2>
-      <div className="flex flex-col gap-2 mb-6">
-        {ALARMS.map((a) => (
-          <button
-            key={a}
-            onClick={() => toggle(alarms, setAlarms, a)}
-            className={`text-left px-4 py-3 rounded-xl border text-sm transition ${
-              alarms.includes(a)
-                ? "bg-rose-100 border-rose-400 text-rose-800 font-medium"
-                : "bg-white border-slate-200 text-slate-600 hover:border-rose-300"
-            }`}
-          >
-            {a}
-          </button>
-        ))}
+      {/* Contenido */}
+      <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4 z-10">
+        <div className="max-w-lg mx-auto">
+          <div className="bg-white/85 backdrop-blur-sm rounded-3xl p-5 shadow-xl shadow-orange-100/50">
+            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider mb-1">
+              Paso {step + 1} de {TOTAL_STEPS}
+            </p>
+            <h2 className="text-lg font-bold text-slate-800 mb-4 leading-snug">
+              {STEP_LABELS[step]}
+            </h2>
+
+            {/* Paso 1: señal */}
+            {step === 0 && (
+              <Sel options={SIGNALS} value={signal} onChange={setSignal} color="orange" />
+            )}
+
+            {/* Paso 2: alarma */}
+            {step === 1 && (
+              <Sel options={ALARMS} value={alarm} onChange={setAlarm} color="rose" />
+            )}
+
+            {/* Paso 3: frase reguladora (texto pasivo) */}
+            {step === 2 && (
+              <div className="flex flex-col gap-4">
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 px-5 py-6 text-center">
+                  <p className="text-base text-amber-900 italic leading-relaxed font-medium">
+                    &ldquo;Esto es incómodo, pero ahora mismo puedo observarlo sin pelear.&rdquo;
+                  </p>
+                </div>
+                <div className="flex items-start gap-3 bg-white/70 rounded-2xl px-4 py-3 border border-orange-100">
+                  <span className="text-2xl mt-0.5">🐌</span>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Lee esta frase en voz baja o en silencio. No tienes que creerla del todo. Solo observar.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Paso 4: botones de tensión */}
+            {step === 3 && (
+              <div className="flex flex-col gap-2">
+                {TENSION_ZONES.map(zone => (
+                  <button
+                    key={zone}
+                    onClick={() => setTension(zone)}
+                    className={`flex items-center justify-between px-5 py-4 rounded-2xl border-2 text-sm font-bold transition-all active:scale-[0.98] ${
+                      tension === zone
+                        ? "bg-orange-100 border-orange-400 text-orange-800 shadow-md shadow-orange-100"
+                        : "bg-white border-slate-200 text-slate-600"
+                    }`}
+                  >
+                    <span>{zone}</span>
+                    <span className={tension === zone ? "text-orange-500" : "text-slate-300"}>→</span>
+                  </button>
+                ))}
+                {tension && (
+                  <p className="text-[11px] text-slate-400 text-center mt-1">
+                    Toca la zona, suelta el aire despacio, deja caer {tension.toLowerCase()}.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <h2 className="text-sm font-semibold text-slate-600 mb-2">
-        Intensidad general: <span className="text-teal-600 font-bold">{intensity}/10</span>
-      </h2>
-      <input
-        type="range"
-        min={1}
-        max={10}
-        value={intensity}
-        onChange={(e) => setIntensity(Number(e.target.value))}
-        className="w-full accent-teal-600 mb-8"
-      />
+      {/* Navegación */}
+      <div className="shrink-0 px-5 pb-10 pt-3 z-10">
+        <div className="max-w-lg mx-auto flex gap-3">
+          {step > 0 && (
+            <button
+              onClick={() => setStep(s => s - 1)}
+              className="flex-1 py-4 rounded-2xl border-2 border-white bg-white/70 text-slate-600 font-bold text-base backdrop-blur-sm active:scale-95 transition-transform"
+            >
+              ← Atrás
+            </button>
+          )}
+          <button
+            onClick={next}
+            disabled={!ok || saving}
+            className={`py-4 rounded-2xl text-white font-bold text-base shadow-lg active:scale-95 transition-all ${
+              step > 0 ? "flex-[2]" : "w-full"
+            } ${ok && !saving ? "bg-orange-500 shadow-orange-200" : "bg-slate-300 shadow-none"}`}
+          >
+            {saving ? "Guardando…"
+              : step === TOTAL_STEPS - 1 ? "Completar ✓"
+              : "Siguiente →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      <button
-        onClick={next}
-        disabled={signals.length === 0}
-        className="w-full py-4 rounded-2xl bg-teal-600 text-white font-semibold text-base shadow-md hover:bg-teal-700 transition disabled:opacity-40"
-      >
-        Continuar →
-      </button>
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+      <span className="text-xs text-slate-700 font-medium leading-snug">{value}</span>
     </div>
   );
 }
