@@ -254,34 +254,6 @@ function SceneBg({ seg }: { seg: TimeSegment }) {
   );
 }
 
-/** Bellota iridiscente pequeña para el botón de tienda */
-function AcornSmall() {
-  return (
-    <>
-      <style>{`
-        @keyframes hue-crystal {
-          0%   { filter: hue-rotate(0deg)   saturate(2.4) brightness(1.3); }
-          100% { filter: hue-rotate(360deg) saturate(2.4) brightness(1.3); }
-        }
-      `}</style>
-      <span style={{ animation: "hue-crystal 3s linear infinite", display: "inline-block" }}>
-        <svg viewBox="0 0 28 38" width="22" height="30">
-          <ellipse cx="14" cy="11" rx="12" ry="5.5" fill="#7dd3fc"/>
-          {[6,9,12,15,18,21].map(x => (
-            <line key={x} x1={x} y1="6" x2={x+2} y2="16" stroke="#38bdf8" strokeWidth="1.4" opacity="0.7"/>
-          ))}
-          <ellipse cx="14" cy="15.5" rx="12" ry="2.5" fill="#0ea5e9" opacity="0.8"/>
-          <line x1="14" y1="5.5" x2="14" y2="2" stroke="#0369a1" strokeWidth="2" strokeLinecap="round"/>
-          <ellipse cx="14" cy="28" rx="10" ry="12" fill="#818cf8"/>
-          <ellipse cx="9" cy="23" rx="3" ry="4.5" fill="white" fillOpacity="0.35" transform="rotate(-20 9 23)"/>
-          <ellipse cx="14" cy="37" rx="4" ry="2" fill="white" fillOpacity="0.2"/>
-          <circle cx="24" cy="10" r="1.5" fill="#fef08a" opacity="0.95"/>
-          <circle cx="2"  cy="20" r="1"   fill="#f0abfc" opacity="0.9"/>
-        </svg>
-      </span>
-    </>
-  );
-}
 
 /* ── Modal de avatar/título ─────────────────────────────────────────────── */
 function AvatarModal({
@@ -533,8 +505,8 @@ export default function Home() {
   return (
     <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-sky-100 via-teal-50 to-emerald-100 overflow-hidden">
 
-      {/* ── ZONA SUPERIOR: perfil + acceso tienda ── */}
-      <div className="shrink-0 px-5 pt-5 flex flex-col gap-2">
+      {/* ── ZONA SUPERIOR: perfil ── */}
+      <div className="shrink-0 px-5 pt-5">
 
         {/* Tarjeta de perfil */}
         <div className="bg-white/75 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-md flex items-center gap-3">
@@ -575,19 +547,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {/* Acceso rápido a la Tienda */}
-        <Link href="/tienda"
-          className="flex items-center justify-between px-4 py-2 rounded-xl active:scale-95 transition-transform"
-          style={{ background: "linear-gradient(90deg,#6366f1,#a855f7,#ec4899)" }}>
-          <div className="flex items-center gap-2">
-            <AcornSmall />
-            <span className="text-white font-bold text-sm">Tienda de recompensas</span>
-          </div>
-          <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full">
-            <span className="text-white text-xs font-bold">🌰 {loaded ? bellotas : "—"}</span>
-          </div>
-        </Link>
       </div>
 
       {/* ── SALUDO + MASCOTA ── */}
@@ -606,6 +565,12 @@ export default function Home() {
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{
             boxShadow: "inset 0 0 60px rgba(0,0,0,0.35)",
           }}/>
+          {/* Tienda — icono flotante en esquina */}
+          <Link href="/tienda"
+            className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 transition-transform border border-white/20">
+            <span className="text-base">🛒</span>
+            {loaded && <span className="text-[11px] font-bold text-white">{bellotas}🌰</span>}
+          </Link>
           {/* Contenido */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 py-6">
             <div className="text-center">
@@ -623,22 +588,22 @@ export default function Home() {
       {/* ── MISIONES DEL DÍA ── */}
       <MisionesPanel />
 
-      {/* ── BOTONES PRINCIPALES ── */}
-      <div className="shrink-0 px-5 pb-10 flex flex-col gap-3">
+      {/* ── BOTONES 2×2 ── */}
+      <div className="shrink-0 px-5 pb-6 grid grid-cols-2 gap-2">
         <Link href="/registro"
-          className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-teal-500 text-white font-bold text-xl shadow-lg shadow-teal-200 active:scale-95 transition-transform">
-          <span className="text-2xl">✏️</span> Registro
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95 transition-transform">
+          <span className="text-xl">✏️</span> Registro
         </Link>
         <Link href="/formaciones"
-          className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-violet-500 text-white font-bold text-xl shadow-lg shadow-violet-200 active:scale-95 transition-transform">
-          <span className="text-2xl">🎓</span> Ejercicios
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95 transition-transform">
+          <span className="text-xl">🎓</span> Ejercicios
         </Link>
         <Link href="/informacion"
-          className="flex items-center justify-center gap-3 w-full py-4 rounded-3xl bg-amber-400 text-white font-bold text-xl shadow-lg shadow-amber-200 active:scale-95 transition-transform">
-          <span className="text-2xl">ℹ️</span> Información
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95 transition-transform">
+          <span className="text-xl">ℹ️</span> Información
         </Link>
         <Link href="/opciones"
-          className="flex items-center justify-center gap-3 w-full py-3 rounded-3xl bg-slate-500 text-white font-bold text-base shadow-md shadow-slate-200 active:scale-95 transition-transform">
+          className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95 transition-transform">
           <span className="text-xl">⚙️</span> Ajustes
         </Link>
       </div>
