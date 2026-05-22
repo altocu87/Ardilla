@@ -845,15 +845,18 @@ export default function Home() {
       </div>
 
       {/* ── Botones ── */}
-      <div className="shrink-0 px-4 pb-5 grid grid-cols-3 gap-2">
-        <Link href="/registro" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">✏️</span> Registro
+      <div className="shrink-0 px-4 pb-5 grid grid-cols-4 gap-2">
+        <Link href="/registro" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-[11px] shadow-sm active:scale-95">
+          <span className="text-lg">✏️</span> Registro
         </Link>
-        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">🎓</span> Ejercicios
+        <Link href="/formaciones" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-[11px] shadow-sm active:scale-95">
+          <span className="text-lg">🎓</span> Ejercicios
         </Link>
-        <Link href="/informacion" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">ℹ️</span> Info
+        <Link href="/armario" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-pink-200 text-pink-800 font-bold text-[11px] shadow-sm active:scale-95">
+          <span className="text-lg">👗</span> Armario
+        </Link>
+        <Link href="/informacion" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-[11px] shadow-sm active:scale-95">
+          <span className="text-lg">ℹ️</span> Info
         </Link>
       </div>
 
