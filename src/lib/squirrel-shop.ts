@@ -11,7 +11,7 @@ export type SquirrelFood = {
 };
 
 export type ClothingSlot = "head" | "neck" | "body" | "eyes";
-export type ClothingType = "bufanda" | "sombrero" | "gafas" | "lazo" | "jersey" | "corona" | "abrigo" | "chaleco" | "capa" | "collar" | "pajarita" | "gorra";
+export type ClothingType = "bufanda" | "sombrero" | "gafas" | "lazo" | "jersey" | "corona" | "abrigo" | "chaleco" | "capa" | "collar" | "pajarita" | "gorra" | "tapones" | "antifaz" | "pijama";
 
 export type SquirrelClothing = {
   id: string; emoji: string; name: string; desc: string;
@@ -66,6 +66,10 @@ export const CLOTHING_CATALOG: SquirrelClothing[] = [
   { id: "cloth_gafas_heart", emoji: "🥰", name: "Gafas corazón",       desc: "Mira el mundo con amor",            price: 40, slot: "eyes",  clothingType: "gafas",    color: "#f43f5e" },
   { id: "cloth_collar",      emoji: "📿", name: "Collar de perlas",    desc: "Un toque de elegancia",             price: 50, slot: "neck",  clothingType: "collar",   color: "#e2e8f0" },
   { id: "cloth_pajarita",    emoji: "🎀", name: "Pajarita formal",     desc: "Para ocasiones especiales",         price: 42, slot: "neck",  clothingType: "pajarita", color: "#1e293b" },
+  // ── Ítems de sueño ───────────────────────────────────────────────────────────
+  { id: "cloth_tapones",     emoji: "🔇", name: "Tapones para oídos", desc: "Sin ruidos, mejor sueño 😴",        price: 45, slot: "head",  clothingType: "tapones",  color: "#fef08a" },
+  { id: "cloth_antifaz",     emoji: "🌙", name: "Antifaz para dormir",desc: "Oscuridad total, sueño perfecto ✨", price: 45, slot: "eyes",  clothingType: "antifaz",  color: "#312e81" },
+  { id: "cloth_pijama",      emoji: "🩲", name: "Pijama cómodo",      desc: "El más suave del bosque 💜",        price: 55, slot: "body",  clothingType: "pijama",   color: "#c4b5fd" },
 ];
 
 export const TOY_CATALOG: SquirrelToy[] = [
@@ -117,6 +121,11 @@ export function addOwnedClothing(id: string): void {
 }
 export function getEquippedClothing(): EquippedClothing { return load("sq_equipped_cloth", {}); }
 export function setEquippedClothing(eq: EquippedClothing): void { save("sq_equipped_cloth", eq); }
+
+const SLEEP_ITEM_IDS = ["cloth_tapones", "cloth_antifaz", "cloth_pijama"];
+export function getSleepItemCount(equipped: EquippedClothing): number {
+  return SLEEP_ITEM_IDS.filter(id => Object.values(equipped).includes(id)).length;
+}
 
 export function toggleClothing(clothingId: string): EquippedClothing {
   const item = CLOTHING_CATALOG.find(c => c.id === clothingId);

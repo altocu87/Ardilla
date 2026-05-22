@@ -26,6 +26,8 @@ export type TamaStats = {
   lastSickCheck?: string;
   totalIllnesses?: number;
   illnessByType?:  Partial<Record<IllnessType, number>>;
+  badSleep?:          boolean;
+  lastBadSleepCheck?: string;
   /* legacy compat */
   stomachSick?: boolean;
   stomachSickSince?: string;
@@ -35,7 +37,7 @@ export type TamaStats = {
 export type TamaVisualState =
   | "muy_feliz" | "feliz" | "neutral" | "triste" | "hambre"
   | "cansada"   | "comiendo" | "durmiendo" | "jugando" | "enfadada"
-  | "malita";
+  | "malita"    | "ojeras";
 
 /* ════════════════════════════════════════════════════
    DECAY (por hora)
@@ -101,6 +103,11 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
   malita:     [
     "Ay... me encuentro muy mal 🤒", "Necesito medicina... 💊", "Me encuentro fatal 😞",
     "El bosque también me cuida... ¿tú también? 🌱",
+  ],
+  ojeras:     [
+    "No he pegado ojo en toda la noche 😤", "¡Estoy agotada y de malísimo humor! 😠",
+    "Mírame estas ojeras... 💀", "¡Necesito dormir ya! 😡",
+    "El bosque no duerme igual sin mi antifaz 🌙",
   ],
 };
 
@@ -196,15 +203,24 @@ export function getTamaStats(): TamaStats {
     if (hrs > 0.016) {
       s.hambre  = Math.max(0, s.hambre  - DECAY.hambre  * hrs);
       s.energia = Math.max(0, s.energia - DECAY.energia * hrs);
-      const animoDecay = s.illness ? DECAY.animo * 1.6 : DECAY.animo;
+      const animoDecay = s.illness ? DECAY.animo * 1.6 : s.badSleep ? DECAY.animo * 1.3 : DECAY.animo;
       s.animo   = Math.max(0, s.animo   - animoDecay * hrs);
       s.salud   = computeSalud(s.hambre, s.energia, s.animo);
       s.lastSaved = now.toISOString();
       dirty = true;
     }
 
-    /* Daily sickness check */
+    /* Daily bad sleep check */
     const today = now.toISOString().slice(0, 10);
+    if (!s.badSleep && (s.lastBadSleepCheck ?? "1970") < today) {
+      s.lastBadSleepCheck = today;
+      const e = s.energia;
+      const sleepChance = e < 10 ? 0.45 : e < 30 ? 0.30 : e < 50 ? 0.18 : e < 70 ? 0.08 : 0.02;
+      if (Math.random() < sleepChance) s.badSleep = true;
+      dirty = true;
+    }
+
+    /* Daily sickness check */
     if (!s.illness && (s.lastSickCheck ?? "1970") < today) {
       s.lastSickCheck = today;
       const chance = s.hambre < 15 ? 0.18 : 0.04;
@@ -266,11 +282,14 @@ export function feedTama(hambreRestore: number, animoBoost = 0): TamaStats {
   return s;
 }
 
-export function sleepTama(): TamaStats {
+export function sleepTama(sleepItemCount = 0): TamaStats {
   const s = getTamaStats();
-  s.energia = Math.min(100, s.energia + 48);
-  s.animo   = Math.min(100, s.animo   + 8);
-  s.salud   = computeSalud(s.hambre, s.energia, s.animo);
+  const energyGain = 36 + sleepItemCount * 12; // 36 / 48 / 60 / 72
+  const animoGain  = 5  + sleepItemCount * 3;  // 5 / 8 / 11 / 14
+  s.energia  = Math.min(100, s.energia + energyGain);
+  s.animo    = Math.min(100, s.animo   + animoGain);
+  s.badSleep = false;
+  s.salud    = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
   saveTamaStats(s);
   return s;
@@ -307,6 +326,7 @@ export function computeVisualState(
 ): TamaVisualState {
   if (action) return action;
   if (s.illness)        return "malita";
+  if (s.badSleep)       return "ojeras";
   const avg = (s.hambre + s.energia + s.animo) / 3;
   if (s.hambre  <= 12)  return "hambre";
   if (s.energia <= 12)  return "cansada";

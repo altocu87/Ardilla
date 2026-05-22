@@ -33,6 +33,24 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
     </g>
   );
 
+  if (state === "ojeras") return (
+    <g>
+      {[cx1, cx2].map((cx, i) => (
+        <g key={i}>
+          {/* Ojera (dark circle) */}
+          <ellipse cx={cx} cy={cy+20} rx={20} ry={9} fill="#7c3aed" opacity="0.35"/>
+          {/* Ojo medio cerrado */}
+          <path d={`M ${cx-24} ${cy} Q ${cx} ${cy-16} ${cx+24} ${cy}`}
+            fill="none" stroke={C.dark} strokeWidth={5} strokeLinecap="round"/>
+          {[-12, 0, 12].map((dx, j) => (
+            <line key={j} x1={cx+dx} y1={cy-10} x2={cx+dx} y2={cy-17}
+              stroke={C.dark} strokeWidth={2.5} strokeLinecap="round"/>
+          ))}
+        </g>
+      ))}
+    </g>
+  );
+
   if (state === "muy_feliz" || state === "jugando" || state === "comiendo") return (
     <g>
       {[cx1, cx2].map((cx, i) => (
@@ -106,7 +124,7 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
 /* ── Eyebrows ───────────────────────────────────── */
 function Eyebrows({ state }: { state: TamaVisualState }) {
   if (["durmiendo","cansada","comiendo","muy_feliz","jugando"].includes(state)) return null;
-  if (state === "enfadada") return (
+  if (state === "enfadada" || state === "ojeras") return (
     <g stroke={C.dark} strokeWidth={5} strokeLinecap="round">
       <path d="M 63 83 Q 78 76 93 81" fill="none"/>
       <path d="M 137 81 Q 152 76 167 83" fill="none"/>
@@ -145,6 +163,9 @@ function Mouth({ state }: { state: TamaVisualState }) {
   );
   if (state === "enfadada") return (
     <path d="M 85 128 Q 115 120 145 128" {...s} strokeWidth={5}/>
+  );
+  if (state === "ojeras") return (
+    <path d="M 88 128 Q 115 121 142 128" {...s} strokeWidth={4.5}/>
   );
   if (state === "durmiendo" || state === "cansada") return (
     <path d="M 97 124 Q 115 132 133 124" {...s} strokeWidth={3.5}/>
@@ -224,6 +245,14 @@ function Accessory({ state, illnessType }: { state: TamaVisualState; illnessType
     </g>
   );
 
+  if (state === "ojeras") return (
+    <g>
+      <text x="152" y="58" fontSize="14" style={{ animation: "tama-zzz 2.5s ease-in-out 0s infinite" }}>💫</text>
+      <text x="16"  y="58" fontSize="14" style={{ animation: "tama-zzz 2.5s ease-in-out 1.2s infinite" }}>💫</text>
+      <text x="88"  y="22" fontSize="13">😤</text>
+    </g>
+  );
+
   if (state === "malita") {
     /* caca illness — constipation vibes */
     if (illnessType === "caca") return (
@@ -287,6 +316,15 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <circle cx="115" cy="225" r="5" fill="#1e293b"/>
         </g>
       )}
+      {body?.clothingType === "pijama" && (
+        <g>
+          <rect x="52" y="170" width="126" height="68" rx="22" fill={body.color} opacity="0.90" stroke={C.dark} strokeWidth="3"/>
+          <path d="M 76 170 Q 115 160 154 170" fill="none" stroke={body.color} strokeWidth="9" strokeLinecap="round"/>
+          {[188, 203, 218].map((y, i) => (
+            <path key={i} d={`M 62 ${y} Q 115 ${y+3} 168 ${y}`} fill="none" stroke={C.dark} strokeWidth="2" strokeDasharray="7 5" opacity="0.18"/>
+          ))}
+        </g>
+      )}
       {body?.clothingType === "chaleco" && (
         <g>
           <rect x="62" y="170" width="106" height="64" rx="20" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="2.5"/>
@@ -329,6 +367,16 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <line x1="174" y1="106" x2="208" y2="104"/>
         </g>
       )}
+      {eyes?.clothingType === "antifaz" && (
+        <g>
+          <path d="M 42 108 Q 84 92 115 94 Q 146 92 188 108 Q 186 124 146 122 Q 115 124 84 122 Q 44 124 42 108 Z"
+            fill={eyes.color} opacity="0.90" stroke={C.dark} strokeWidth="2"/>
+          <path d="M 42 108 Q 26 108 22 106" stroke={eyes.color} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+          <path d="M 188 108 Q 204 108 208 106" stroke={eyes.color} strokeWidth="3.5" fill="none" strokeLinecap="round"/>
+          <circle cx="84"  cy="108" r="6" fill="white" opacity="0.18"/>
+          <circle cx="146" cy="108" r="6" fill="white" opacity="0.18"/>
+        </g>
+      )}
 
       {head?.clothingType === "sombrero" && (
         <g>
@@ -360,6 +408,14 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <circle cx="115" cy="22" r="6" fill="#F87171"/>
           <circle cx="87"  cy="28" r="4.5" fill="#34D399"/>
           <circle cx="143" cy="28" r="4.5" fill="#60A5FA"/>
+        </g>
+      )}
+      {head?.clothingType === "tapones" && (
+        <g>
+          <ellipse cx="55" cy="46" rx="8" ry="11" fill={head.color} stroke={C.dark} strokeWidth="2" transform="rotate(-12 55 46)"/>
+          <ellipse cx="55" cy="42" rx="5" ry="7"  fill="white" opacity="0.55" transform="rotate(-12 55 42)"/>
+          <ellipse cx="175" cy="46" rx="8" ry="11" fill={head.color} stroke={C.dark} strokeWidth="2" transform="rotate(12 175 46)"/>
+          <ellipse cx="175" cy="42" rx="5" ry="7"  fill="white" opacity="0.55" transform="rotate(12 175 42)"/>
         </g>
       )}
     </>
@@ -421,11 +477,12 @@ export default function ChibiArdilla({
     jugando:   "tama-hop",
     enfadada:  "tama-rage",
     malita:    "tama-nausea",
+    ojeras:    "tama-grumpy-tired",
   };
   const dur: Record<TamaVisualState, string> = {
     muy_feliz: "0.7s", feliz: "1.8s", neutral: "3s", triste: "3.5s", hambre: "0.9s",
     cansada: "4s", comiendo: "2s", durmiendo: "4s", jugando: "0.7s", enfadada: "0.45s",
-    malita: "2.8s",
+    malita: "2.8s", ojeras: "2.2s",
   };
 
   const anim = isTickling ? "tama-tickle" : animMap[state];
@@ -553,6 +610,13 @@ export default function ChibiArdilla({
         @keyframes tama-chomp {
           0%,100%{transform:scale(1) rotate(-10deg);}
           50%{transform:scale(1.18) rotate(10deg);}
+        }
+        @keyframes tama-grumpy-tired {
+          0%,100%{transform:translateY(0) rotate(0);}
+          20%{transform:translateY(5px) rotate(-3deg);}
+          45%{transform:translateY(7px) rotate(2deg);}
+          65%{transform:translateY(4px) rotate(-2deg);}
+          85%{transform:translateY(6px) rotate(1deg);}
         }
         .tama-body { transform-origin: center 82%; }
       `}</style>

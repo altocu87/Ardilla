@@ -20,7 +20,7 @@ import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
-  getEquippedToy,
+  getEquippedToy, getSleepItemCount,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
 import {
@@ -583,6 +583,14 @@ function StatsRow({
 
   return (
     <div>
+      {stats.badSleep && (
+        <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-indigo-100 border-indigo-300 text-indigo-700"
+          style={{ animation: "badge-pulse 2s ease-in-out infinite" }}>
+          <span className="text-sm">😤</span>
+          <span className="text-[10px] font-bold flex-1 text-left">Mal descanso · Ha dormido fatal esta noche</span>
+          <span className="text-[9px] font-bold shrink-0">¡A dormir!</span>
+        </div>
+      )}
       {illnessInfo && (
         <button onClick={onOpenMedicine}
           className={`w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border active:scale-[0.98] transition-transform ${illnessInfo.badgeColor}`}>
@@ -922,7 +930,8 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   }
 
   function handleSleep() {
-    const s = sleepTama(); setTamaStats(s);
+    const count = getSleepItemCount(equippedCloth);
+    const s = sleepTama(count); setTamaStats(s);
     triggerAction("durmiendo", 3000);
   }
 
@@ -1182,7 +1191,8 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-xs font-bold text-white">Comer</span>
         </button>
         <button onClick={handleSleep}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl shadow-sm active:scale-95 transition-transform ${tamaStats?.badSleep ? "bg-indigo-600 ring-2 ring-indigo-300 ring-offset-1" : "bg-indigo-500"}`}
+          style={tamaStats?.badSleep ? { animation: "badge-pulse 1.5s ease-in-out infinite" } : {}}>
           <span className="text-base">😴</span>
           <span className="text-xs font-bold text-white">Dormir</span>
         </button>
@@ -1270,6 +1280,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         @keyframes welcome-in {
           from { opacity: 0; transform: scale(0.85); }
           to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes badge-pulse {
+          0%,100% { opacity: 1; }
+          50%      { opacity: 0.65; }
         }
       `}</style>
 
