@@ -5,10 +5,10 @@ import { getPlayerProfile, getPregLog } from "@/lib/db";
 import { pullFromCloud } from "@/lib/cloudsync";
 import { getLevelInfo } from "@/lib/profile";
 import {
-  getShopBellotas, getShopTitulos, getShopAvatares,
+  getShopTitulos, getShopAvatares,
   getOwned, getEquippedAvatar, setEquippedAvatar,
   getEquippedTitulo, setEquippedTitulo,
-  type ShopItem, type TituloItem, type AvatarItem,
+  type TituloItem, type AvatarItem,
 } from "@/lib/shop";
 import { getMascotConfig } from "@/lib/mascot";
 import {
@@ -433,7 +433,6 @@ export default function Home() {
   const [tituloText,       setTituloText]            = useState<string | null>(null);
   const [showModal,        setShowModal]             = useState(false);
   const [showMisiones,     setShowMisiones]          = useState(false);
-  const [ownedItems,   setOwnedItems]   = useState<ShopItem[]>([]);
   const [ownedTitulos, setOwnedTitulos] = useState<TituloItem[]>([]);
   const [avatarItems,  setAvatarItems]  = useState<AvatarItem[]>([]);
   const [ownedIds,     setOwnedIds]     = useState<string[]>([]);
@@ -460,8 +459,7 @@ export default function Home() {
       setTituloText(found?.text ?? null);
     } else { setTituloText(null); }
     const owned = getOwned();
-    setOwnedItems(getShopBellotas().filter(i => owned.includes(i.id)));
-    setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.includes(t.id)));
+setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.includes(t.id)));
     const allAvatares = getShopAvatares();
     setAvatarItems(allAvatares);
     setOwnedIds(owned);
