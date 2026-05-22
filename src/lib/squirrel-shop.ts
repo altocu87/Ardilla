@@ -11,7 +11,7 @@ export type SquirrelFood = {
 };
 
 export type ClothingSlot = "head" | "neck" | "body" | "eyes";
-export type ClothingType = "bufanda" | "sombrero" | "gafas" | "lazo" | "jersey" | "corona" | "abrigo";
+export type ClothingType = "bufanda" | "sombrero" | "gafas" | "lazo" | "jersey" | "corona" | "abrigo" | "chaleco" | "capa" | "collar" | "pajarita" | "gorra";
 
 export type SquirrelClothing = {
   id: string; emoji: string; name: string; desc: string;
@@ -56,7 +56,16 @@ export const CLOTHING_CATALOG: SquirrelClothing[] = [
   { id: "cloth_jersey",    emoji: "🧥", name: "Jersey verde",    desc: "Cómodo y abrigado",                price: 50, slot: "body",  clothingType: "jersey",   color: "#16a34a" },
   { id: "cloth_jersey_r",  emoji: "🧥", name: "Jersey naranja",  desc: "Alegre y colorido",                price: 50, slot: "body",  clothingType: "jersey",   color: "#ea580c" },
   { id: "cloth_corona",    emoji: "👑", name: "Corona dorada",   desc: "Para reinas del bosque",           price: 80, slot: "head",  clothingType: "corona",   color: "#f59e0b" },
-  { id: "cloth_abrigo",    emoji: "🧥", name: "Abrigo morado",   desc: "Elegante y abrigador",             price: 65, slot: "body",  clothingType: "abrigo",   color: "#7c3aed" },
+  { id: "cloth_abrigo",      emoji: "🧥", name: "Abrigo morado",       desc: "Elegante y abrigador",              price: 65, slot: "body",  clothingType: "abrigo",   color: "#7c3aed" },
+  // ── Nueva ropa ───────────────────────────────────────────────────────────
+  { id: "cloth_flores",      emoji: "🌸", name: "Corona de flores",    desc: "Para las que aman la naturaleza",   price: 45, slot: "head",  clothingType: "lazo",     color: "#f472b6" },
+  { id: "cloth_gorra",       emoji: "🧢", name: "Gorra azul",          desc: "Un look moderno y fresco",          price: 38, slot: "head",  clothingType: "gorra",    color: "#1d4ed8" },
+  { id: "cloth_chaleco",     emoji: "🦺", name: "Chaleco amarillo",    desc: "Abrigado y muy visible",            price: 55, slot: "body",  clothingType: "chaleco",  color: "#eab308" },
+  { id: "cloth_capa",        emoji: "🦸", name: "Capa de superhéroe",  desc: "Vuela entre los árboles",           price: 70, slot: "body",  clothingType: "capa",     color: "#dc2626" },
+  { id: "cloth_monoculo",    emoji: "🧐", name: "Monóculo dorado",     desc: "El toque más distinguido",          price: 45, slot: "eyes",  clothingType: "gafas",    color: "#f59e0b" },
+  { id: "cloth_gafas_heart", emoji: "🥰", name: "Gafas corazón",       desc: "Mira el mundo con amor",            price: 40, slot: "eyes",  clothingType: "gafas",    color: "#f43f5e" },
+  { id: "cloth_collar",      emoji: "📿", name: "Collar de perlas",    desc: "Un toque de elegancia",             price: 50, slot: "neck",  clothingType: "collar",   color: "#e2e8f0" },
+  { id: "cloth_pajarita",    emoji: "🎀", name: "Pajarita formal",     desc: "Para ocasiones especiales",         price: 42, slot: "neck",  clothingType: "pajarita", color: "#1e293b" },
 ];
 
 export const TOY_CATALOG: SquirrelToy[] = [
@@ -64,7 +73,13 @@ export const TOY_CATALOG: SquirrelToy[] = [
   { id: "toy_cuerda",   emoji: "🪢", name: "Cuerda de juego",  desc: "Para morder y tirar",               price: 25, animoBoost: 25, cooldownMinutes: 30 },
   { id: "toy_puzzle",   emoji: "🧩", name: "Rompecabezas",     desc: "Ejercita la mente",                 price: 30, animoBoost: 18, cooldownMinutes: 60 },
   { id: "toy_varita",   emoji: "🪄", name: "Varita mágica",    desc: "Cuando la agita pasan cosas ✨",    price: 45, animoBoost: 35, cooldownMinutes: 45 },
-  { id: "toy_globo",    emoji: "🎈", name: "Globo de colores", desc: "La ardilla lo adora",               price: 15, animoBoost: 15, cooldownMinutes: 20 },
+  { id: "toy_globo",    emoji: "🎈", name: "Globo de colores",   desc: "La ardilla lo adora",                price: 15, animoBoost: 15, cooldownMinutes: 20 },
+  // ── Nuevos juguetes ──────────────────────────────────────────────────────
+  { id: "toy_yoyo",     emoji: "🪀", name: "Yo-yó de colores",  desc: "¡Sube y baja sin parar!",            price: 22, animoBoost: 22, cooldownMinutes: 25 },
+  { id: "toy_frisbee",  emoji: "🥏", name: "Frisbee brillante", desc: "Vuela por todo el bosque",           price: 28, animoBoost: 28, cooldownMinutes: 35 },
+  { id: "toy_pluma",    emoji: "🪶", name: "Pluma mágica",      desc: "Le fascina perseguirla por el aire", price: 32, animoBoost: 30, cooldownMinutes: 40 },
+  { id: "toy_estrella", emoji: "⭐", name: "Estrella de goma",  desc: "Blanda y muy divertida",             price: 18, animoBoost: 18, cooldownMinutes: 20 },
+  { id: "toy_arcoiris", emoji: "🌈", name: "Aro multicolor",    desc: "Ruleta de colores del bosque",       price: 38, animoBoost: 35, cooldownMinutes: 50 },
 ];
 
 /* ════════════════════════════════════════════════════

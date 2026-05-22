@@ -31,6 +31,7 @@ import ChibiArdilla from "@/components/ChibiArdilla";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
+import SopaDeLetras from "@/components/SopaDeLetras";
 
 /* ── Hora del día ─────────────────────────────────────────────── */
 type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
@@ -382,6 +383,7 @@ export default function Home() {
   const [showPlayPanel,     setShowPlayPanel]     = useState(false);
   const [showMiniGame,      setShowMiniGame]      = useState(false);
   const [showMemoryGame,    setShowMemoryGame]    = useState(false);
+  const [showSopaLetras,    setShowSopaLetras]    = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
 
@@ -626,6 +628,23 @@ export default function Home() {
     setShowMiniGame(false);
   }
 
+  async function handleSopaFinish(foundCount: number) {
+    const bonus = foundCount >= 4 ? 30 : foundCount >= 3 ? 20 : foundCount >= 2 ? 10 : 5;
+    const s = getTamaStats();
+    s.animo = Math.min(100, s.animo + 15);
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s); setTamaStats({ ...s });
+    setVisualState(computeVisualState(s));
+    setTamaMessage(getContextualMessage(computeVisualState(s), 0));
+    try {
+      const p = await import("@/lib/db").then(m => m.getPlayerProfile());
+      await import("@/lib/db").then(m => m.upsertPlayerProfile({ bellotas: p.bellotas + bonus }));
+      setBellotas(p.bellotas + bonus);
+    } catch { /* noop */ }
+    { const a = tryUnlock("memory_any"); if (a) showAchievement(a); }
+    setShowSopaLetras(false);
+  }
+
   function handleEquipAvatar(emoji: string | null) {
     setEquippedAvatar(emoji); setEquippedAvatarState(emoji);
   }
@@ -678,7 +697,10 @@ export default function Home() {
                 <span className="text-sm font-extrabold text-slate-700 shrink-0">Vicky</span>
                 {tituloText && <span className="text-[10px] font-bold text-violet-500 truncate">· {tituloText}</span>}
               </div>
-              <span className="flex items-center gap-1 text-xs font-bold text-amber-600 shrink-0">🌰 {loaded ? bellotas : "—"}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="flex items-center gap-1 text-xs font-bold text-amber-600">🌰 {loaded ? bellotas : "—"}</span>
+                <Link href="/opciones" className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 text-base active:scale-95 transition-all" title="Ajustes">⚙️</Link>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="shrink-0 text-[9px] font-bold text-white bg-teal-500 px-1.5 py-0.5 rounded-full">Nv.{level}</span>
@@ -699,11 +721,17 @@ export default function Home() {
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
 
-          {/* Top icons */}
-          <button onClick={() => setShowMisiones(true)}
-            className="absolute top-3 left-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
-            <span className="text-sm">📋</span>
-          </button>
+          {/* Top icons — izquierda: misiones + logros */}
+          <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5">
+            <button onClick={() => setShowMisiones(true)}
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">📋</span>
+            </button>
+            <Link href="/logros"
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🏆</span>
+            </Link>
+          </div>
 
           {/* Evolution phase badge */}
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
@@ -797,8 +825,8 @@ export default function Home() {
         <Link href="/logros" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-yellow-200 text-yellow-700 font-bold text-sm shadow-sm active:scale-95">
           <span className="text-base">🏆</span> Logros
         </Link>
-        <Link href="/opciones" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">⚙️</span> Ajustes
+        <Link href="/tienda" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-emerald-200 text-emerald-700 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">🛒</span> Tienda
         </Link>
       </div>
 
@@ -822,6 +850,7 @@ export default function Home() {
           extraActions={[
             { label: "¡Atrapa bellotas!", emoji: "🌰", onClick: () => setShowMiniGame(true) },
             { label: "Memoria animal",    emoji: "🃏", onClick: () => setShowMemoryGame(true) },
+            { label: "Sopa de letras",    emoji: "🔤", onClick: () => setShowSopaLetras(true) },
           ]}
         />
       )}
@@ -835,6 +864,12 @@ export default function Home() {
         <MemoryCardGame
           onFinish={handleMemoryGameFinish}
           onClose={() => setShowMemoryGame(false)}
+        />
+      )}
+      {showSopaLetras && (
+        <SopaDeLetras
+          onFinish={handleSopaFinish}
+          onClose={() => setShowSopaLetras(false)}
         />
       )}
       {showMedicineModal && tamaStats?.illness && (

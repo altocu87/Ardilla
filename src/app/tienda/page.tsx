@@ -81,6 +81,19 @@ export default function Tienda() {
     setEquippedCloth(getEquippedClothing());
   }, []);
 
+  // Recarga títulos si el cloudsync actualiza localStorage después del montaje
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key === "shop_titulos" || e.key === null) {
+        setTitulos(getShopTitulos());
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    // Forzar recarga tras 800ms (tiempo estimado de cloudsync)
+    const t = setTimeout(() => setTitulos(getShopTitulos()), 800);
+    return () => { window.removeEventListener("storage", onStorage); clearTimeout(t); };
+  }, []);
+
   const { level } = getLevelInfo(xp);
 
   function showToast(msg: string) {
@@ -448,7 +461,7 @@ export default function Tienda() {
           <div className="flex flex-col gap-2">
             <p className="text-xs text-slate-400 px-1">Compra y equipa títulos para Vicky</p>
             {titulos.length === 0 ? (
-              <EmptyShop emoji="🏷️" text="Aún no hay títulos. Añádelos en Ajustes." />
+              <EmptyShop emoji="🏷️" text="Cargando títulos…" />
             ) : titulos.map(t => {
               const price = t.price ?? 0;
               const isOwned = price === 0 || owned.includes(t.id);
