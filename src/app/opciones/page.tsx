@@ -516,13 +516,17 @@ export default function Opciones() {
     reader.onload = (ev) => {
       const b64 = ev.target?.result as string;
       const name = file.name.replace(/\.[^.]+$/, "");
-      const updated = [...shopAv, { id: `av_${Date.now()}`, name, img64: b64 }];
+      const updated = [...shopAv, { id: `av_${Date.now()}`, name, img64: b64, price: 0 }];
       setShopAv(updated); saveShopAvatares(updated);
     };
     reader.readAsDataURL(file);
     if (avInputRef.current) avInputRef.current.value = "";
   }
   function removeAv(id: string) { const u = shopAv.filter(a => a.id !== id); setShopAv(u); saveShopAvatares(u); }
+  function updateAvPrice(id: string, price: number) {
+    const u = shopAv.map(a => a.id === id ? { ...a, price } : a);
+    setShopAv(u); saveShopAvatares(u);
+  }
 
   /* ── Títulos ─────────────────────────────────────────────────────────────── */
   function addTitulo() {
@@ -705,7 +709,19 @@ export default function Opciones() {
                 <div key={av.id} className="flex items-center gap-3 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={av.img64} alt={av.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200"/>
-                  <span className="flex-1 text-xs font-semibold text-slate-700 truncate">{av.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-semibold text-slate-700 truncate block">{av.name}</span>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] text-amber-600">🌰</span>
+                      <input
+                        type="number" min={0}
+                        value={av.price ?? 0}
+                        onChange={e => updateAvPrice(av.id, Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-16 border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-amber-400"
+                      />
+                      <span className="text-[10px] text-slate-400">(0 = gratis)</span>
+                    </div>
+                  </div>
                   <button onClick={() => removeAv(av.id)}
                     className="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 text-lg leading-none">×</button>
                 </div>

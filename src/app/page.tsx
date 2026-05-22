@@ -5,10 +5,10 @@ import { getPlayerProfile, getPregLog } from "@/lib/db";
 import { pullFromCloud } from "@/lib/cloudsync";
 import { getLevelInfo } from "@/lib/profile";
 import {
-  getShopBellotas, getShopTitulos,
+  getShopBellotas, getShopTitulos, getShopAvatares,
   getOwned, getEquippedAvatar, setEquippedAvatar,
   getEquippedTitulo, setEquippedTitulo,
-  type ShopItem, type TituloItem,
+  type ShopItem, type TituloItem, type AvatarItem,
 } from "@/lib/shop";
 import { getMascotConfig } from "@/lib/mascot";
 import {
@@ -127,12 +127,16 @@ function SceneBg({ seg }: { seg: TimeSegment }) {
 }
 
 /* ── Modal de avatar/título ───────────────────────────────────── */
-function AvatarModal({ onClose, ownedItems, ownedTitulos, equippedAvatar, equippedTituloId, onEquipAvatar, onEquipTitulo }: {
-  onClose: () => void; ownedItems: ShopItem[]; ownedTitulos: TituloItem[];
+function AvatarModal({ onClose, avatarItems, ownedIds, ownedTitulos, equippedAvatar, equippedTituloId, onEquipAvatar, onEquipTitulo }: {
+  onClose: () => void;
+  avatarItems: AvatarItem[];
+  ownedIds: string[];
+  ownedTitulos: TituloItem[];
   equippedAvatar: string | null; equippedTituloId: string | null;
-  onEquipAvatar: (e: string | null) => void; onEquipTitulo: (id: string | null) => void;
+  onEquipAvatar: (id: string | null) => void; onEquipTitulo: (id: string | null) => void;
 }) {
   const [tab, setTab] = useState<"avatar"|"titulo">("avatar");
+  const availableAvatares = avatarItems.filter(av => (av.price ?? 0) === 0 || ownedIds.includes(av.id));
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
@@ -149,20 +153,29 @@ function AvatarModal({ onClose, ownedItems, ownedTitulos, equippedAvatar, equipp
         <div className="flex-1 overflow-y-auto">
           {tab==="avatar" && (
             <div>
-              {ownedItems.length===0 ? (
-                <div className="text-center py-8"><p className="text-3xl mb-2">🛒</p><p className="text-sm text-slate-500">Sin artículos comprados aún</p></div>
-              ) : (<>
-                <button onClick={()=>onEquipAvatar(null)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 mb-2 active:scale-[0.98] ${!equippedAvatar?"border-teal-400 bg-teal-50":"border-transparent bg-slate-50"}`}>
-                  <span className="text-3xl">🐿️</span><div className="text-left"><p className="text-xs font-bold text-slate-700">Ardilla (por defecto)</p></div>
-                  {!equippedAvatar&&<span className="ml-auto text-teal-500 font-bold text-sm">✓</span>}
-                </button>
-                {ownedItems.map(item=>(
-                  <button key={item.id} onClick={()=>onEquipAvatar(item.emoji)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 mb-2 active:scale-[0.98] ${equippedAvatar===item.emoji?"border-teal-400 bg-teal-50":"border-transparent bg-slate-50"}`}>
-                    <span className="text-3xl">{item.emoji}</span><div className="text-left"><p className="text-xs font-bold">{item.name}</p></div>
-                    {equippedAvatar===item.emoji&&<span className="ml-auto text-teal-500 font-bold text-sm">✓</span>}
-                  </button>
-                ))}
-              </>)}
+              <button onClick={()=>onEquipAvatar(null)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 mb-3 active:scale-[0.98] ${!equippedAvatar?"border-teal-400 bg-teal-50":"border-transparent bg-slate-50"}`}>
+                <span className="text-3xl">🐿️</span>
+                <div className="text-left"><p className="text-xs font-bold text-slate-700">Ardilla (por defecto)</p></div>
+                {!equippedAvatar&&<span className="ml-auto text-teal-500 font-bold text-sm">✓</span>}
+              </button>
+              {availableAvatares.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-3xl mb-2">🛒</p>
+                  <p className="text-sm text-slate-500">Sin avatares disponibles.<br/>Ve a la Tienda para conseguir más.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {availableAvatares.map(av=>(
+                    <button key={av.id} onClick={()=>onEquipAvatar(av.id)}
+                      className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all active:scale-[0.97] ${equippedAvatar===av.id?"border-teal-400 bg-teal-50":"border-transparent bg-slate-50"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={av.img64} alt={av.name} className="w-14 h-14 rounded-lg object-cover border border-slate-200"/>
+                      <p className="text-[9px] font-semibold text-slate-600 text-center leading-tight">{av.name}</p>
+                      {equippedAvatar===av.id&&<span className="text-[8px] font-bold text-teal-500">✓ Activo</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {tab==="titulo" && (
@@ -406,6 +419,8 @@ export default function Home() {
   const [showMisiones,     setShowMisiones]          = useState(false);
   const [ownedItems,   setOwnedItems]   = useState<ShopItem[]>([]);
   const [ownedTitulos, setOwnedTitulos] = useState<TituloItem[]>([]);
+  const [avatarItems,  setAvatarItems]  = useState<AvatarItem[]>([]);
+  const [ownedIds,     setOwnedIds]     = useState<string[]>([]);
 
   function showAchievement(ach: Achievement) {
     if (achTimerRef.current) clearTimeout(achTimerRef.current);
@@ -430,7 +445,10 @@ export default function Home() {
     } else { setTituloText(null); }
     const owned = getOwned();
     setOwnedItems(getShopBellotas().filter(i => owned.includes(i.id)));
-    setOwnedTitulos(getShopTitulos().filter(t => owned.includes(t.id)));
+    setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.includes(t.id)));
+    const allAvatares = getShopAvatares();
+    setAvatarItems(allAvatares);
+    setOwnedIds(owned);
     setEquippedCloth(getEquippedClothing());
   }, []);
 
@@ -645,8 +663,8 @@ export default function Home() {
     setShowSopaLetras(false);
   }
 
-  function handleEquipAvatar(emoji: string | null) {
-    setEquippedAvatar(emoji); setEquippedAvatarState(emoji);
+  function handleEquipAvatar(id: string | null) {
+    setEquippedAvatar(id); setEquippedAvatarState(id);
   }
   function handleEquipTitulo(id: string | null) {
     setEquippedTitulo(id); setEquippedTituloIdState(id);
@@ -655,7 +673,7 @@ export default function Home() {
   }
 
   const { level, currentXp, nextLevelXp, progress } = getLevelInfo(xp);
-  const avatarEmoji = equippedAvatar ?? "🐿️";
+  const equippedAvatarItem = avatarItems.find(a => a.id === equippedAvatar) ?? null;
 
   const foodInv = getFoodInventory();
   const foodItems = FOOD_CATALOG.map(f => ({
@@ -687,8 +705,15 @@ export default function Home() {
       <div className="shrink-0 px-4 pt-4">
         <div className="bg-white/75 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-md flex items-center gap-3">
           <button onClick={() => { loadEquipped(); setShowModal(true); }}
-            className="shrink-0 w-12 h-12 rounded-full bg-teal-100 border-2 border-teal-300 flex items-center justify-center text-2xl shadow-sm active:scale-95 relative">
-            {avatarEmoji}
+            className="shrink-0 relative w-12 h-12 active:scale-95 transition-transform">
+            <div className="w-12 h-12 rounded-full bg-teal-100 border-2 border-teal-300 overflow-hidden flex items-center justify-center text-2xl shadow-sm">
+              {equippedAvatarItem ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={equippedAvatarItem.img64} alt="avatar" className="w-full h-full object-cover"/>
+              ) : (
+                <span className="text-2xl">🐿️</span>
+              )}
+            </div>
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[9px] shadow-sm">✏️</span>
           </button>
           <div className="flex-1 min-w-0">
@@ -827,7 +852,9 @@ export default function Home() {
 
       {/* ── Modales ── */}
       {showModal && (
-        <AvatarModal onClose={() => setShowModal(false)} ownedItems={ownedItems} ownedTitulos={ownedTitulos}
+        <AvatarModal onClose={() => setShowModal(false)}
+          avatarItems={avatarItems} ownedIds={ownedIds}
+          ownedTitulos={ownedTitulos}
           equippedAvatar={equippedAvatar} equippedTituloId={equippedTituloId}
           onEquipAvatar={handleEquipAvatar} onEquipTitulo={handleEquipTitulo}/>
       )}

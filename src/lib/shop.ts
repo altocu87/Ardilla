@@ -13,6 +13,7 @@ export type AvatarItem = {
   id: string;
   name: string;
   img64: string; // base64
+  price?: number;
 };
 
 export type TituloItem = {

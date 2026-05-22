@@ -146,6 +146,22 @@ export default function Tienda() {
     setBuying(null);
   }
 
+  async function buyAvatarItem(av: AvatarItem) {
+    const price = av.price ?? 0;
+    if (price === 0 || owned.includes(av.id) || bellotas < price || buying) return;
+    setBuying(av.id);
+    try {
+      const newBell = bellotas - price;
+      await upsertPlayerProfile({ bellotas: newBell });
+      const newOwned = [...owned, av.id];
+      setOwned(newOwned);
+      setOwnedState(newOwned);
+      setBellotas(newBell);
+      showToast(`¡Avatar "${av.name}" desbloqueado! 🖼️`);
+    } catch (e) { console.error(e); }
+    setBuying(null);
+  }
+
   async function buySquirrelItem(id: string, price: number, type: "food"|"clothing"|"toy") {
     if (bellotas < price || buying) return;
     if (type === "clothing" && ownedCloth.includes(id)) return;
@@ -317,18 +333,39 @@ export default function Tienda() {
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 {avatares.map(av => {
+                  const price = av.price ?? 0;
+                  const isOwned = price === 0 || owned.includes(av.id);
+                  const canAfford = bellotas >= price;
                   const isEq = eqAvatar === av.id;
+                  const isBuying = buying === av.id;
                   return (
-                    <button key={av.id} onClick={() => equipAvatar(av.id)}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all active:scale-95 ${
-                        isEq ? "border-violet-500 bg-violet-50 shadow-md shadow-violet-200" : "border-slate-200 bg-white"
-                      }`}>
+                    <div key={av.id} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+                      isEq ? "border-violet-500 bg-violet-50 shadow-md shadow-violet-200"
+                      : "border-slate-200 bg-white"
+                    }`}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={av.img64} alt={av.name}
                         className="w-16 h-16 rounded-xl object-cover border border-slate-200"/>
                       <p className="text-[10px] font-semibold text-slate-600 text-center leading-tight">{av.name}</p>
+                      {price > 0 && <span className="text-[9px] font-bold text-amber-600">🌰 {price}</span>}
                       {isEq && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">Equipado ✓</span>}
-                    </button>
+                      {isOwned ? (
+                        <button onClick={() => equipAvatar(av.id)}
+                          className={`w-full px-2 py-1 rounded-xl text-[10px] font-bold active:scale-95 transition-all ${
+                            isEq ? "bg-violet-200 text-violet-800" : "bg-violet-100 text-violet-700"
+                          }`}>
+                          {isEq ? "Desequipar" : "Equipar"}
+                        </button>
+                      ) : (
+                        <button onClick={() => buyAvatarItem(av)} disabled={!canAfford || !!isBuying}
+                          className={`w-full px-2 py-1 rounded-xl text-[10px] font-bold active:scale-95 transition-all ${
+                            canAfford ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-sm"
+                            : "bg-slate-100 text-slate-400"
+                          }`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
