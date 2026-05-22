@@ -39,6 +39,7 @@ export type AwardResult = {
   xp: number;
   bellotas: number;
   streakBonus?: { label: string; bellotas: number; xp: number };
+  multiplier?: number;
 };
 
 async function getCurrentStreak(): Promise<number> {
@@ -71,13 +72,22 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
     const cfg    = getRewardsConfig();
     const reward = cfg[type] ?? { xp: 10, bellotas: 2 };
 
-    let newXp       = profile.xp       + reward.xp;
-    let newBellotas = profile.bellotas  + reward.bellotas;
+    // Compute streak for multiplier (for ALL activity types)
+    const streak = await getCurrentStreak();
+    let multiplier: number | undefined = undefined;
+    if (streak >= 7) multiplier = 2;
+    else if (streak >= 3) multiplier = 1.5;
+
+    // Apply multiplier to base reward
+    const effectiveXp       = multiplier ? Math.ceil(reward.xp * multiplier)       : reward.xp;
+    const effectiveBellotas = multiplier ? Math.ceil(reward.bellotas * multiplier)  : reward.bellotas;
+
+    let newXp       = profile.xp       + effectiveXp;
+    let newBellotas = profile.bellotas  + effectiveBellotas;
     const newStreakAwards = [...(profile.streakAwards ?? [])];
     let streakBonus: AwardResult["streakBonus"] = undefined;
 
     if (type === "diario") {
-      const streak = await getCurrentStreak();
       for (const m of STREAK_MILESTONES) {
         if (streak >= m.days && !newStreakAwards.includes(m.days)) {
           newXp       += m.xp;
@@ -97,7 +107,7 @@ export async function awardXp(type: RegisterType): Promise<AwardResult | null> {
       streakAwards: newStreakAwards,
     });
 
-    return { xp: reward.xp, bellotas: reward.bellotas, streakBonus };
+    return { xp: effectiveXp, bellotas: effectiveBellotas, streakBonus, multiplier };
   } catch (e) {
     console.error("awardXp error:", e);
     return null;

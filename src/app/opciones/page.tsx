@@ -1,18 +1,109 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import {
-  registerServiceWorker,
-  subscribeToPush,
-  unsubscribeFromPush,
-  isPushSubscribed,
-  sendTestNotification,
-  getNotificationPermission,
-} from "@/lib/notifications";
-import {
-  getSchedules, upsertSchedule, deleteSchedule, toggleSchedule, sendNow,
-  DAYS_LABELS, type NotifSchedule,
-} from "@/lib/schedules";
+
+/* ── Pantalla de PIN ──────────────────────────────────────────────────────── */
+const PIN_CORRECTO = "8553";
+
+function PinGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin]       = useState("");
+  const [error, setError]   = useState(false);
+  const [shake, setShake]   = useState(false);
+
+  function handleKey(k: string | number) {
+    if (k === "⌫") {
+      setPin(p => p.slice(0, -1));
+      setError(false);
+      return;
+    }
+    if (pin.length >= 4) return;
+    const next = pin + String(k);
+    setPin(next);
+    setError(false);
+    if (next.length === 4) {
+      if (next === PIN_CORRECTO) {
+        onUnlock();
+      } else {
+        setError(true);
+        setShake(true);
+        setTimeout(() => { setShake(false); setPin(""); }, 700);
+      }
+    }
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes caracol-rage {
+          0%,100% { transform: rotate(-8deg) scale(1.05); }
+          50%      { transform: rotate(8deg) scale(1.12); }
+        }
+        @keyframes pin-shake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-10px); }
+          40%      { transform: translateX(10px); }
+          60%      { transform: translateX(-8px); }
+          80%      { transform: translateX(8px); }
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 px-6 select-none">
+
+        {/* Caracol enfadado */}
+        <div style={{ animation: "caracol-rage 0.6s ease-in-out infinite" }}
+          className="text-[110px] leading-none mb-1 drop-shadow-[0_0_24px_rgba(239,68,68,0.8)]">
+          🐌
+        </div>
+        <div className="flex gap-1 text-2xl mb-3">😡💢😡</div>
+
+        {/* Mensaje */}
+        <p className="text-red-500 font-black text-lg text-center uppercase tracking-widest leading-tight mb-1">
+          ⚠️ ESTA ZONA ESTÁ RESTRINGIDA
+        </p>
+        <p className="text-yellow-400 font-black text-base text-center uppercase tracking-wider mb-8">
+          SOLO PARA CARACOLES 🐌
+        </p>
+
+        {/* Indicador de dígitos */}
+        <div
+          className="flex gap-4 mb-7"
+          style={shake ? { animation: "pin-shake 0.6s ease-in-out" } : {}}
+        >
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-150 ${
+              pin.length > i
+                ? error ? "bg-red-500 border-red-500" : "bg-yellow-400 border-yellow-400"
+                : "border-slate-500"
+            }`} />
+          ))}
+        </div>
+
+        {/* Teclado numérico */}
+        <div className="grid grid-cols-3 gap-3 w-60">
+          {[1,2,3,4,5,6,7,8,9,"","0","⌫"].map((k, i) => (
+            <button
+              key={i}
+              onClick={() => k !== "" && handleKey(k)}
+              disabled={k === ""}
+              className={`h-14 rounded-2xl font-bold text-xl transition-all active:scale-90 ${
+                k === "" ? "invisible" :
+                k === "⌫" ? "bg-slate-800 text-red-400 hover:bg-slate-700" :
+                "bg-slate-800 text-white hover:bg-slate-700"
+              }`}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <p className="text-red-400 text-sm font-bold mt-5 animate-bounce">
+            ❌ PIN incorrecto, ¡impostor! Esto es zona caracol 🐌
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
 import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
   getShopBellotas, saveShopBellotas,
@@ -29,6 +120,10 @@ import {
   ACTIVITY_KEYS, ACTIVITY_LABELS, DEFAULT_REWARDS,
   type RewardsConfig,
 } from "@/lib/rewards";
+import {
+  getMascotConfig, saveMascotConfig, DEFAULT_MASCOT_CONFIG,
+  type MascotConfig,
+} from "@/lib/mascot";
 
 const EMOJIS_BELL = ["🌰","🎁","🎮","🎵","🌈","🎭","🌟","⭐","🏆","🎯","💎","👑","🌸","🦋","🎨","🧸","🪄","🍀","🌺","🎠","🪆","🫧","🌙","✨","🎪"];
 const EMOJIS_RATA = ["🐀","🐭","🧀","🔮","🗡️","🧙","💀","🦇","⚡","🌑","💫","🃏","🎲","🌙","🔴","🕷️","👁️","☠️","🪄","🎴","🧪","🌑","🔪","🎭","🕰️"];
@@ -266,6 +361,9 @@ function RewardRow({
    PÁGINA PRINCIPAL
 ══════════════════════════════════════════════════════════════════════════════ */
 export default function Opciones() {
+  /* ── PIN gate ───────────────────────────────────────────────────────────── */
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+
   /* ── Estado ─────────────────────────────────────────────────────────────── */
   const [rewardsCfg,    setRewardsCfg]    = useState<RewardsConfig>(DEFAULT_REWARDS);
   const [rewardsSaved,  setRewardsSaved]  = useState(false);
@@ -280,38 +378,21 @@ export default function Opciones() {
   const [shopTitulos, setShopTitulos] = useState<TituloItem[]>([]);
   const [newTitulo,   setNewTitulo]   = useState("");
 
+  const [newTituloPrice,    setNewTituloPrice]    = useState("");
   const [editingTituloId,   setEditingTituloId]   = useState<string | null>(null);
   const [editingTituloText, setEditingTituloText] = useState("");
+  const [editingTituloPrice, setEditingTituloPrice] = useState("");
 
   const [adminMsg,   setAdminMsg]   = useState<string | null>(null);
   const [exporting,  setExporting]  = useState(false);
 
-  // Notificaciones
-  const [notifStatus,   setNotifStatus]   = useState<"loading"|"granted"|"denied"|"default"|"unsupported">("loading");
-  const [notifSubbed,   setNotifSubbed]   = useState(false);
-  const [notifWorking,  setNotifWorking]  = useState(false);
-
-  // Programación de notificaciones
-  const [schedules,     setSchedules]     = useState<NotifSchedule[]>([]);
-  const [schedForm,     setSchedForm]     = useState<Omit<NotifSchedule,"id"|"last_sent_at">>({
-    emoji: "🐿️", title: "", body: "", hour: 10, minute: 0,
-    days: [1,2,3,4,5,6,0], active: true,
-  });
-  const [editingSchedId, setEditingSchedId] = useState<string|null>(null);
+  /* ── Mascota ─────────────────────────────────────────────────────────────── */
+  const [mascotCfg,   setMascotCfg]   = useState<MascotConfig>(DEFAULT_MASCOT_CONFIG);
+  const [mascotSaved, setMascotSaved] = useState(false);
 
   const avInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    registerServiceWorker();
-    getNotificationPermission().then((perm) => {
-      if (!("Notification" in window) || !("PushManager" in window)) {
-        setNotifStatus("unsupported");
-      } else {
-        setNotifStatus(perm as "granted"|"denied"|"default");
-      }
-    });
-    isPushSubscribed().then(setNotifSubbed);
-    getSchedules().then(setSchedules);
     cleanupLegacyDefaults();
     try {
       const stored = localStorage.getItem("custom_phrases");
@@ -323,6 +404,7 @@ export default function Opciones() {
     setShopAv(getShopAvatares());
     setShopTitulos(getShopTitulos());
     setRewardsCfg(getRewardsConfig());
+    setMascotCfg(getMascotConfig());
   }, []);
 
   function showAdminMsg(msg: string) {
@@ -345,6 +427,14 @@ export default function Opciones() {
     saveRewardsConfig({ ...DEFAULT_REWARDS });
     showAdminMsg("✓ Recompensas restauradas a valores por defecto");
   }
+
+  /* ── Mascota ─────────────────────────────────────────────────────────────── */
+  function saveMascot() {
+    saveMascotConfig(mascotCfg);
+    setMascotSaved(true);
+    setTimeout(() => setMascotSaved(false), 2000);
+  }
+
 
   /* ── Frases ──────────────────────────────────────────────────────────────── */
   function saveCustomPhrases(phrases: string[]) {
@@ -409,83 +499,15 @@ export default function Opciones() {
   /* ── Títulos ─────────────────────────────────────────────────────────────── */
   function addTitulo() {
     const t = newTitulo.trim(); if (!t) return;
-    const updated = [...shopTitulos, { id: `t_${Date.now()}`, text: t }];
-    setShopTitulos(updated); saveShopTitulos(updated); setNewTitulo("");
+    const updated = [...shopTitulos, { id: `t_${Date.now()}`, text: t, price: Number(newTituloPrice) || 0 }];
+    setShopTitulos(updated); saveShopTitulos(updated); setNewTitulo(""); setNewTituloPrice("");
   }
   function removeTitulo(id: string) { const u = shopTitulos.filter(t => t.id !== id); setShopTitulos(u); saveShopTitulos(u); }
-  function startEditTitulo(t: TituloItem) { setEditingTituloId(t.id); setEditingTituloText(t.text); }
+  function startEditTitulo(t: TituloItem) { setEditingTituloId(t.id); setEditingTituloText(t.text); setEditingTituloPrice(String(t.price ?? 0)); }
   function saveEditTitulo(id: string) {
     const text = editingTituloText.trim(); if (!text) return;
-    const u = shopTitulos.map(t => t.id === id ? { ...t, text } : t);
+    const u = shopTitulos.map(t => t.id === id ? { ...t, text, price: Number(editingTituloPrice) || 0 } : t);
     setShopTitulos(u); saveShopTitulos(u); setEditingTituloId(null);
-  }
-
-  /* ── Notificaciones ─────────────────────────────────────────────────────── */
-  async function handleToggleNotif() {
-    setNotifWorking(true);
-    if (notifSubbed) {
-      await unsubscribeFromPush();
-      setNotifSubbed(false);
-      showAdminMsg("🔕 Notificaciones desactivadas");
-    } else {
-      const result = await subscribeToPush();
-      if (result.ok) {
-        setNotifSubbed(true);
-        setNotifStatus("granted");
-        showAdminMsg("🔔 ¡Notificaciones activadas!");
-      } else {
-        showAdminMsg(`❌ ${result.error}`);
-      }
-    }
-    setNotifWorking(false);
-  }
-
-  async function handleTestNotif() {
-    setNotifWorking(true);
-    const result = await sendTestNotification();
-    showAdminMsg(result.ok ? "✓ Notificación de prueba enviada" : `❌ ${result.error}`);
-    setNotifWorking(false);
-  }
-
-  /* ── Programación ───────────────────────────────────────────────────────── */
-  function toggleSchedDay(day: number) {
-    setSchedForm(f => ({
-      ...f,
-      days: f.days.includes(day) ? f.days.filter(d => d !== day) : [...f.days, day],
-    }));
-  }
-
-  async function saveSchedule() {
-    if (!schedForm.title.trim() || !schedForm.body.trim() || schedForm.days.length === 0) return;
-    const payload = editingSchedId
-      ? { ...schedForm, id: editingSchedId }
-      : { ...schedForm };
-    await upsertSchedule(payload);
-    const updated = await getSchedules();
-    setSchedules(updated);
-    setEditingSchedId(null);
-    setSchedForm({ emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true });
-    showAdminMsg("✓ Notificación guardada");
-  }
-
-  function startEditSched(s: NotifSchedule) {
-    setEditingSchedId(s.id);
-    setSchedForm({ emoji: s.emoji, title: s.title, body: s.body, hour: s.hour, minute: s.minute, days: s.days, active: s.active });
-  }
-
-  async function removeSched(id: string) {
-    await deleteSchedule(id);
-    setSchedules(prev => prev.filter(s => s.id !== id));
-  }
-
-  async function toggleSched(id: string, active: boolean) {
-    await toggleSchedule(id, active);
-    setSchedules(prev => prev.map(s => s.id === id ? { ...s, active } : s));
-  }
-
-  async function sendSchedNow(s: NotifSchedule) {
-    await sendNow(s);
-    showAdminMsg(`✓ Enviada: ${s.emoji} ${s.title}`);
   }
 
   /* ── Exportar ────────────────────────────────────────────────────────────── */
@@ -536,6 +558,8 @@ export default function Opciones() {
   /* ════════════════════════════════════════════════════════════════════════ */
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-20">
+
+      {!pinUnlocked && <PinGate onUnlock={() => setPinUnlocked(true)} />}
 
       {/* Cabecera */}
       <header className="flex items-center gap-3 mb-8">
@@ -623,32 +647,49 @@ export default function Opciones() {
         {/* ══ 5. TÍTULOS ══════════════════════════════════════════════════════ */}
         <Section title="Títulos" emoji="🏷️" badge={shopTitulos.length > 0 ? `${shopTitulos.length}` : undefined}>
           <p className="text-xs text-slate-500 -mt-1">Títulos que aparecen al lado del nombre de Vicky.</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input value={newTitulo} onChange={e => setNewTitulo(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addTitulo()}
               placeholder="Ej: Maestra de la Calma 🌿"
-              className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 bg-white placeholder:text-slate-300"/>
-            <button onClick={addTitulo}
-              className="w-11 bg-violet-600 text-white rounded-xl font-bold text-xl active:scale-95 transition-all">+</button>
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 bg-white placeholder:text-slate-300"/>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-1.5 flex-1 border border-slate-200 rounded-xl px-3 py-2.5 bg-white">
+                <span className="text-sm shrink-0">🌰</span>
+                <input value={newTituloPrice} onChange={e => setNewTituloPrice(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Precio (0 = gratis)" inputMode="numeric"
+                  className="flex-1 text-sm focus:outline-none placeholder:text-slate-300 min-w-0"/>
+              </div>
+              <button onClick={addTitulo} disabled={!newTitulo.trim()}
+                className={`w-11 rounded-xl font-bold text-xl active:scale-95 transition-all ${newTitulo.trim() ? "bg-violet-600 text-white" : "bg-slate-200 text-slate-400"}`}>+</button>
+            </div>
           </div>
           {shopTitulos.length > 0 && (
             <div className="flex flex-col gap-1.5">
               {shopTitulos.map(t => (
                 <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   {editingTituloId === t.id ? (
-                    <div className="flex items-center gap-2 px-3 py-2">
+                    <div className="flex flex-col gap-2 px-3 py-2">
                       <input value={editingTituloText} onChange={e => setEditingTituloText(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && saveEditTitulo(t.id)}
-                        className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-violet-400"/>
-                      <button onClick={() => saveEditTitulo(t.id)}
-                        className="px-2 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold active:scale-95">✓</button>
-                      <button onClick={() => setEditingTituloId(null)}
-                        className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold active:scale-95">✗</button>
+                        className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-violet-400"/>
+                      <div className="flex gap-2">
+                        <div className="flex items-center gap-1 flex-1 border border-slate-200 rounded-lg px-2 py-1.5">
+                          <span className="text-xs shrink-0">🌰</span>
+                          <input value={editingTituloPrice} onChange={e => setEditingTituloPrice(e.target.value.replace(/\D/g, ""))}
+                            inputMode="numeric" placeholder="0"
+                            className="flex-1 text-xs focus:outline-none min-w-0 placeholder:text-slate-300"/>
+                        </div>
+                        <button onClick={() => saveEditTitulo(t.id)}
+                          className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold active:scale-95">✓</button>
+                        <button onClick={() => setEditingTituloId(null)}
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold active:scale-95">✗</button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 px-3 py-2.5">
                       <span className="text-sm">🏷️</span>
                       <span className="flex-1 text-xs font-semibold text-slate-700">{t.text}</span>
+                      {(t.price ?? 0) > 0 && <span className="text-[10px] font-bold text-amber-600">🌰 {t.price}</span>}
                       <button onClick={() => startEditTitulo(t)}
                         className="w-7 h-7 flex items-center justify-center rounded-full text-violet-400 hover:bg-violet-50 text-sm">✏️</button>
                       <button onClick={() => removeTitulo(t.id)}
@@ -719,207 +760,48 @@ export default function Opciones() {
           )}
         </Section>
 
-        {/* ══ 8. PROGRAMAR NOTIFICACIONES ══════════════════════════════════════ */}
-        <Section title="Programar notificaciones" emoji="📅" badge={schedules.length > 0 ? `${schedules.length}` : undefined}>
-          <p className="text-xs text-slate-400 -mt-1">Define qué notificaciones quieres enviar automáticamente y a qué hora.</p>
+        {/* ══ 8. MASCOTA ══════════════════════════════════════════════════════ */}
+        <Section title="Mascota" emoji="🐿️">
+          <p className="text-xs text-slate-400 -mt-1">
+            Personaliza el comportamiento y nombre de la ardilla mascota.
+          </p>
 
-          {/* Formulario */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col gap-3 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              {editingSchedId ? "Editando notificación" : "Nueva notificación"}
-            </p>
+          {/* Nombre */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nombre de la mascota</p>
+            <input
+              value={mascotCfg.nombre}
+              onChange={e => { setMascotCfg(prev => ({ ...prev, nombre: e.target.value })); setMascotSaved(false); }}
+              placeholder="Ardilla"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-400 bg-white placeholder:text-slate-300"
+            />
+          </div>
 
-            {/* Emoji + Título */}
-            <div className="flex gap-2">
-              <input value={schedForm.emoji} onChange={e => setSchedForm(f => ({ ...f, emoji: e.target.value }))}
-                maxLength={4}
-                className="w-14 border border-slate-200 rounded-xl px-2 py-2.5 text-center text-xl focus:outline-none focus:border-purple-400"/>
-              <input value={schedForm.title} onChange={e => setSchedForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Título  (ej: ¡Hora de practicar!)"
-                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 placeholder:text-slate-300"/>
-            </div>
-
-            {/* Mensaje */}
-            <textarea value={schedForm.body} onChange={e => setSchedForm(f => ({ ...f, body: e.target.value }))}
-              placeholder="Mensaje  (ej: Recuerda registrar cómo te sientes hoy 🌿)"
-              rows={2}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 resize-none placeholder:text-slate-300"/>
-
-            {/* Hora */}
-            <div className="flex items-center gap-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hora</p>
-              <div className="flex items-center gap-1">
-                <select value={schedForm.hour} onChange={e => setSchedForm(f => ({ ...f, hour: Number(e.target.value) }))}
-                  className="border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-purple-400">
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>{String(i).padStart(2,"0")}</option>
-                  ))}
-                </select>
-                <span className="text-slate-400 font-bold">:</span>
-                <select value={schedForm.minute} onChange={e => setSchedForm(f => ({ ...f, minute: Number(e.target.value) }))}
-                  className="border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-purple-400">
-                  {[0,15,30,45].map(m => (
-                    <option key={m} value={m}>{String(m).padStart(2,"0")}</option>
-                  ))}
-                </select>
+          {/* Threshold inputs */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-base">🥳</span>
+                <p className="text-xs font-medium text-slate-600">Días de racha para &ldquo;muy feliz&rdquo;</p>
               </div>
-              <p className="text-[10px] text-slate-400 leading-tight">hora UTC<br/>(España = UTC+1/+2)</p>
-            </div>
-
-            {/* Días */}
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Días</p>
-              <div className="flex gap-1.5">
-                {[1,2,3,4,5,6,0].map(d => (
-                  <button key={d} onClick={() => toggleSchedDay(d)}
-                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${
-                      schedForm.days.includes(d)
-                        ? "bg-purple-500 text-white"
-                        : "bg-slate-100 text-slate-500 border border-slate-200"
-                    }`}>
-                    {DAYS_LABELS[d]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button onClick={saveSchedule}
-                disabled={!schedForm.title.trim() || !schedForm.body.trim() || schedForm.days.length === 0}
-                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${
-                  schedForm.title.trim() && schedForm.body.trim() && schedForm.days.length > 0
-                    ? "bg-purple-500 shadow-sm" : "bg-slate-200 text-slate-400"
-                }`}>
-                {editingSchedId ? "Guardar cambios" : "+ Añadir"}
-              </button>
-              {editingSchedId && (
-                <button onClick={() => { setEditingSchedId(null); setSchedForm({ emoji:"🐿️",title:"",body:"",hour:10,minute:0,days:[1,2,3,4,5,6,0],active:true }); }}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium active:scale-95">
-                  Cancelar
-                </button>
-              )}
+              <input
+                type="number" min={1} max={99}
+                value={mascotCfg.rachaFeliz}
+                onChange={e => { const n = Math.max(1, parseInt(e.target.value)||1); setMascotCfg(prev=>({...prev,rachaFeliz:n})); setMascotSaved(false); }}
+                className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-teal-400 shrink-0"
+              />
             </div>
           </div>
 
-          {/* Lista */}
-          {schedules.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-2">Sin notificaciones programadas aún.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {schedules.map(s => (
-                <div key={s.id} className={`rounded-xl border shadow-sm overflow-hidden ${s.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100"}`}>
-                  <div className="flex items-center gap-3 px-3 py-3">
-                    <span className="text-2xl shrink-0">{s.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-bold truncate ${s.active ? "text-slate-700" : "text-slate-400"}`}>{s.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{s.body}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold text-purple-600">
-                          {String(s.hour).padStart(2,"0")}:{String(s.minute).padStart(2,"0")} UTC
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {[1,2,3,4,5,6,0].filter(d => s.days.includes(d)).map(d => DAYS_LABELS[d]).join(" ")}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1 shrink-0">
-                      {/* Toggle activo */}
-                      <button onClick={() => toggleSched(s.id, !s.active)}
-                        className={`w-10 h-5 rounded-full transition-colors relative ${s.active ? "bg-purple-400" : "bg-slate-200"}`}>
-                        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${s.active ? "translate-x-5" : "translate-x-0.5"}`}/>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex border-t border-slate-100">
-                    <button onClick={() => sendSchedNow(s)}
-                      className="flex-1 py-2 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors">
-                      ▶ Enviar ahora
-                    </button>
-                    <button onClick={() => startEditSched(s)}
-                      className="flex-1 py-2 text-[11px] font-semibold text-violet-500 hover:bg-violet-50 transition-colors border-l border-slate-100">
-                      ✏️ Editar
-                    </button>
-                    <button onClick={() => removeSched(s.id)}
-                      className="flex-1 py-2 text-[11px] font-semibold text-red-400 hover:bg-red-50 transition-colors border-l border-slate-100">
-                      🗑 Borrar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <button onClick={saveMascot}
+            className={`w-full py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${
+              mascotSaved ? "bg-emerald-500" : "bg-teal-600 shadow-sm"
+            }`}>
+            {mascotSaved ? "✓ Guardado" : "Guardar configuración"}
+          </button>
         </Section>
 
-        {/* ══ 9. NOTIFICACIONES ════════════════════════════════════════════════ */}
-        <div className="border-2 border-purple-200 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 shadow-md">
-          <div className="px-4 py-3 bg-white/60 border-b border-purple-100 flex items-center gap-2">
-            <span className="text-xl">🔔</span>
-            <span className="text-sm font-bold text-purple-800">Notificaciones push</span>
-            {notifSubbed && (
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Activas</span>
-            )}
-          </div>
-          <div className="px-4 py-4 flex flex-col gap-3">
-
-            {notifStatus === "unsupported" && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                <p className="text-xs font-semibold text-amber-800">Navegador no compatible</p>
-                <p className="text-xs text-amber-600 mt-1 leading-snug">
-                  Las notificaciones push requieren iOS 16.4+ con la app añadida a la pantalla de inicio.
-                </p>
-              </div>
-            )}
-
-            {notifStatus !== "unsupported" && (
-              <>
-                <div className="bg-white/80 border border-purple-100 rounded-xl px-4 py-3">
-                  <p className="text-xs text-slate-600 leading-snug">
-                    Recibe recordatorios diarios y avisos de logros directamente en tu móvil. 🌿
-                  </p>
-                  {notifStatus !== "granted" && notifStatus !== "loading" && (
-                    <p className="text-[11px] text-purple-500 mt-1.5 leading-snug">
-                      ⚠️ Para iOS: añade la app a la pantalla de inicio y abre desde allí.
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleToggleNotif}
-                  disabled={notifWorking || notifStatus === "denied"}
-                  className={`w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-all shadow-sm ${
-                    notifWorking
-                      ? "bg-slate-300"
-                      : notifSubbed
-                      ? "bg-rose-400"
-                      : notifStatus === "denied"
-                      ? "bg-slate-300 text-slate-500"
-                      : "bg-purple-500"
-                  }`}
-                >
-                  {notifWorking
-                    ? "Procesando…"
-                    : notifSubbed
-                    ? "🔕 Desactivar notificaciones"
-                    : notifStatus === "denied"
-                    ? "Permiso bloqueado (ajusta en Ajustes del móvil)"
-                    : "🔔 Activar notificaciones"}
-                </button>
-
-                {notifSubbed && (
-                  <button
-                    onClick={handleTestNotif}
-                    disabled={notifWorking}
-                    className="w-full py-2.5 rounded-xl border border-purple-200 bg-white text-purple-700 text-sm font-semibold active:scale-95 transition-all"
-                  >
-                    🐿️ Enviar notificación de prueba
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ══ 10. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
+        {/* ══ 9. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
         <Section title="Exportar datos" emoji="📤">
           <p className="text-xs text-slate-400 -mt-1">
             Descarga todos los registros (diario, caca, emocional, prácticas) en un archivo JSON.
@@ -932,7 +814,7 @@ export default function Opciones() {
           </button>
         </Section>
 
-        {/* ══ 11. ADMINISTRACIÓN ══════════════════════════════════════════════ */}
+        {/* ══ 9. ADMINISTRACIÓN ═══════════════════════════════════════════════ */}
         <Section title="Administración" emoji="🔧">
           <p className="text-xs text-slate-400 -mt-1">Sincronización con Supabase y reinicio de datos.</p>
 

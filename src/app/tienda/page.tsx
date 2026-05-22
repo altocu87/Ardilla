@@ -10,14 +10,24 @@ import {
   getEquippedTitulo, setEquippedTitulo,
   ShopItem, AvatarItem, TituloItem,
 } from "@/lib/shop";
+import {
+  FOOD_CATALOG, CLOTHING_CATALOG, TOY_CATALOG,
+  getFoodInventory, getOwnedClothing, getOwnedToys,
+  addFood, addOwnedClothing, addOwnedToy,
+  getEquippedClothing, toggleClothing,
+  type EquippedClothing,
+} from "@/lib/squirrel-shop";
 
-type Tab = "bellotas" | "rata" | "avatares" | "titulos";
+type Tab = "bellotas" | "rata" | "avatares" | "titulos" | "comida" | "ropa" | "juguetes";
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: "bellotas", label: "Bellotas",  emoji: "🌰" },
-  { id: "rata",     label: "La Rata",   emoji: "🐀" },
-  { id: "avatares", label: "Avatares",  emoji: "🖼️" },
-  { id: "titulos",  label: "Títulos",   emoji: "🏷️" },
+  { id: "bellotas",  label: "Bellotas",  emoji: "🌰" },
+  { id: "rata",      label: "La Rata",   emoji: "🐀" },
+  { id: "comida",    label: "Comida",    emoji: "🍎" },
+  { id: "ropa",      label: "Ropa",      emoji: "👗" },
+  { id: "juguetes",  label: "Juguetes",  emoji: "🎮" },
+  { id: "avatares",  label: "Avatares",  emoji: "🖼️" },
+  { id: "titulos",   label: "Títulos",   emoji: "🏷️" },
 ];
 
 const EARN_ROWS = [
@@ -48,6 +58,12 @@ export default function Tienda() {
   const [avatares,  setAvatares]    = useState<AvatarItem[]>([]);
   const [titulos,   setTitulos]     = useState<TituloItem[]>([]);
 
+  // Squirrel shop
+  const [foodInv,       setFoodInv]       = useState<Record<string,number>>({});
+  const [ownedCloth,    setOwnedCloth]    = useState<string[]>([]);
+  const [ownedToys,     setOwnedToys]     = useState<string[]>([]);
+  const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
+
   useEffect(() => {
     getPlayerProfile()
       .then(p => { setBellotas(p.bellotas); setXp(p.xp); setLoaded(true); })
@@ -59,6 +75,10 @@ export default function Tienda() {
     setItemsRata(getShopRata());
     setAvatares(getShopAvatares());
     setTitulos(getShopTitulos());
+    setFoodInv(getFoodInventory());
+    setOwnedCloth(getOwnedClothing());
+    setOwnedToys(getOwnedToys());
+    setEquippedCloth(getEquippedClothing());
   }, []);
 
   const { level } = getLevelInfo(xp);
@@ -95,6 +115,50 @@ export default function Tienda() {
     setEquippedTitulo(newId);
     setEqTitulo(newId);
     showToast(newId ? "Título equipado ✓" : "Título desequipado");
+  }
+
+  async function buyTitulo(t: TituloItem) {
+    const price = t.price ?? 0;
+    if (owned.includes(t.id) || bellotas < price || buying) return;
+    setBuying(t.id);
+    try {
+      const newBell = bellotas - price;
+      await upsertPlayerProfile({ bellotas: newBell });
+      const newOwned = [...owned, t.id];
+      setOwned(newOwned);
+      setOwnedState(newOwned);
+      setBellotas(newBell);
+      showToast(`¡Título "${t.text}" desbloqueado! 🏷️`);
+    } catch (e) { console.error(e); }
+    setBuying(null);
+  }
+
+  async function buySquirrelItem(id: string, price: number, type: "food"|"clothing"|"toy") {
+    if (bellotas < price || buying) return;
+    if (type === "clothing" && ownedCloth.includes(id)) return;
+    if (type === "toy"      && ownedToys.includes(id))  return;
+    setBuying(id);
+    try {
+      const newBell = bellotas - price;
+      await upsertPlayerProfile({ bellotas: newBell });
+      setBellotas(newBell);
+      if (type === "food")     { addFood(id);          setFoodInv(getFoodInventory()); }
+      if (type === "clothing") { addOwnedClothing(id); setOwnedCloth(getOwnedClothing()); }
+      if (type === "toy")      { addOwnedToy(id);      setOwnedToys(getOwnedToys()); }
+      const names: Record<string,string> = {
+        ...Object.fromEntries(FOOD_CATALOG.map(f=>[f.id,f.name])),
+        ...Object.fromEntries(CLOTHING_CATALOG.map(c=>[c.id,c.name])),
+        ...Object.fromEntries(TOY_CATALOG.map(t=>[t.id,t.name])),
+      };
+      showToast(`¡${names[id] ?? id} comprado! ✓`);
+    } catch(e) { console.error(e); }
+    setBuying(null);
+  }
+
+  function handleToggleClothing(id: string) {
+    const newEq = toggleClothing(id);
+    setEquippedCloth({...newEq});
+    showToast("Ropa actualizada ✓");
   }
 
   // ── shared item card ──────────────────────────────────────────────────────
@@ -259,22 +323,167 @@ export default function Tienda() {
           </div>
         )}
 
+        {/* ══ TAB: COMIDA ══ */}
+        {tab === "comida" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-slate-400 px-1">Dale de comer a la ardilla 🌰 · se consume al usarla desde inicio</p>
+            {FOOD_CATALOG.map(food => {
+              const qty      = foodInv[food.id] ?? 0;
+              const canAfford = bellotas >= food.price;
+              const isBuying  = buying === food.id;
+              return (
+                <div key={food.id} className="rounded-2xl border p-4 shadow-sm bg-white">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center text-2xl shadow-sm shrink-0">
+                      {food.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-700">{food.name}</p>
+                        {qty > 0 && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">×{qty} en mochila</span>}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{food.desc}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">+{food.hambreRestore} hambre{food.animoBoost ? ` · +${food.animoBoost} ánimo` : ""}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-extrabold text-amber-700">🌰 {food.price}</span>
+                        <button onClick={() => buySquirrelItem(food.id, food.price, "food")} disabled={!canAfford || !!isBuying}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${canAfford ? "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md" : "bg-slate-100 text-slate-400"}`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ══ TAB: ROPA ══ */}
+        {tab === "ropa" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-slate-400 px-1">Compra ropa y equípasela a la ardilla · se verá en la pantalla principal</p>
+            {CLOTHING_CATALOG.map(item => {
+              const owned     = ownedCloth.includes(item.id);
+              const equipped  = equippedCloth[item.slot] === item.id;
+              const canAfford = bellotas >= item.price;
+              const isBuying  = buying === item.id;
+              return (
+                <div key={item.id} className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${equipped ? "border-violet-300 bg-violet-50" : "border-transparent"}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0 border border-slate-100"
+                      style={{ background: item.color + "22" }}>
+                      {item.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm font-bold text-slate-700">{item.name}</p>
+                        <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full capitalize">{item.slot}</span>
+                        {equipped && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">Puesta ✓</span>}
+                      </div>
+                      <p className="text-xs text-slate-400">{item.desc}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-extrabold text-amber-700">🌰 {item.price}</span>
+                        {!owned ? (
+                          <button onClick={() => buySquirrelItem(item.id, item.price, "clothing")} disabled={!canAfford || !!isBuying}
+                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${canAfford ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md" : "bg-slate-100 text-slate-400"}`}>
+                            {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                          </button>
+                        ) : (
+                          <button onClick={() => handleToggleClothing(item.id)}
+                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${equipped ? "bg-violet-200 text-violet-800" : "bg-violet-100 text-violet-700"}`}>
+                            {equipped ? "Quitar" : "Poner"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ══ TAB: JUGUETES ══ */}
+        {tab === "juguetes" && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-slate-400 px-1">Usa los juguetes desde la pantalla principal para subir el ánimo</p>
+            {TOY_CATALOG.map(toy => {
+              const owned     = ownedToys.includes(toy.id);
+              const canAfford = bellotas >= toy.price;
+              const isBuying  = buying === toy.id;
+              return (
+                <div key={toy.id} className={`rounded-2xl border p-4 shadow-sm bg-white ${owned ? "opacity-70" : ""}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-2xl shadow-sm shrink-0">
+                      {toy.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-700">{toy.name}</p>
+                        {owned && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">Tuyo ✓</span>}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{toy.desc}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">+{toy.animoBoost} ánimo · recarga {toy.cooldownMinutes} min</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-extrabold text-amber-700">🌰 {toy.price}</span>
+                        <button onClick={() => buySquirrelItem(toy.id, toy.price, "toy")} disabled={owned || !canAfford || !!isBuying}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${
+                            owned ? "bg-slate-100 text-slate-400 cursor-default"
+                            : canAfford ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md"
+                            : "bg-slate-100 text-slate-400"}`}>
+                          {isBuying ? "…" : owned ? "✓ Tuyo" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* ══ TAB: TÍTULOS ══ */}
         {tab === "titulos" && (
           <div className="flex flex-col gap-2">
-            <p className="text-xs text-slate-400 px-1">Toca un título para equiparlo</p>
+            <p className="text-xs text-slate-400 px-1">Compra y equipa títulos para Vicky</p>
             {titulos.length === 0 ? (
               <EmptyShop emoji="🏷️" text="Aún no hay títulos. Añádelos en Ajustes." />
             ) : titulos.map(t => {
+              const price = t.price ?? 0;
+              const isOwned = price === 0 || owned.includes(t.id);
+              const canAfford = bellotas >= price;
               const isEq = eqTitulo === t.id;
+              const isBuying = buying === t.id;
               return (
-                <button key={t.id} onClick={() => equipTitulo(t.id)}
-                  className={`flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-left transition-all active:scale-[0.98] ${
-                    isEq ? "border-amber-400 bg-amber-50 shadow-md" : "border-slate-200 bg-white"
-                  }`}>
-                  <span className={`text-sm font-bold ${isEq ? "text-amber-800" : "text-slate-700"}`}>{t.text}</span>
-                  {isEq && <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full shrink-0">Equipado ✓</span>}
-                </button>
+                <div key={t.id} className={`rounded-2xl border-2 px-4 py-3 bg-white transition-all ${
+                  isEq ? "border-amber-400 bg-amber-50 shadow-md" : "border-slate-200"
+                }`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-sm font-bold block truncate ${isEq ? "text-amber-800" : "text-slate-700"}`}>{t.text}</span>
+                      {price > 0 && <span className="text-xs font-bold text-amber-600">🌰 {price}</span>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isEq && <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">Equipado ✓</span>}
+                      {!isOwned ? (
+                        <button onClick={() => buyTitulo(t)} disabled={!canAfford || !!isBuying}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                            canAfford ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md" : "bg-slate-100 text-slate-400"
+                          }`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      ) : (
+                        <button onClick={() => equipTitulo(t.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                            isEq ? "bg-amber-200 text-amber-800" : "bg-violet-100 text-violet-700"
+                          }`}>
+                          {isEq ? "Desequipar" : "Equipar"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>

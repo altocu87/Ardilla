@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCacaLog, saveCacaEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
+import { generarSobre, type SobreReward } from "@/lib/sobre";
+import { completeMission, type MissionCompletionResult } from "@/lib/missions";
+import { applyActivityToTama } from "@/lib/tamagotchi";
+import SobreModal from "@/components/SobreModal";
 
 /* ──────────────── datos ──────────────── */
 
@@ -77,7 +81,9 @@ export default function RegistroCaca() {
   const [bristol, setBristol] = useState<number | null>(null);
   const [sensacion, setSensacion] = useState<string>("");
   const [done, setDone] = useState(false);
-  const [xpGained, setXpGained] = useState<{ xp: number; bellotas: number } | null>(null);
+  const [xpGained, setXpGained] = useState<import("@/lib/profile").AwardResult | null>(null);
+  const [sobreData, setSobreData] = useState<SobreReward | null>(null);
+  const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   useEffect(() => {
     async function check() {
@@ -109,6 +115,12 @@ export default function RegistroCaca() {
     try {
       setXpGained(await awardXp("caca"));
     } catch (e) { console.error("awardXp error:", e); }
+    try {
+      const mision = await completeMission("caca");
+      setMisionResult(mision);
+    } catch (e) { console.error("completeMission error:", e); }
+    try { applyActivityToTama("caca"); } catch { /* noop */ }
+    setSobreData(generarSobre());
   }
 
   /* ── celebración ── */
@@ -124,6 +136,18 @@ export default function RegistroCaca() {
               <span className="text-lg font-bold text-amber-600">+{xpGained.xp} XP</span>
               <span className="text-slate-300">·</span>
               <span className="text-lg font-bold text-amber-500">+{xpGained.bellotas} 🌰</span>
+              {xpGained.multiplier && (
+                <span className="text-xs font-bold text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded-full">×{xpGained.multiplier}</span>
+              )}
+            </div>
+          )}
+          {misionResult && (
+            <div className="flex items-center gap-2 bg-emerald-500 rounded-2xl px-4 py-2 shadow-md w-full justify-center">
+              <span className="text-xl">{misionResult.mission.emoji}</span>
+              <div className="text-left">
+                <p className="text-white text-xs font-extrabold leading-tight">¡Misión completada!</p>
+                <p className="text-emerald-100 text-[10px]">{misionResult.mission.label} · +{misionResult.mission.bellotas}🌰 +{misionResult.mission.xp}XP{misionResult.isBonus ? ` · BONUS +${misionResult.bonusBellotas}🌰 +${misionResult.bonusXp}XP` : ""}</p>
+              </div>
             </div>
           )}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white w-full">
@@ -141,6 +165,7 @@ export default function RegistroCaca() {
             Volver al registro
           </button>
         </div>
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
       </div>
     );
   }
