@@ -362,11 +362,11 @@ export async function checkAllAchievements(): Promise<Achievement[]> {
   // ── Meta-logros (segunda pasada tras desbloquear los anteriores) ─────────────
   const updatedState = getAchievementState();
   const total = updatedState.unlocked.length;
-  if (total >= 10)  tryUnlock("logros_10")  && newlyUnlocked.push(ALL_ACHIEVEMENTS.find(a => a.id === "logros_10")!);
-  if (total >= 25)  tryUnlock("logros_25")  && newlyUnlocked.push(ALL_ACHIEVEMENTS.find(a => a.id === "logros_25")!);
-  if (total >= 50)  tryUnlock("logros_50")  && newlyUnlocked.push(ALL_ACHIEVEMENTS.find(a => a.id === "logros_50")!);
-  if (total >= 75)  tryUnlock("logros_75")  && newlyUnlocked.push(ALL_ACHIEVEMENTS.find(a => a.id === "logros_75")!);
-  if (total >= 100) tryUnlock("logros_100") && newlyUnlocked.push(ALL_ACHIEVEMENTS.find(a => a.id === "logros_100")!);
+  if (total >= 10  && tryUnlock("logros_10"))  { const a = ALL_ACHIEVEMENTS.find(x => x.id === "logros_10");  if (a) newlyUnlocked.push(a); }
+  if (total >= 25  && tryUnlock("logros_25"))  { const a = ALL_ACHIEVEMENTS.find(x => x.id === "logros_25");  if (a) newlyUnlocked.push(a); }
+  if (total >= 50  && tryUnlock("logros_50"))  { const a = ALL_ACHIEVEMENTS.find(x => x.id === "logros_50");  if (a) newlyUnlocked.push(a); }
+  if (total >= 75  && tryUnlock("logros_75"))  { const a = ALL_ACHIEVEMENTS.find(x => x.id === "logros_75");  if (a) newlyUnlocked.push(a); }
+  if (total >= 100 && tryUnlock("logros_100")) { const a = ALL_ACHIEVEMENTS.find(x => x.id === "logros_100"); if (a) newlyUnlocked.push(a); }
 
   // ── Entregar premios ─────────────────────────────────────────────────────────
   if (newlyUnlocked.length > 0) {

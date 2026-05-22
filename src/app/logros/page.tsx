@@ -5,7 +5,6 @@ import {
   ALL_ACHIEVEMENTS,
   CATEGORY_INFO,
   getAchievementState,
-  getUnlockTimestamp,
   formatUnlockDate,
   type Achievement,
   type AchievementCategory,
