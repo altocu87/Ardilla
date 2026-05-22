@@ -29,10 +29,10 @@ const STEP_LABELS = [
   "Suelta un 5% de tensión",
 ];
 const STEP_HINTS = [
-  "Elige la que más se acerca ahora mismo",
-  "Elige la reacción mental que noto",
+  "Puedes elegir varias señales",
+  "Puedes elegir varias reacciones mentales",
   "Lee despacio. No hace falta hacer nada más.",
-  "Toca la zona donde puedes soltar un poco",
+  "Puedes marcar varias zonas donde soltar",
 ];
 
 /* ── Fondo animado ─────────────────────────────────────────────────────────── */
@@ -57,7 +57,7 @@ function AnimalsBackground({ speed = false }: { speed?: boolean }) {
   );
 }
 
-/* ── Lista de selección única ──────────────────────────────────────────────── */
+/* ── Lista de selección múltiple ───────────────────────────────────────────── */
 function Sel({
   options,
   value,
@@ -65,23 +65,30 @@ function Sel({
   activeClass,
 }: {
   options: string[];
-  value: string;
-  onChange: (v: string) => void;
+  value: string[];
+  onChange: (v: string[]) => void;
   activeClass: string;
 }) {
+  function toggle(opt: string) {
+    onChange(value.includes(opt) ? value.filter(x => x !== opt) : [...value, opt]);
+  }
   return (
     <div className="flex flex-col gap-2">
-      {options.map(opt => (
-        <button
-          key={opt}
-          onClick={() => onChange(opt)}
-          className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] ${
-            value === opt ? activeClass : "bg-white border-slate-200 text-slate-600"
-          }`}
-        >
-          {opt}
-        </button>
-      ))}
+      {options.map(opt => {
+        const sel = value.includes(opt);
+        return (
+          <button
+            key={opt}
+            onClick={() => toggle(opt)}
+            className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] flex items-center justify-between gap-2 ${
+              sel ? activeClass : "bg-white border-slate-200 text-slate-600"
+            }`}
+          >
+            <span>{opt}</span>
+            {sel && <span className="shrink-0 text-base leading-none">✓</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -90,9 +97,9 @@ function Sel({
 export default function P1() {
   const router  = useRouter();
   const [step,    setStep]    = useState(0);
-  const [signal,  setSignal]  = useState("");
-  const [alarm,   setAlarm]   = useState("");
-  const [tension, setTension] = useState("");
+  const [signal,  setSignal]  = useState<string[]>([]);
+  const [alarm,   setAlarm]   = useState<string[]>([]);
+  const [tension, setTension] = useState<string[]>([]);
   const [done,       setDone]       = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [regulPhrase, setRegulPhrase] = useState<RegulatoryPhrase | null>(null);
@@ -100,12 +107,12 @@ export default function P1() {
   const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
-  const ok = [!!signal, !!alarm, true, !!tension][step];
+  const ok = [signal.length > 0, alarm.length > 0, true, tension.length > 0][step];
 
   async function finish() {
     setSaving(true);
     try {
-      await savePracticeLog("p1", { signal, alarm, tension });
+      await savePracticeLog("p1", { signal: signal.join(", "), alarm: alarm.join(", "), tension: tension.join(", ") });
     } catch { /* no bloquear UI */ }
     try {
       const award = await awardXp("p1");
@@ -168,11 +175,11 @@ export default function P1() {
 
             {/* Resumen */}
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full text-left flex flex-col gap-3">
-              <SummaryRow label="Señal"           value={signal}  />
+              <SummaryRow label="Señal"           value={signal.join(", ")}  />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Alarma"          value={alarm}   />
+              <SummaryRow label="Alarma"          value={alarm.join(", ")}   />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Tensión liberada" value={`${tension} →`} />
+              <SummaryRow label="Tensión liberada" value={`${tension.join(", ")} →`} />
             </div>
 
             {/* Frase clásica */}
@@ -229,7 +236,7 @@ export default function P1() {
           </div>
           <button
             onClick={() => {
-              const hasProgress = !!signal || !!alarm || !!tension;
+              const hasProgress = signal.length > 0 || alarm.length > 0 || tension.length > 0;
               if (hasProgress && !confirm("¿Salir sin guardar? Perderás lo que llevas hecho.")) return;
               router.push("/formaciones");
             }}
@@ -294,23 +301,26 @@ export default function P1() {
 
             {step === 3 && (
               <div className="flex flex-col gap-2">
-                {TENSION_ZONES.map(zone => (
-                  <button
-                    key={zone}
-                    onClick={() => setTension(zone)}
-                    className={`flex items-center justify-between px-5 py-4 rounded-2xl border-2 text-sm font-bold transition-all active:scale-[0.98] ${
-                      tension === zone
-                        ? "bg-orange-100 border-orange-400 text-orange-800 shadow-md shadow-orange-100"
-                        : "bg-white border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    <span>{zone}</span>
-                    <span className={tension === zone ? "text-orange-500" : "text-slate-300"}>→</span>
-                  </button>
-                ))}
-                {tension && (
+                {TENSION_ZONES.map(zone => {
+                  const sel = tension.includes(zone);
+                  return (
+                    <button
+                      key={zone}
+                      onClick={() => setTension(prev => sel ? prev.filter(z => z !== zone) : [...prev, zone])}
+                      className={`flex items-center justify-between px-5 py-4 rounded-2xl border-2 text-sm font-bold transition-all active:scale-[0.98] ${
+                        sel
+                          ? "bg-orange-100 border-orange-400 text-orange-800 shadow-md shadow-orange-100"
+                          : "bg-white border-slate-200 text-slate-600"
+                      }`}
+                    >
+                      <span>{zone}</span>
+                      <span className={sel ? "text-orange-500" : "text-slate-300"}>{sel ? "✓" : "→"}</span>
+                    </button>
+                  );
+                })}
+                {tension.length > 0 && (
                   <p className="text-[11px] text-slate-400 text-center mt-1">
-                    Toca la zona, suelta el aire despacio, deja caer {tension.toLowerCase()}.
+                    Toca {tension.length === 1 ? "la zona" : "las zonas"}, suelta el aire despacio, deja caer {tension.map(z => z.toLowerCase()).join(" y ")}.
                   </p>
                 )}
               </div>

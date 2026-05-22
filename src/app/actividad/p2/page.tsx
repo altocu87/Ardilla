@@ -21,11 +21,11 @@ const STEP_LABELS = [
   "¿Qué necesitaría tu sistema ahora?",
 ];
 const STEP_HINTS = [
-  "Elige la sensación que reconoces ahora mismo",
+  "Puedes elegir varias sensaciones",
   "Escribe lo primero que llega, sin filtro",
-  "Una sola emoción principal",
-  "¿Qué notas en el cuerpo cuando aparece la alarma?",
-  "¿Qué quieres hacer de forma automática?",
+  "Puedes elegir varias emociones",
+  "Puedes marcar varias respuestas del cuerpo",
+  "Puedes marcar varios impulsos",
   "Respira. Observa. ¿Qué necesita tu cuerpo ahora?",
 ];
 
@@ -59,7 +59,7 @@ function AnimalsBackground({ speed = false }: { speed?: boolean }) {
   );
 }
 
-/* ── Lista de selección única ──────────────────────────────────────────────── */
+/* ── Lista de selección múltiple ───────────────────────────────────────────── */
 function Sel({
   options,
   value,
@@ -67,23 +67,30 @@ function Sel({
   activeClass,
 }: {
   options: string[];
-  value: string;
-  onChange: (v: string) => void;
+  value: string[];
+  onChange: (v: string[]) => void;
   activeClass: string;
 }) {
+  function toggle(opt: string) {
+    onChange(value.includes(opt) ? value.filter(x => x !== opt) : [...value, opt]);
+  }
   return (
     <div className="flex flex-col gap-2">
-      {options.map(opt => (
-        <button
-          key={opt}
-          onClick={() => onChange(opt)}
-          className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] ${
-            value === opt ? activeClass : "bg-white border-slate-200 text-slate-600"
-          }`}
-        >
-          {opt}
-        </button>
-      ))}
+      {options.map(opt => {
+        const sel = value.includes(opt);
+        return (
+          <button
+            key={opt}
+            onClick={() => toggle(opt)}
+            className={`text-left px-4 py-3 rounded-xl border text-sm transition-all active:scale-[0.98] flex items-center justify-between gap-2 ${
+              sel ? activeClass : "bg-white border-slate-200 text-slate-600"
+            }`}
+          >
+            <span>{opt}</span>
+            {sel && <span className="shrink-0 text-base leading-none">✓</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -124,11 +131,11 @@ export default function P2() {
   const router = useRouter();
 
   const [step,    setStep]    = useState(0);
-  const [signal,  setSignal]  = useState("");
+  const [signal,  setSignal]  = useState<string[]>([]);
   const [thought, setThought] = useState("");
-  const [emotion, setEmotion] = useState("");
-  const [body,    setBody]    = useState("");
-  const [impulse, setImpulse] = useState("");
+  const [emotion, setEmotion] = useState<string[]>([]);
+  const [body,    setBody]    = useState<string[]>([]);
+  const [impulse, setImpulse] = useState<string[]>([]);
   const [need,    setNeed]    = useState("");
   const [done,     setDone]     = useState(false);
   const [saving,   setSaving]   = useState(false);
@@ -137,18 +144,18 @@ export default function P2() {
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
 
   const ok = [
-    !!signal,
+    signal.length > 0,
     !!thought.trim(),
-    !!emotion,
-    !!body,
-    !!impulse,
+    emotion.length > 0,
+    body.length > 0,
+    impulse.length > 0,
     !!need.trim(),
   ][step];
 
   async function finish() {
     setSaving(true);
     try {
-      await savePracticeLog("p2", { signal, thought, emotion, body, impulse, need });
+      await savePracticeLog("p2", { signal: signal.join(", "), thought, emotion: emotion.join(", "), body: body.join(", "), impulse: impulse.join(", "), need });
     } catch { /* guardar en segundo plano */ }
     try {
       const award = await awardXp("p2");
@@ -201,15 +208,15 @@ export default function P2() {
             )}
 
             <div className="bg-white/85 backdrop-blur-sm rounded-2xl px-5 py-4 shadow-lg border border-white w-full flex flex-col gap-3">
-              <SummaryRow label="Sensación"   value={signal}  />
+              <SummaryRow label="Sensación"   value={signal.join(", ")}  />
               <div className="h-px bg-slate-100"/>
               <SummaryRow label="Pensamiento" value={thought} />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Emoción"     value={emotion} />
+              <SummaryRow label="Emoción"     value={emotion.join(", ")} />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Cuerpo"      value={body}    />
+              <SummaryRow label="Cuerpo"      value={body.join(", ")}    />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Impulso"     value={impulse} />
+              <SummaryRow label="Impulso"     value={impulse.join(", ")} />
               <div className="h-px bg-slate-100"/>
               <SummaryRow label="Necesidad"   value={need}    />
             </div>
@@ -252,7 +259,7 @@ export default function P2() {
           </div>
           <button
             onClick={() => {
-              const hasProgress = !!signal || !!thought.trim() || !!emotion || !!body || !!impulse || !!need.trim();
+              const hasProgress = signal.length > 0 || !!thought.trim() || emotion.length > 0 || body.length > 0 || impulse.length > 0 || !!need.trim();
               if (hasProgress && !confirm("¿Salir sin guardar? Perderás lo que llevas hecho.")) return;
               router.push("/formaciones");
             }}
