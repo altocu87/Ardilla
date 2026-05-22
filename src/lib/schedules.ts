@@ -1,5 +1,15 @@
 import { createBrowserClient } from "@supabase/ssr";
 
+export type ConditionType = "no_any" | "no_diario" | "no_caca" | "no_emocional" | "no_practica";
+
+export const CONDITION_LABELS: Record<ConditionType, string> = {
+  no_any:       "cualquier registro",
+  no_diario:    "registro de diario",
+  no_caca:      "registro de caca",
+  no_emocional: "registro emocional",
+  no_practica:  "práctica",
+};
+
 export type NotifSchedule = {
   id: string;
   emoji: string;
@@ -10,6 +20,8 @@ export type NotifSchedule = {
   days: number[];
   active: boolean;
   last_sent_at: string | null;
+  condition_type: ConditionType | null;
+  condition_days: number;
 };
 
 const DAYS_LABELS = ["D", "L", "M", "X", "J", "V", "S"];

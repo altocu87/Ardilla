@@ -110,7 +110,7 @@ import {
 } from "@/lib/notifications";
 import {
   getSchedules, upsertSchedule, deleteSchedule, toggleSchedule, sendNow,
-  DAYS_LABELS, type NotifSchedule,
+  DAYS_LABELS, CONDITION_LABELS, type NotifSchedule, type ConditionType,
 } from "@/lib/schedules";
 import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
@@ -404,6 +404,7 @@ export default function Opciones() {
   const [schedules,      setSchedules]      = useState<NotifSchedule[]>([]);
   const [schedForm,      setSchedForm]      = useState<Omit<NotifSchedule,"id"|"last_sent_at">>({
     emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true,
+    condition_type: null, condition_days: 1,
   });
   const [editingSchedId, setEditingSchedId] = useState<string|null>(null);
 
@@ -568,12 +569,12 @@ export default function Opciones() {
     const updated = await getSchedules();
     setSchedules(updated);
     setEditingSchedId(null);
-    setSchedForm({ emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true });
+    setSchedForm({ emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true, condition_type: null, condition_days: 1 });
     showAdminMsg("✓ Notificación guardada");
   }
   function startEditSched(s: NotifSchedule) {
     setEditingSchedId(s.id);
-    setSchedForm({ emoji: s.emoji, title: s.title, body: s.body, hour: s.hour, minute: s.minute, days: s.days, active: s.active });
+    setSchedForm({ emoji: s.emoji, title: s.title, body: s.body, hour: s.hour, minute: s.minute, days: s.days, active: s.active, condition_type: s.condition_type, condition_days: s.condition_days ?? 1 });
   }
   async function removeSched(id: string) { await deleteSchedule(id); setSchedules(prev => prev.filter(s => s.id !== id)); }
   async function toggleSched(id: string, active: boolean) { await toggleSchedule(id, active); setSchedules(prev => prev.map(s => s.id === id ? { ...s, active } : s)); }
@@ -904,13 +905,45 @@ export default function Opciones() {
                 ))}
               </div>
             </div>
+            {/* Condición */}
+            <div className="border border-slate-200 rounded-xl p-3 flex flex-col gap-2 bg-slate-50">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Condición (opcional)</p>
+                <button
+                  onClick={() => setSchedForm(f => ({ ...f, condition_type: f.condition_type ? null : "no_any" }))}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${schedForm.condition_type ? "bg-purple-400" : "bg-slate-300"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${schedForm.condition_type ? "translate-x-4" : "translate-x-0.5"}`}/>
+                </button>
+              </div>
+              {schedForm.condition_type && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[11px] text-slate-500 leading-snug">Solo enviar si <strong>no ha registrado</strong> en los últimos:</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={1} max={30} value={schedForm.condition_days}
+                      onChange={e => setSchedForm(f => ({ ...f, condition_days: Math.max(1, parseInt(e.target.value)||1) }))}
+                      className="w-14 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-purple-400"/>
+                    <span className="text-xs text-slate-500">días de</span>
+                    <select
+                      value={schedForm.condition_type}
+                      onChange={e => setSchedForm(f => ({ ...f, condition_type: e.target.value as ConditionType }))}
+                      className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-400">
+                      {(Object.entries(CONDITION_LABELS) as [ConditionType, string][]).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <button onClick={saveSchedule} disabled={!schedForm.title.trim() || !schedForm.body.trim() || schedForm.days.length === 0}
                 className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${schedForm.title.trim() && schedForm.body.trim() && schedForm.days.length > 0 ? "bg-purple-500 shadow-sm" : "bg-slate-200 text-slate-400"}`}>
                 {editingSchedId ? "Guardar cambios" : "+ Añadir"}
               </button>
               {editingSchedId && (
-                <button onClick={() => { setEditingSchedId(null); setSchedForm({ emoji:"🐿️",title:"",body:"",hour:10,minute:0,days:[1,2,3,4,5,6,0],active:true }); }}
+                <button onClick={() => { setEditingSchedId(null); setSchedForm({ emoji:"🐿️",title:"",body:"",hour:10,minute:0,days:[1,2,3,4,5,6,0],active:true,condition_type:null,condition_days:1 }); }}
                   className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium active:scale-95">Cancelar</button>
               )}
             </div>
@@ -929,6 +962,11 @@ export default function Opciones() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] font-bold text-purple-600">{String(s.hour).padStart(2,"0")}:00</span>
                         <span className="text-[10px] text-slate-400">{[1,2,3,4,5,6,0].filter(d => s.days.includes(d)).map(d => DAYS_LABELS[d]).join(" ")}</span>
+                        {s.condition_type && (
+                          <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                            si {s.condition_days}d sin {CONDITION_LABELS[s.condition_type]}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button onClick={() => toggleSched(s.id, !s.active)}
