@@ -4,20 +4,37 @@ import { pushToCloud } from "./cloudsync";
 /* ════════════════════════════════════════════════════
    TYPES
 ════════════════════════════════════════════════════ */
+export type IllnessType = "stomach" | "caca" | "tired";
+
+export const ILLNESS_INFO: Record<IllnessType, {
+  emoji: string; name: string; desc: string;
+  medicineId: string; medicineName: string; medicineEmoji: string;
+  badgeColor: string;
+}> = {
+  stomach: { emoji: "🤒", name: "Dolor de barriga",   desc: "Le duele la barriguita. Necesita probióticos.",       medicineId: "med_probiotics", medicineName: "Probióticos",  medicineEmoji: "💊", badgeColor: "bg-orange-100 border-orange-300 text-orange-700" },
+  caca:    { emoji: "💩", name: "Problemas de caca",   desc: "Su digestión no va bien. Necesita fibra natural.",    medicineId: "med_fibra",      medicineName: "Fibra natural", medicineEmoji: "🌾", badgeColor: "bg-amber-100  border-amber-300  text-amber-700"  },
+  tired:   { emoji: "😴", name: "Cansancio crónico",   desc: "Agotada sin remedio. Necesita vitaminas C.",          medicineId: "med_vitaminas",  medicineName: "Vitaminas C",   medicineEmoji: "🍊", badgeColor: "bg-blue-100   border-blue-300   text-blue-700"   },
+};
+
 export type TamaStats = {
-  hambre:   number; // 0-100 (100 = llena)
-  energia:  number; // 0-100 (100 = descansada)
-  animo:    number; // 0-100 (100 = feliz)
-  salud:    number; // 0-100 (derivado)
-  stomachSick?:    boolean;
-  stomachSickSince?: string; // ISO timestamp when got sick
-  lastSickCheck?:  string;   // YYYY-MM-DD
-  lastSaved: string; // ISO timestamp
+  hambre:   number;
+  energia:  number;
+  animo:    number;
+  salud:    number;
+  illness?:      IllnessType | null;
+  illnessSince?: string;
+  lastSickCheck?: string;
+  totalIllnesses?: number;
+  illnessByType?:  Partial<Record<IllnessType, number>>;
+  /* legacy compat */
+  stomachSick?: boolean;
+  stomachSickSince?: string;
+  lastSaved: string;
 };
 
 export type TamaVisualState =
   | "muy_feliz" | "feliz" | "neutral" | "triste" | "hambre"
-  | "cansada" | "comiendo" | "durmiendo" | "jugando" | "enfadada"
+  | "cansada"   | "comiendo" | "durmiendo" | "jugando" | "enfadada"
   | "malita";
 
 /* ════════════════════════════════════════════════════
@@ -30,8 +47,8 @@ const DECAY = { hambre: 2.8, energia: 2.0, animo: 2.2 };
 ════════════════════════════════════════════════════ */
 export const ACTIVITY_TAMA: Record<ActivityKey, Partial<Pick<TamaStats, "hambre"|"energia"|"animo">>> = {
   diario:    { animo: 22, energia: 12 },
-  emocional: { animo: 25, energia: 8 },
-  caca:      { animo: 8,  energia: 5 },
+  emocional: { animo: 25, energia: 8  },
+  caca:      { animo: 8,  energia: 5  },
   p1:        { energia: 16, animo: 14 },
   p2:        { energia: 14, animo: 16 },
   p3:        { energia: 20, animo: 12 },
@@ -51,12 +68,12 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
   durmiendo:  ["Zzz... dulces sueños... 😴", "Shh, estoy descansando 🌙", "Zzz... 💤"],
   jugando:    ["¡Esto es genial! 🎉", "¡Me encanta jugar! 🎮", "¡Más, más! 🌟"],
   enfadada:   ["¡Llevas mucho sin cuidarme! 😤", "Me siento abandonada 😠", "¡Presta atención! ⚡"],
-  malita:     ["Ay... me duele la barriguita 🤒", "Necesito mis probióticos 💊", "Me encuentro mal... 😞"],
+  malita:     ["Ay... me duele la barriguita 🤒", "Necesito medicina... 💊", "Me encuentro fatal 😞"],
 };
 
 const STREAK_MESSAGES: Record<number, string> = {
-  3:  "¡3 días seguidos! 🔥 ¡Somos imparables!",
-  7:  "¡Una semana entera! 🎊 ¡Eres increíble!",
+  3: "¡3 días seguidos! 🔥 ¡Somos imparables!",
+  7: "¡Una semana entera! 🎊 ¡Eres increíble!",
   14: "¡14 días! 🏆 ¡Eres una campeona!",
   30: "¡Un mes! 🥇 ¡Nunca me has fallado!",
 };
@@ -92,16 +109,23 @@ export function getTamaStats(): TamaStats {
     const s: TamaStats = raw
       ? { ...DEFAULT, ...(JSON.parse(raw) as TamaStats) }
       : { ...DEFAULT };
+
+    /* Legacy migration: stomachSick → illness */
+    if (s.stomachSick && !s.illness) {
+      s.illness      = "stomach";
+      s.illnessSince = s.stomachSickSince;
+      s.stomachSick  = false;
+    }
+
     const now  = new Date();
     const last = new Date(s.lastSaved);
     const hrs  = Math.max(0, (now.getTime() - last.getTime()) / 3_600_000);
-    let dirty = false;
+    let dirty  = false;
 
     if (hrs > 0.016) {
       s.hambre  = Math.max(0, s.hambre  - DECAY.hambre  * hrs);
       s.energia = Math.max(0, s.energia - DECAY.energia * hrs);
-      /* When sick, animo and energy decay faster */
-      const animoDecay = s.stomachSick ? DECAY.animo * 1.6 : DECAY.animo;
+      const animoDecay = s.illness ? DECAY.animo * 1.6 : DECAY.animo;
       s.animo   = Math.max(0, s.animo   - animoDecay * hrs);
       s.salud   = computeSalud(s.hambre, s.energia, s.animo);
       s.lastSaved = now.toISOString();
@@ -110,22 +134,26 @@ export function getTamaStats(): TamaStats {
 
     /* Daily sickness check */
     const today = now.toISOString().slice(0, 10);
-    if (!s.stomachSick && (s.lastSickCheck ?? "1970") < today) {
+    if (!s.illness && (s.lastSickCheck ?? "1970") < today) {
       s.lastSickCheck = today;
       const chance = s.hambre < 15 ? 0.18 : 0.04;
       if (Math.random() < chance) {
-        s.stomachSick     = true;
-        s.stomachSickSince = now.toISOString();
+        const types: IllnessType[] = ["stomach", "caca", "tired"];
+        s.illness      = types[Math.floor(Math.random() * 3)];
+        s.illnessSince = now.toISOString();
+        s.totalIllnesses  = (s.totalIllnesses  ?? 0) + 1;
+        if (!s.illnessByType) s.illnessByType = {};
+        s.illnessByType[s.illness] = (s.illnessByType[s.illness] ?? 0) + 1;
       }
       dirty = true;
     }
 
     /* Auto-heal after 48 hours */
-    if (s.stomachSick && s.stomachSickSince) {
-      const sickHrs = (now.getTime() - new Date(s.stomachSickSince).getTime()) / 3_600_000;
+    if (s.illness && s.illnessSince) {
+      const sickHrs = (now.getTime() - new Date(s.illnessSince).getTime()) / 3_600_000;
       if (sickHrs >= 48) {
-        s.stomachSick      = false;
-        s.stomachSickSince = undefined;
+        s.illness      = null;
+        s.illnessSince = undefined;
         dirty = true;
       }
     }
@@ -187,12 +215,12 @@ export function playTama(animoBoost: number): TamaStats {
   return s;
 }
 
-export function cureStomach(): TamaStats {
+export function cureIllness(): TamaStats {
   const s = getTamaStats();
-  s.stomachSick      = false;
-  s.stomachSickSince = undefined;
-  s.animo   = Math.min(100, s.animo   + 18);
-  s.energia = Math.min(100, s.energia + 10);
+  s.illness      = null;
+  s.illnessSince = undefined;
+  s.animo   = Math.min(100, s.animo   + 20);
+  s.energia = Math.min(100, s.energia + 12);
   s.salud   = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
   saveTamaStats(s);
@@ -207,10 +235,10 @@ export function computeVisualState(
   action?: "comiendo" | "durmiendo" | "jugando",
 ): TamaVisualState {
   if (action) return action;
-  if (s.stomachSick) return "malita";
+  if (s.illness)        return "malita";
   const avg = (s.hambre + s.energia + s.animo) / 3;
-  if (s.hambre  <= 12) return "hambre";
-  if (s.energia <= 12) return "cansada";
+  if (s.hambre  <= 12)  return "hambre";
+  if (s.energia <= 12)  return "cansada";
   const min = Math.min(s.hambre, s.energia, s.animo);
   if (avg >= 80 && min >= 60) return "muy_feliz";
   if (avg >= 62) return "feliz";

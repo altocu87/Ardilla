@@ -1,4 +1,5 @@
 import { pushToCloud } from "./cloudsync";
+import type { IllnessType } from "./tamagotchi";
 
 /* ════════════════════════════════════════════════════
    TYPES
@@ -6,7 +7,7 @@ import { pushToCloud } from "./cloudsync";
 export type SquirrelFood = {
   id: string; emoji: string; name: string; desc: string;
   price: number; hambreRestore: number; animoBoost?: number;
-  curesStomach?: boolean;
+  curesIllness?: IllnessType;
 };
 
 export type ClothingSlot = "head" | "neck" | "body" | "eyes";
@@ -36,7 +37,13 @@ export const FOOD_CATALOG: SquirrelFood[] = [
   { id: "food_manzana",  emoji: "🍎", name: "Manzana roja",      desc: "Sana y crujiente",                 price: 7,  hambreRestore: 28, animoBoost: 5  },
   { id: "food_pastel",   emoji: "🎂", name: "Pastel de nueces",  desc: "Para días especiales ✨",          price: 30, hambreRestore: 60, animoBoost: 25 },
   { id: "food_miel",     emoji: "🍯", name: "Miel de bosque",    desc: "Un lujazo para la ardilla",        price: 18, hambreRestore: 40, animoBoost: 15 },
-  { id: "food_probio",  emoji: "💊", name: "Probióticos",       desc: "Cura el dolor de barriga 🤒",      price: 25, hambreRestore: 10, animoBoost: 8, curesStomach: true },
+  { id: "food_probio",  emoji: "💊", name: "Probióticos",       desc: "Cura el dolor de barriga 🤒",      price: 25, hambreRestore: 10, animoBoost: 8, curesIllness: "stomach" },
+];
+
+export const MEDICINE_CATALOG: SquirrelFood[] = [
+  { id: "med_probiotics", emoji: "💊", name: "Probióticos",    desc: "Cura el dolor de barriga",    price: 0, hambreRestore: 5,  animoBoost: 10, curesIllness: "stomach" },
+  { id: "med_fibra",      emoji: "🌾", name: "Fibra natural",  desc: "Cura los problemas de caca",  price: 0, hambreRestore: 8,  animoBoost: 8,  curesIllness: "caca"    },
+  { id: "med_vitaminas",  emoji: "🍊", name: "Vitaminas C",    desc: "Cura el cansancio crónico",   price: 0, hambreRestore: 5,  animoBoost: 15, curesIllness: "tired"   },
 ];
 
 export const CLOTHING_CATALOG: SquirrelClothing[] = [

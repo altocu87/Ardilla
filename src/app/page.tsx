@@ -13,10 +13,11 @@ import {
 import { getMascotConfig } from "@/lib/mascot";
 import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
-  cureStomach, getContextualMessage, type TamaStats, type TamaVisualState,
+  cureIllness, getContextualMessage, ILLNESS_INFO,
+  type TamaStats, type TamaVisualState, type IllnessType,
 } from "@/lib/tamagotchi";
 import {
-  getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG,
+  getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
@@ -28,6 +29,7 @@ import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
+import MemoryCardGame from "@/components/MemoryCardGame";
 
 /* ── Hora del día ─────────────────────────────────────────────── */
 type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
@@ -183,12 +185,12 @@ function AvatarModal({ onClose, ownedItems, ownedTitulos, equippedAvatar, equipp
 }
 
 /* ── Panel de acción (comida / juguetes) ───────────────────────── */
-function ActionPanel({ title, items, onSelect, onClose, extraAction }: {
+function ActionPanel({ title, items, onSelect, onClose, extraActions }: {
   title: string;
   items: { id: string; emoji: string; name: string; desc: string; disabled?: boolean; badge?: string }[];
   onSelect: (id: string) => void;
   onClose: () => void;
-  extraAction?: { label: string; emoji: string; onClick: () => void };
+  extraActions?: { label: string; emoji: string; onClick: () => void }[];
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -196,13 +198,13 @@ function ActionPanel({ title, items, onSelect, onClose, extraAction }: {
       <div className="relative bg-white rounded-t-3xl px-5 pt-4 pb-10 shadow-2xl" onClick={e=>e.stopPropagation()}>
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3"/>
         <h3 className="text-sm font-bold text-slate-700 mb-3 text-center">{title}</h3>
-        {extraAction && (
-          <button onClick={() => { extraAction.onClick(); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 py-3 mb-3 rounded-2xl bg-violet-500 text-white font-bold text-sm active:scale-95 shadow-md">
-            <span className="text-lg">{extraAction.emoji}</span>
-            {extraAction.label}
+        {extraActions && extraActions.map((a, i) => (
+          <button key={i} onClick={() => { a.onClick(); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 py-3 mb-2 rounded-2xl bg-violet-500 text-white font-bold text-sm active:scale-95 shadow-md">
+            <span className="text-lg">{a.emoji}</span>
+            {a.label}
           </button>
-        )}
+        ))}
         {items.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-3xl mb-2">🛒</p>
@@ -233,24 +235,30 @@ function ActionPanel({ title, items, onSelect, onClose, extraAction }: {
 }
 
 /* ── Stats compactos ───────────────────────────────────────────── */
-function StatsRow({ stats, evoPhase }: { stats: TamaStats; evoPhase: EvolutionPhase }) {
+function StatsRow({
+  stats, evoPhase, onOpenMedicine,
+}: {
+  stats: TamaStats; evoPhase: EvolutionPhase; onOpenMedicine: () => void;
+}) {
   const bars = [
-    { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: stats.stomachSick ? "#86efac" : "#f59e0b" },
+    { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: "#f59e0b" },
     { emoji: "⚡", label: "Energía", value: stats.energia, color: "#818cf8" },
     { emoji: "🌸", label: "Ánimo",   value: stats.animo,   color: "#f472b6" },
   ];
-  const evoProg = getEvolutionProgress();
-  const evoPct  = Math.min(100, (evoProg.daysFor / evoProg.daysNeeded) * 100);
+  const evoProg   = getEvolutionProgress();
+  const evoPct    = Math.min(100, (evoProg.daysFor / evoProg.daysNeeded) * 100);
   const phaseInfo = PHASE_INFO[evoPhase];
+  const illnessInfo = stats.illness ? ILLNESS_INFO[stats.illness] : null;
 
   return (
     <div>
-      {stats.stomachSick && (
-        <div className="flex items-center gap-1.5 mb-1.5 bg-green-50 border border-green-200 rounded-xl px-2 py-1">
-          <span className="text-sm">🤒</span>
-          <span className="text-[10px] text-green-700 font-bold flex-1">La ardilla está malita de la barriga</span>
-          <span className="text-[9px] text-green-600">Dale probióticos 💊</span>
-        </div>
+      {illnessInfo && (
+        <button onClick={onOpenMedicine}
+          className={`w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border active:scale-[0.98] transition-transform ${illnessInfo.badgeColor}`}>
+          <span className="text-sm">{illnessInfo.emoji}</span>
+          <span className="text-[10px] font-bold flex-1 text-left">{illnessInfo.name} · {illnessInfo.desc}</span>
+          <span className="text-[9px] font-bold shrink-0">Curar →</span>
+        </button>
       )}
       <div className="flex gap-2">
         {bars.map(b => (
@@ -266,7 +274,6 @@ function StatsRow({ stats, evoPhase }: { stats: TamaStats; evoPhase: EvolutionPh
           </div>
         ))}
       </div>
-      {/* Evolution progress bar */}
       {evoProg.nextPhase && (
         <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-slate-100">
           <span className="text-[9px]">{phaseInfo.emoji}</span>
@@ -279,6 +286,63 @@ function StatsRow({ stats, evoPhase }: { stats: TamaStats; evoPhase: EvolutionPh
           <span className="text-[9px]">{PHASE_INFO[evoProg.nextPhase].emoji}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Medicine modal ─────────────────────────────────────────────── */
+function MedicineModal({
+  illness, onCure, onClose,
+}: {
+  illness: IllnessType; onCure: () => void; onClose: () => void;
+}) {
+  const [wrongId, setWrongId] = useState<string | null>(null);
+  const illnessInfo = ILLNESS_INFO[illness];
+
+  function handleSelect(medId: string) {
+    if (medId === illnessInfo.medicineId) {
+      onCure();
+    } else {
+      setWrongId(medId);
+      setTimeout(() => setWrongId(null), 1200);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+      <div className="relative bg-white rounded-t-3xl px-5 pt-5 pb-10 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-4"/>
+        <div className={`rounded-2xl p-3 mb-4 border flex items-center gap-3 ${illnessInfo.badgeColor}`}>
+          <span className="text-3xl">{illnessInfo.emoji}</span>
+          <div>
+            <p className="text-sm font-extrabold">{illnessInfo.name}</p>
+            <p className="text-xs opacity-80">{illnessInfo.desc}</p>
+          </div>
+        </div>
+        <p className="text-xs font-bold text-slate-600 mb-3 text-center">¿Qué medicina necesita? 🤔</p>
+        {wrongId && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3 text-center">
+            <p className="text-xs font-bold text-red-600">¡Esa no es la medicina adecuada! 😅</p>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {MEDICINE_CATALOG.map(med => (
+            <button key={med.id} onClick={() => handleSelect(med.id)}
+              className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border-2 transition-all active:scale-[0.97] ${
+                wrongId === med.id
+                  ? "bg-red-50 border-red-300"
+                  : "bg-white border-slate-200 shadow-sm"
+              }`}>
+              <span className="text-3xl">{med.emoji}</span>
+              <div className="text-left">
+                <p className="text-sm font-bold text-slate-700">{med.name}</p>
+                <p className="text-xs text-slate-400">{med.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -313,10 +377,12 @@ export default function Home() {
   const [tamaStats,     setTamaStats]     = useState<TamaStats | null>(null);
   const [visualState,   setVisualState]   = useState<TamaVisualState>("neutral");
   const [currentAction, setCurrentAction] = useState<"comiendo"|"durmiendo"|"jugando"|null>(null);
-  const [showFeedPanel, setShowFeedPanel] = useState(false);
-  const [showPlayPanel, setShowPlayPanel] = useState(false);
-  const [showMiniGame,  setShowMiniGame]  = useState(false);
-  const [tamaMessage,   setTamaMessage]   = useState("");
+  const [showFeedPanel,     setShowFeedPanel]     = useState(false);
+  const [showPlayPanel,     setShowPlayPanel]     = useState(false);
+  const [showMiniGame,      setShowMiniGame]      = useState(false);
+  const [showMemoryGame,    setShowMemoryGame]    = useState(false);
+  const [showMedicineModal, setShowMedicineModal] = useState(false);
+  const [tamaMessage,       setTamaMessage]       = useState("");
 
   /* Evolution & tickle */
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
@@ -440,8 +506,8 @@ export default function Home() {
     if (!food) return;
     if (!consumeFood(foodId)) return;
     let s;
-    if (food.curesStomach) {
-      s = cureStomach();
+    if (food.curesIllness && tamaStats?.illness === food.curesIllness) {
+      s = cureIllness();
       const a = tryUnlock("cured_sick");
       if (a) showAchievement(a);
     } else {
@@ -449,6 +515,32 @@ export default function Home() {
     }
     setTamaStats(s);
     triggerAction("comiendo", 2500);
+  }
+
+  function handleMedicineCure() {
+    const s = cureIllness();
+    setTamaStats(s);
+    const a = tryUnlock("cured_sick");
+    if (a) showAchievement(a);
+    setShowMedicineModal(false);
+    const vs = computeVisualState(s);
+    setVisualState(vs);
+    setTamaMessage("¡Me siento mucho mejor! 💖");
+    setTimeout(() => setTamaMessage(getContextualMessage(vs, 0)), 3000);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function handleMemoryGameFinish(moves: number, _timeSeconds?: number) {
+    const animoBoost = moves <= 12 ? 30 : moves <= 16 ? 22 : moves <= 20 ? 14 : moves <= 28 ? 8 : 4;
+    const s = getTamaStats();
+    s.animo     = Math.min(100, s.animo + animoBoost);
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s);
+    setTamaStats({ ...s });
+    const vs = computeVisualState(s);
+    setVisualState(vs);
+    setTamaMessage(getContextualMessage(vs, 0));
+    setShowMemoryGame(false);
   }
 
   function handleSleep() {
@@ -644,7 +736,7 @@ export default function Home() {
       {tamaStats && (
         <div className="shrink-0 px-4 py-1">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2 border border-white/60 shadow-sm">
-            <StatsRow stats={tamaStats} evoPhase={evolutionPhase}/>
+            <StatsRow stats={tamaStats} evoPhase={evolutionPhase} onOpenMedicine={() => setShowMedicineModal(true)}/>
           </div>
         </div>
       )}
@@ -668,19 +760,22 @@ export default function Home() {
         </button>
       </div>
 
-      {/* ── Botones 2×2 ── */}
+      {/* ── Botones ── */}
       <div className="shrink-0 px-4 pb-5 grid grid-cols-2 gap-2">
-        <Link href="/registro" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-lg">✏️</span> Registro
+        <Link href="/registro" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">✏️</span> Registro
         </Link>
-        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-lg">🎓</span> Ejercicios
+        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">🎓</span> Ejercicios
         </Link>
-        <Link href="/informacion" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-lg">ℹ️</span> Información
+        <Link href="/informacion" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">ℹ️</span> Información
         </Link>
-        <Link href="/opciones" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-lg">⚙️</span> Ajustes
+        <Link href="/estadisticas" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-rose-200 text-rose-700 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">📊</span> Estadísticas
+        </Link>
+        <Link href="/opciones" className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">⚙️</span> Ajustes
         </Link>
       </div>
 
@@ -701,13 +796,29 @@ export default function Home() {
           items={toyItems}
           onSelect={handlePlay}
           onClose={() => setShowPlayPanel(false)}
-          extraAction={{ label: "¡Mini-juego de bellotas!", emoji: "🎮", onClick: () => setShowMiniGame(true) }}
+          extraActions={[
+            { label: "¡Atrapa bellotas!", emoji: "🌰", onClick: () => setShowMiniGame(true) },
+            { label: "Memoria animal",    emoji: "🃏", onClick: () => setShowMemoryGame(true) },
+          ]}
         />
       )}
       {showMiniGame && (
         <TamaMiniGame
           onFinish={handleMiniGameFinish}
           onClose={() => setShowMiniGame(false)}
+        />
+      )}
+      {showMemoryGame && (
+        <MemoryCardGame
+          onFinish={handleMemoryGameFinish}
+          onClose={() => setShowMemoryGame(false)}
+        />
+      )}
+      {showMedicineModal && tamaStats?.illness && (
+        <MedicineModal
+          illness={tamaStats.illness}
+          onCure={handleMedicineCure}
+          onClose={() => setShowMedicineModal(false)}
         />
       )}
 

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { addMiniGameScore } from "@/lib/game-rankings";
 
 type ItemType = "acorn" | "nispero";
 type FallingItem = { id: number; x: number; y: number; speed: number; type: ItemType };
@@ -98,6 +99,7 @@ export default function TamaMiniGame({
   useEffect(() => {
     if (phase === "done") {
       const s = scoreRef.current;
+      addMiniGameScore(s);
       setTimeout(() => onFinish(s), 1600);
     }
   }, [phase, onFinish]);
@@ -219,9 +221,13 @@ export default function TamaMiniGame({
             <button
               key={item.id}
               onClick={(e) => { e.stopPropagation(); hitItem(item.id, item.type); }}
-              className={`absolute leading-none select-none active:scale-125 transition-transform duration-75
+              className={`absolute leading-none select-none active:scale-125 transition-transform duration-75 flex items-center justify-center
                 ${item.type === "acorn" ? "text-5xl" : "text-4xl"}`}
-              style={{ left: `${item.x}%`, top: `${item.y}%`, transform: "translateX(-50%)" }}
+              style={{
+                left: `${item.x}%`, top: `${item.y}%`,
+                transform: "translate(-50%, -50%)",
+                width: "64px", height: "64px",
+              }}
             >
               {item.type === "acorn" ? "🌰" : "🍑"}
             </button>
