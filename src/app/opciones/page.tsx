@@ -104,6 +104,14 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
     </>
   );
 }
+import {
+  registerServiceWorker, subscribeToPush, unsubscribeFromPush,
+  isPushSubscribed, sendTestNotification, getNotificationPermission,
+} from "@/lib/notifications";
+import {
+  getSchedules, upsertSchedule, deleteSchedule, toggleSchedule, sendNow,
+  DAYS_LABELS, type NotifSchedule,
+} from "@/lib/schedules";
 import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
   getShopBellotas, saveShopBellotas,
@@ -390,6 +398,15 @@ export default function Opciones() {
   const [mascotCfg,   setMascotCfg]   = useState<MascotConfig>(DEFAULT_MASCOT_CONFIG);
   const [mascotSaved, setMascotSaved] = useState(false);
 
+  const [notifStatus,    setNotifStatus]    = useState<"loading"|"granted"|"denied"|"default"|"unsupported">("loading");
+  const [notifSubbed,    setNotifSubbed]    = useState(false);
+  const [notifWorking,   setNotifWorking]   = useState(false);
+  const [schedules,      setSchedules]      = useState<NotifSchedule[]>([]);
+  const [schedForm,      setSchedForm]      = useState<Omit<NotifSchedule,"id"|"last_sent_at">>({
+    emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true,
+  });
+  const [editingSchedId, setEditingSchedId] = useState<string|null>(null);
+
   const avInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -405,6 +422,16 @@ export default function Opciones() {
     setShopTitulos(getShopTitulos());
     setRewardsCfg(getRewardsConfig());
     setMascotCfg(getMascotConfig());
+    registerServiceWorker();
+    getNotificationPermission().then((perm) => {
+      if (!("Notification" in window) || !("PushManager" in window)) {
+        setNotifStatus("unsupported");
+      } else {
+        setNotifStatus(perm as "granted"|"denied"|"default");
+      }
+    });
+    isPushSubscribed().then(setNotifSubbed);
+    getSchedules().then(setSchedules);
   }, []);
 
   function showAdminMsg(msg: string) {
@@ -509,6 +536,48 @@ export default function Opciones() {
     const u = shopTitulos.map(t => t.id === id ? { ...t, text, price: Number(editingTituloPrice) || 0 } : t);
     setShopTitulos(u); saveShopTitulos(u); setEditingTituloId(null);
   }
+
+  /* ── Notificaciones ─────────────────────────────────────────────────────── */
+  async function handleToggleNotif() {
+    setNotifWorking(true);
+    if (notifSubbed) {
+      await unsubscribeFromPush();
+      setNotifSubbed(false);
+      showAdminMsg("🔕 Notificaciones desactivadas");
+    } else {
+      const result = await subscribeToPush();
+      if (result.ok) { setNotifSubbed(true); setNotifStatus("granted"); showAdminMsg("🔔 ¡Notificaciones activadas!"); }
+      else showAdminMsg(`❌ ${result.error}`);
+    }
+    setNotifWorking(false);
+  }
+  async function handleTestNotif() {
+    setNotifWorking(true);
+    const result = await sendTestNotification();
+    showAdminMsg(result.ok ? "✓ Notificación de prueba enviada" : `❌ ${result.error}`);
+    setNotifWorking(false);
+  }
+
+  /* ── Programación ───────────────────────────────────────────────────────── */
+  function toggleSchedDay(day: number) {
+    setSchedForm(f => ({ ...f, days: f.days.includes(day) ? f.days.filter(d => d !== day) : [...f.days, day] }));
+  }
+  async function saveSchedule() {
+    if (!schedForm.title.trim() || !schedForm.body.trim() || schedForm.days.length === 0) return;
+    await upsertSchedule(editingSchedId ? { ...schedForm, id: editingSchedId } : { ...schedForm });
+    const updated = await getSchedules();
+    setSchedules(updated);
+    setEditingSchedId(null);
+    setSchedForm({ emoji: "🐿️", title: "", body: "", hour: 10, minute: 0, days: [1,2,3,4,5,6,0], active: true });
+    showAdminMsg("✓ Notificación guardada");
+  }
+  function startEditSched(s: NotifSchedule) {
+    setEditingSchedId(s.id);
+    setSchedForm({ emoji: s.emoji, title: s.title, body: s.body, hour: s.hour, minute: s.minute, days: s.days, active: s.active });
+  }
+  async function removeSched(id: string) { await deleteSchedule(id); setSchedules(prev => prev.filter(s => s.id !== id)); }
+  async function toggleSched(id: string, active: boolean) { await toggleSchedule(id, active); setSchedules(prev => prev.map(s => s.id === id ? { ...s, active } : s)); }
+  async function sendSchedNow(s: NotifSchedule) { await sendNow(s); showAdminMsg(`✓ Enviada: ${s.emoji} ${s.title}`); }
 
   /* ── Exportar ────────────────────────────────────────────────────────────── */
   async function handleExport() {
@@ -801,7 +870,122 @@ export default function Opciones() {
           </button>
         </Section>
 
-        {/* ══ 9. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
+        {/* ══ 9. PROGRAMAR NOTIFICACIONES ══════════════════════════════════════ */}
+        <Section title="Programar notificaciones" emoji="📅" badge={schedules.length > 0 ? `${schedules.length}` : undefined}>
+          <p className="text-xs text-slate-400 -mt-1">Define qué notificaciones quieres enviar automáticamente y a qué hora.</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col gap-3 shadow-sm">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{editingSchedId ? "Editando" : "Nueva notificación"}</p>
+            <div className="flex gap-2">
+              <input value={schedForm.emoji} onChange={e => setSchedForm(f => ({ ...f, emoji: e.target.value }))} maxLength={4}
+                className="w-14 border border-slate-200 rounded-xl px-2 py-2.5 text-center text-xl focus:outline-none focus:border-purple-400"/>
+              <input value={schedForm.title} onChange={e => setSchedForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Título (ej: ¡Hora de practicar!)"
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 placeholder:text-slate-300"/>
+            </div>
+            <textarea value={schedForm.body} onChange={e => setSchedForm(f => ({ ...f, body: e.target.value }))}
+              placeholder="Mensaje (ej: Recuerda registrar cómo te sientes hoy 🌿)" rows={2}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 resize-none placeholder:text-slate-300"/>
+            <div className="flex items-center gap-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hora UTC</p>
+              <select value={schedForm.hour} onChange={e => setSchedForm(f => ({ ...f, hour: Number(e.target.value) }))}
+                className="border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-purple-400">
+                {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2,"0")}h</option>)}
+              </select>
+              <p className="text-[10px] text-slate-400">España = UTC+1 invierno / UTC+2 verano</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Días</p>
+              <div className="flex gap-1.5">
+                {[1,2,3,4,5,6,0].map(d => (
+                  <button key={d} onClick={() => toggleSchedDay(d)}
+                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all ${schedForm.days.includes(d) ? "bg-purple-500 text-white" : "bg-slate-100 text-slate-500 border border-slate-200"}`}>
+                    {DAYS_LABELS[d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveSchedule} disabled={!schedForm.title.trim() || !schedForm.body.trim() || schedForm.days.length === 0}
+                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold active:scale-95 transition-all ${schedForm.title.trim() && schedForm.body.trim() && schedForm.days.length > 0 ? "bg-purple-500 shadow-sm" : "bg-slate-200 text-slate-400"}`}>
+                {editingSchedId ? "Guardar cambios" : "+ Añadir"}
+              </button>
+              {editingSchedId && (
+                <button onClick={() => { setEditingSchedId(null); setSchedForm({ emoji:"🐿️",title:"",body:"",hour:10,minute:0,days:[1,2,3,4,5,6,0],active:true }); }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-500 text-sm font-medium active:scale-95">Cancelar</button>
+              )}
+            </div>
+          </div>
+          {schedules.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-2">Sin notificaciones programadas aún.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {schedules.map(s => (
+                <div key={s.id} className={`rounded-xl border shadow-sm overflow-hidden ${s.active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100"}`}>
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <span className="text-2xl shrink-0">{s.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-bold truncate ${s.active ? "text-slate-700" : "text-slate-400"}`}>{s.title}</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{s.body}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] font-bold text-purple-600">{String(s.hour).padStart(2,"0")}:00 UTC</span>
+                        <span className="text-[10px] text-slate-400">{[1,2,3,4,5,6,0].filter(d => s.days.includes(d)).map(d => DAYS_LABELS[d]).join(" ")}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => toggleSched(s.id, !s.active)}
+                      className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${s.active ? "bg-purple-400" : "bg-slate-200"}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${s.active ? "translate-x-5" : "translate-x-0.5"}`}/>
+                    </button>
+                  </div>
+                  <div className="flex border-t border-slate-100">
+                    <button onClick={() => sendSchedNow(s)} className="flex-1 py-2 text-[11px] font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors">▶ Enviar ahora</button>
+                    <button onClick={() => startEditSched(s)} className="flex-1 py-2 text-[11px] font-semibold text-violet-500 hover:bg-violet-50 transition-colors border-l border-slate-100">✏️ Editar</button>
+                    <button onClick={() => removeSched(s.id)} className="flex-1 py-2 text-[11px] font-semibold text-red-400 hover:bg-red-50 transition-colors border-l border-slate-100">🗑 Borrar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* ══ 10. NOTIFICACIONES ═══════════════════════════════════════════════ */}
+        <div className="border-2 border-purple-200 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 shadow-md">
+          <div className="px-4 py-3 bg-white/60 border-b border-purple-100 flex items-center gap-2">
+            <span className="text-xl">🔔</span>
+            <span className="text-sm font-bold text-purple-800">Notificaciones push</span>
+            {notifSubbed && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Activas</span>}
+          </div>
+          <div className="px-4 py-4 flex flex-col gap-3">
+            {notifStatus === "unsupported" ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-amber-800">Navegador no compatible</p>
+                <p className="text-xs text-amber-600 mt-1 leading-snug">Requiere iOS 16.4+ con la app añadida a la pantalla de inicio.</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white/80 border border-purple-100 rounded-xl px-4 py-3">
+                  <p className="text-xs text-slate-600 leading-snug">Recibe recordatorios y avisos directamente en tu móvil. 🌿</p>
+                  {notifStatus !== "granted" && notifStatus !== "loading" && (
+                    <p className="text-[11px] text-purple-500 mt-1.5">⚠️ Para iOS: añade la app a la pantalla de inicio y abre desde allí.</p>
+                  )}
+                </div>
+                <button onClick={handleToggleNotif} disabled={notifWorking || notifStatus === "denied"}
+                  className={`w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-all shadow-sm ${
+                    notifWorking ? "bg-slate-300" : notifSubbed ? "bg-rose-400" : notifStatus === "denied" ? "bg-slate-300 text-slate-500" : "bg-purple-500"
+                  }`}>
+                  {notifWorking ? "Procesando…" : notifSubbed ? "🔕 Desactivar" : notifStatus === "denied" ? "Permiso bloqueado (ajusta en Ajustes)" : "🔔 Activar notificaciones"}
+                </button>
+                {notifSubbed && (
+                  <button onClick={handleTestNotif} disabled={notifWorking}
+                    className="w-full py-2.5 rounded-xl border border-purple-200 bg-white text-purple-700 text-sm font-semibold active:scale-95 transition-all">
+                    🐿️ Enviar notificación de prueba
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ══ 11. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
         <Section title="Exportar datos" emoji="📤">
           <p className="text-xs text-slate-400 -mt-1">
             Descarga todos los registros (diario, caca, emocional, prácticas) en un archivo JSON.
@@ -814,7 +998,7 @@ export default function Opciones() {
           </button>
         </Section>
 
-        {/* ══ 9. ADMINISTRACIÓN ═══════════════════════════════════════════════ */}
+        {/* ══ 12. ADMINISTRACIÓN ══════════════════════════════════════════════ */}
         <Section title="Administración" emoji="🔧">
           <p className="text-xs text-slate-400 -mt-1">Sincronización con Supabase y reinicio de datos.</p>
 
