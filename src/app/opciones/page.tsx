@@ -1,6 +1,14 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import {
+  registerServiceWorker,
+  subscribeToPush,
+  unsubscribeFromPush,
+  isPushSubscribed,
+  sendTestNotification,
+  getNotificationPermission,
+} from "@/lib/notifications";
 import { DEFAULT_PHRASES } from "@/lib/phrases";
 import {
   getShopBellotas, saveShopBellotas,
@@ -274,9 +282,23 @@ export default function Opciones() {
   const [adminMsg,   setAdminMsg]   = useState<string | null>(null);
   const [exporting,  setExporting]  = useState(false);
 
+  // Notificaciones
+  const [notifStatus,   setNotifStatus]   = useState<"loading"|"granted"|"denied"|"default"|"unsupported">("loading");
+  const [notifSubbed,   setNotifSubbed]   = useState(false);
+  const [notifWorking,  setNotifWorking]  = useState(false);
+
   const avInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    registerServiceWorker();
+    getNotificationPermission().then((perm) => {
+      if (!("Notification" in window) || !("PushManager" in window)) {
+        setNotifStatus("unsupported");
+      } else {
+        setNotifStatus(perm as "granted"|"denied"|"default");
+      }
+    });
+    isPushSubscribed().then(setNotifSubbed);
     cleanupLegacyDefaults();
     try {
       const stored = localStorage.getItem("custom_phrases");
@@ -383,6 +405,33 @@ export default function Opciones() {
     const text = editingTituloText.trim(); if (!text) return;
     const u = shopTitulos.map(t => t.id === id ? { ...t, text } : t);
     setShopTitulos(u); saveShopTitulos(u); setEditingTituloId(null);
+  }
+
+  /* ── Notificaciones ─────────────────────────────────────────────────────── */
+  async function handleToggleNotif() {
+    setNotifWorking(true);
+    if (notifSubbed) {
+      await unsubscribeFromPush();
+      setNotifSubbed(false);
+      showAdminMsg("🔕 Notificaciones desactivadas");
+    } else {
+      const result = await subscribeToPush();
+      if (result.ok) {
+        setNotifSubbed(true);
+        setNotifStatus("granted");
+        showAdminMsg("🔔 ¡Notificaciones activadas!");
+      } else {
+        showAdminMsg(`❌ ${result.error}`);
+      }
+    }
+    setNotifWorking(false);
+  }
+
+  async function handleTestNotif() {
+    setNotifWorking(true);
+    const result = await sendTestNotification();
+    showAdminMsg(result.ok ? "✓ Notificación de prueba enviada" : `❌ ${result.error}`);
+    setNotifWorking(false);
   }
 
   /* ── Exportar ────────────────────────────────────────────────────────────── */
@@ -616,7 +665,76 @@ export default function Opciones() {
           )}
         </Section>
 
-        {/* ══ 8. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
+        {/* ══ 8. NOTIFICACIONES ════════════════════════════════════════════════ */}
+        <div className="border-2 border-purple-200 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50 shadow-md">
+          <div className="px-4 py-3 bg-white/60 border-b border-purple-100 flex items-center gap-2">
+            <span className="text-xl">🔔</span>
+            <span className="text-sm font-bold text-purple-800">Notificaciones push</span>
+            {notifSubbed && (
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Activas</span>
+            )}
+          </div>
+          <div className="px-4 py-4 flex flex-col gap-3">
+
+            {notifStatus === "unsupported" && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-amber-800">Navegador no compatible</p>
+                <p className="text-xs text-amber-600 mt-1 leading-snug">
+                  Las notificaciones push requieren iOS 16.4+ con la app añadida a la pantalla de inicio.
+                </p>
+              </div>
+            )}
+
+            {notifStatus !== "unsupported" && (
+              <>
+                <div className="bg-white/80 border border-purple-100 rounded-xl px-4 py-3">
+                  <p className="text-xs text-slate-600 leading-snug">
+                    Recibe recordatorios diarios y avisos de logros directamente en tu móvil. 🌿
+                  </p>
+                  {notifStatus !== "granted" && notifStatus !== "loading" && (
+                    <p className="text-[11px] text-purple-500 mt-1.5 leading-snug">
+                      ⚠️ Para iOS: añade la app a la pantalla de inicio y abre desde allí.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleToggleNotif}
+                  disabled={notifWorking || notifStatus === "denied"}
+                  className={`w-full py-3 rounded-2xl text-white font-bold text-sm active:scale-95 transition-all shadow-sm ${
+                    notifWorking
+                      ? "bg-slate-300"
+                      : notifSubbed
+                      ? "bg-rose-400"
+                      : notifStatus === "denied"
+                      ? "bg-slate-300 text-slate-500"
+                      : "bg-purple-500"
+                  }`}
+                >
+                  {notifWorking
+                    ? "Procesando…"
+                    : notifSubbed
+                    ? "🔕 Desactivar notificaciones"
+                    : notifStatus === "denied"
+                    ? "Permiso bloqueado (ajusta en Ajustes del móvil)"
+                    : "🔔 Activar notificaciones"}
+                </button>
+
+                {notifSubbed && (
+                  <button
+                    onClick={handleTestNotif}
+                    disabled={notifWorking}
+                    className="w-full py-2.5 rounded-xl border border-purple-200 bg-white text-purple-700 text-sm font-semibold active:scale-95 transition-all"
+                  >
+                    🐿️ Enviar notificación de prueba
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ══ 10. EXPORTAR DATOS ═══════════════════════════════════════════════ */}
         <Section title="Exportar datos" emoji="📤">
           <p className="text-xs text-slate-400 -mt-1">
             Descarga todos los registros (diario, caca, emocional, prácticas) en un archivo JSON.
@@ -629,7 +747,7 @@ export default function Opciones() {
           </button>
         </Section>
 
-        {/* ══ 9. ADMINISTRACIÓN ═══════════════════════════════════════════════ */}
+        {/* ══ 11. ADMINISTRACIÓN ══════════════════════════════════════════════ */}
         <Section title="Administración" emoji="🔧">
           <p className="text-xs text-slate-400 -mt-1">Sincronización con Supabase y reinicio de datos.</p>
 
