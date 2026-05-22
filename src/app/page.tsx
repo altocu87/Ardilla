@@ -721,7 +721,7 @@ export default function Home() {
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
 
-          {/* Top icons — izquierda: misiones + logros */}
+          {/* Top icons — izquierda: misiones + logros + estadísticas */}
           <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5">
             <button onClick={() => setShowMisiones(true)}
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
@@ -730,6 +730,10 @@ export default function Home() {
             <Link href="/logros"
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
               <span className="text-sm">🏆</span>
+            </Link>
+            <Link href="/estadisticas"
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">📊</span>
             </Link>
           </div>
 
@@ -809,7 +813,7 @@ export default function Home() {
       </div>
 
       {/* ── Botones ── */}
-      <div className="shrink-0 px-4 pb-5 grid grid-cols-2 gap-2">
+      <div className="shrink-0 px-4 pb-5 grid grid-cols-3 gap-2">
         <Link href="/registro" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
           <span className="text-base">✏️</span> Registro
         </Link>
@@ -817,16 +821,7 @@ export default function Home() {
           <span className="text-base">🎓</span> Ejercicios
         </Link>
         <Link href="/informacion" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">ℹ️</span> Información
-        </Link>
-        <Link href="/estadisticas" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-rose-200 text-rose-700 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">📊</span> Estadísticas
-        </Link>
-        <Link href="/logros" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-yellow-200 text-yellow-700 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">🏆</span> Logros
-        </Link>
-        <Link href="/tienda" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-emerald-200 text-emerald-700 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-base">🛒</span> Tienda
+          <span className="text-base">ℹ️</span> Info
         </Link>
       </div>
 
