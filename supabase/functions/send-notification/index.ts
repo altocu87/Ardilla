@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   const vapidPublic  = Deno.env.get("VAPID_PUBLIC_KEY")!;
   const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY")!;
   const supabaseUrl  = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseKey  = Deno.env.get("SERVICE_ROLE_KEY")!;
 
   webpush.setVapidDetails("mailto:altocuvlc@gmail.com", vapidPublic, vapidPrivate);
 
