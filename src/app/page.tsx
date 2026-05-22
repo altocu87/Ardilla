@@ -363,6 +363,20 @@ function MedicineModal({
   );
 }
 
+/* ── Icono percha (Armario) ────────────────────────────────────── */
+function HangerIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 22 17" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <path d="M11 1.5 C13.5 1.5 14.5 3.5 13 5 C12.2 6 11 6.5 11 6.5"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M1.5 15 Q6.5 7.5 11 6.5 Q15.5 7.5 20.5 15"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+      <line x1="1.5" y1="15" x2="20.5" y2="15"
+        stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 /* ── Toast de logro ────────────────────────────────────────────── */
 function AchievementToast({ ach }: { ach: Achievement }) {
   return (
@@ -680,6 +694,7 @@ export default function Home() {
   const heldToyEmoji = equippedToyId
     ? TOY_CATALOG.find(t => t.id === equippedToyId)?.emoji ?? undefined
     : undefined;
+  const totalEquipped = Object.keys(equippedCloth).length + (equippedToyId ? 1 : 0);
 
   const foodInv = getFoodInventory();
   const foodItems = FOOD_CATALOG.map(f => ({
@@ -774,11 +789,23 @@ export default function Home() {
             <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
           </div>
 
-          <Link href="/tienda"
-            className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
-            <span className="text-sm">🛒</span>
-            {loaded && <span className="text-[10px] font-bold text-white">{bellotas}🌰</span>}
-          </Link>
+          {/* Top icons — derecha: tienda + armario */}
+          <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
+            <Link href="/tienda"
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🛒</span>
+              {loaded && <span className="text-[10px] font-bold text-white">{bellotas}🌰</span>}
+            </Link>
+            <Link href="/armario"
+              className="relative flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-full p-2 active:scale-95 border border-white/20">
+              <HangerIcon className="w-[18px] h-[14px] text-white"/>
+              {totalEquipped > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-pink-500 rounded-full text-[8px] font-extrabold text-white flex items-center justify-center px-1 shadow-sm">
+                  {totalEquipped}
+                </span>
+              )}
+            </Link>
+          </div>
 
           {/* Chibi + greeting + bubble */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-4 pt-8 pb-3">
@@ -845,18 +872,15 @@ export default function Home() {
       </div>
 
       {/* ── Botones ── */}
-      <div className="shrink-0 px-4 pb-5 grid grid-cols-4 gap-2">
-        <Link href="/registro" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-[11px] shadow-sm active:scale-95">
-          <span className="text-lg">✏️</span> Registro
+      <div className="shrink-0 px-4 pb-5 grid grid-cols-3 gap-2">
+        <Link href="/registro" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">✏️</span> Registro
         </Link>
-        <Link href="/formaciones" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-[11px] shadow-sm active:scale-95">
-          <span className="text-lg">🎓</span> Ejercicios
+        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">🎓</span> Ejercicios
         </Link>
-        <Link href="/armario" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-pink-200 text-pink-800 font-bold text-[11px] shadow-sm active:scale-95">
-          <span className="text-lg">👗</span> Armario
-        </Link>
-        <Link href="/informacion" className="flex flex-col items-center justify-center gap-0.5 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-[11px] shadow-sm active:scale-95">
-          <span className="text-lg">ℹ️</span> Info
+        <Link href="/informacion" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">ℹ️</span> Info
         </Link>
       </div>
 
