@@ -44,18 +44,34 @@ export const ACTIVITY_TAMA: Record<ActivityKey, Partial<Pick<TamaStats, "hambre"
 /* ════════════════════════════════════════════════════
    STATE MESSAGES
 ════════════════════════════════════════════════════ */
-export const TAMA_MESSAGES: Record<TamaVisualState, string> = {
-  muy_feliz:  "¡Estoy contentísima! 🥳",
-  feliz:      "¡Qué bien me tratas! ✨",
-  neutral:    "Aquí estoy, contigo 🌿",
-  triste:     "Me siento un poco sola... 💙",
-  hambre:     "Tengo mucha hambre... 😩",
-  cansada:    "Estoy agotada, necesito dormir 💤",
-  comiendo:   "¡Mmm, está riquísimo! 😋",
-  durmiendo:  "Zzz... dulces sueños... 😴",
-  jugando:    "¡Esto es genial! 🎉",
-  enfadada:   "¡Llevas mucho sin cuidarme! 😤",
+const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
+  muy_feliz:  ["¡Estoy contentísima! 🥳", "¡Hoy me siento genial! ✨", "¡Eres la mejor! 💖"],
+  feliz:      ["¡Qué bien me tratas! ✨", "Me alegra tenerte aquí 🌟", "¡Contigo todo es mejor! 🎉"],
+  neutral:    ["Aquí estoy, contigo 🌿", "Un día tranquilo... 🍃", "¿Cómo estás tú hoy? 💬"],
+  triste:     ["Me siento un poco sola... 💙", "Necesito más cariño 🥺", "¿Me das un abrazo? 🤗"],
+  hambre:     ["Tengo mucha hambre... 😩", "¡Mi barriguita gruñe! 🍎", "¿Hora de comer? 🥺"],
+  cansada:    ["Estoy agotada... 💤", "Necesito dormir un poco 😪", "Mis ojos se cierran... 🌙"],
+  comiendo:   ["¡Mmm, está riquísimo! 😋", "¡Qué rico todo! 🍽️", "¡Gracias por la comida! 🥰"],
+  durmiendo:  ["Zzz... dulces sueños... 😴", "Shh, estoy descansando 🌙", "Zzz... 💤"],
+  jugando:    ["¡Esto es genial! 🎉", "¡Me encanta jugar! 🎮", "¡Más, más! 🌟"],
+  enfadada:   ["¡Llevas mucho sin cuidarme! 😤", "Me siento abandonada 😠", "¡Presta atención! ⚡"],
 };
+
+const STREAK_MESSAGES: Record<number, string> = {
+  3:  "¡3 días seguidos! 🔥 ¡Somos imparables!",
+  7:  "¡Una semana entera! 🎊 ¡Eres increíble!",
+  14: "¡14 días! 🏆 ¡Eres una campeona!",
+  30: "¡Un mes! 🥇 ¡Nunca me has fallado!",
+};
+
+export function getContextualMessage(state: TamaVisualState, streak: number): string {
+  /* Streak milestone takes priority */
+  for (const days of [30, 14, 7, 3]) {
+    if (streak === days && STREAK_MESSAGES[days]) return STREAK_MESSAGES[days];
+  }
+  const pool = BASE_MESSAGES[state] ?? BASE_MESSAGES.neutral;
+  return pool[Math.floor(Date.now() / 60_000) % pool.length];
+}
 
 /* ════════════════════════════════════════════════════
    STORAGE

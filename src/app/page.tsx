@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getPlayerProfile, getPregLog } from "@/lib/db";
 import { pullFromCloud } from "@/lib/cloudsync";
 import { getLevelInfo } from "@/lib/profile";
@@ -12,16 +12,22 @@ import {
 } from "@/lib/shop";
 import { getMascotConfig } from "@/lib/mascot";
 import {
-  getTamaStats, computeVisualState, feedTama, sleepTama, playTama,
-  TAMA_MESSAGES, type TamaStats, type TamaVisualState,
+  getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
+  getContextualMessage, type TamaStats, type TamaVisualState,
 } from "@/lib/tamagotchi";
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
+import {
+  getEvolutionData, tickDailyEvolution, recordTap, isNightTime,
+  PHASE_INFO, type EvolutionPhase,
+} from "@/lib/tama-evolution";
+import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
 import MisionesModal from "@/components/MisionesModal";
+import TamaMiniGame from "@/components/TamaMiniGame";
 
 /* ── Hora del día ─────────────────────────────────────────────── */
 type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
@@ -177,11 +183,12 @@ function AvatarModal({ onClose, ownedItems, ownedTitulos, equippedAvatar, equipp
 }
 
 /* ── Panel de acción (comida / juguetes) ───────────────────────── */
-function ActionPanel({ title, items, onSelect, onClose }: {
+function ActionPanel({ title, items, onSelect, onClose, extraAction }: {
   title: string;
   items: { id: string; emoji: string; name: string; desc: string; disabled?: boolean; badge?: string }[];
   onSelect: (id: string) => void;
   onClose: () => void;
+  extraAction?: { label: string; emoji: string; onClick: () => void };
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -189,6 +196,13 @@ function ActionPanel({ title, items, onSelect, onClose }: {
       <div className="relative bg-white rounded-t-3xl px-5 pt-4 pb-10 shadow-2xl" onClick={e=>e.stopPropagation()}>
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3"/>
         <h3 className="text-sm font-bold text-slate-700 mb-3 text-center">{title}</h3>
+        {extraAction && (
+          <button onClick={() => { extraAction.onClick(); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 py-3 mb-3 rounded-2xl bg-violet-500 text-white font-bold text-sm active:scale-95 shadow-md">
+            <span className="text-lg">{extraAction.emoji}</span>
+            {extraAction.label}
+          </button>
+        )}
         {items.length === 0 ? (
           <div className="text-center py-6">
             <p className="text-3xl mb-2">🛒</p>
@@ -218,16 +232,44 @@ function ActionPanel({ title, items, onSelect, onClose }: {
   );
 }
 
-/* ── Stat bar ──────────────────────────────────────────────────── */
-function StatBar({ emoji, label, value, color }: { emoji: string; label: string; value: number; color: string }) {
+/* ── Stats compactos ───────────────────────────────────────────── */
+function StatsRow({ stats }: { stats: TamaStats }) {
+  const bars = [
+    { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: "#f59e0b" },
+    { emoji: "⚡", label: "Energía", value: stats.energia, color: "#818cf8" },
+    { emoji: "🌸", label: "Ánimo",   value: stats.animo,   color: "#f472b6" },
+  ];
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] w-4 text-center">{emoji}</span>
-      <span className="text-[9px] text-white/65 w-11 font-semibold">{label}</span>
-      <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${value}%`, background: color }}/>
+    <div className="flex gap-2">
+      {bars.map(b => (
+        <div key={b.label} className="flex-1">
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="text-[9px] text-slate-500 font-semibold">{b.emoji} {b.label}</span>
+            <span className="text-[9px] font-bold text-slate-400">{Math.round(b.value)}</span>
+          </div>
+          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${b.value}%`, background: b.color }}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Toast de logro ────────────────────────────────────────────── */
+function AchievementToast({ ach }: { ach: Achievement }) {
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+      style={{ animation: "slideDown 0.4s ease-out" }}>
+      <div className="bg-amber-500 text-white rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-3 min-w-[240px]">
+        <span className="text-2xl">{ach.emoji}</span>
+        <div>
+          <p className="text-xs font-black">¡Logro desbloqueado!</p>
+          <p className="text-sm font-bold">{ach.title}</p>
+          <p className="text-[10px] opacity-80">+{ach.rewardBellotas} 🌰</p>
+        </div>
       </div>
-      <span className="text-[9px] text-white/60 w-5 text-right font-bold">{Math.round(value)}</span>
     </div>
   );
 }
@@ -247,6 +289,15 @@ export default function Home() {
   const [currentAction, setCurrentAction] = useState<"comiendo"|"durmiendo"|"jugando"|null>(null);
   const [showFeedPanel, setShowFeedPanel] = useState(false);
   const [showPlayPanel, setShowPlayPanel] = useState(false);
+  const [showMiniGame,  setShowMiniGame]  = useState(false);
+  const [tamaMessage,   setTamaMessage]   = useState("");
+
+  /* Evolution & tickle */
+  const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
+  const [isTickling,     setIsTickling]     = useState(false);
+  const [achToast,       setAchToast]       = useState<Achievement | null>(null);
+  const tapTimesRef = useRef<number[]>([]);
+  const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* Clothing */
   const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
@@ -259,6 +310,12 @@ export default function Home() {
   const [showMisiones,     setShowMisiones]          = useState(false);
   const [ownedItems,   setOwnedItems]   = useState<ShopItem[]>([]);
   const [ownedTitulos, setOwnedTitulos] = useState<TituloItem[]>([]);
+
+  function showAchievement(ach: Achievement) {
+    if (achTimerRef.current) clearTimeout(achTimerRef.current);
+    setAchToast(ach);
+    achTimerRef.current = setTimeout(() => setAchToast(null), 3200);
+  }
 
   const loadProfile = useCallback(() => {
     getPlayerProfile()
@@ -284,6 +341,18 @@ export default function Home() {
   const loadTama = useCallback(() => {
     const stats = getTamaStats();
     setTamaStats(stats);
+
+    /* Evolution tick (once per day) */
+    const avgStats = (stats.hambre + stats.energia + stats.animo) / 3;
+    const newPhase = tickDailyEvolution(avgStats);
+    const evo = getEvolutionData();
+    setEvolutionPhase(evo.phase);
+    if (newPhase) {
+      if (newPhase === "joven")   { const a = tryUnlock("grew_up"); if (a) showAchievement(a); }
+      if (newPhase === "adulta")  { const a = tryUnlock("adult");   if (a) showAchievement(a); }
+      if (newPhase === "anciana") { const a = tryUnlock("wise");    if (a) showAchievement(a); }
+    }
+
     getPregLog()
       .then(log => {
         const today = new Date();
@@ -293,15 +362,22 @@ export default function Home() {
           if (log[d.toISOString().slice(0,10)]) streak++; else break;
         }
         const cfg = getMascotConfig();
-        // Use streak to boost animo threshold
         const s = getTamaStats();
         setTamaStats(s);
         const boosted = streak >= cfg.rachaFeliz
           ? { ...s, animo: Math.min(100, s.animo + 15) } : s;
-        setVisualState(computeVisualState(boosted, currentAction ?? undefined));
+
+        /* Night auto-sleep override */
+        const isNight = isNightTime();
+        const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(boosted, currentAction ?? undefined);
+        setVisualState(vs);
+        setTamaMessage(getContextualMessage(vs, streak));
       })
       .catch(() => {
-        setVisualState(computeVisualState(stats, currentAction ?? undefined));
+        const isNight = isNightTime();
+        const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(stats, currentAction ?? undefined);
+        setVisualState(vs);
+        setTamaMessage(getContextualMessage(vs, 0));
       });
   }, [currentAction]);
 
@@ -322,10 +398,14 @@ export default function Home() {
   function triggerAction(action: "comiendo"|"durmiendo"|"jugando", durationMs = 3000) {
     setCurrentAction(action);
     setVisualState(action);
+    setTamaMessage(getContextualMessage(action, 0));
     setTimeout(() => {
       setCurrentAction(null);
       const s = getTamaStats(); setTamaStats(s);
-      setVisualState(computeVisualState(s));
+      const isNight = isNightTime();
+      const vs = isNight ? "durmiendo" : computeVisualState(s);
+      setVisualState(vs);
+      setTamaMessage(getContextualMessage(vs, 0));
     }, durationMs);
   }
 
@@ -351,6 +431,57 @@ export default function Home() {
     triggerAction("jugando", 2500);
   }
 
+  /* Tap directly on the squirrel */
+  function tapSquirrel() {
+    const now = Date.now();
+    tapTimesRef.current = [...tapTimesRef.current.filter(t => now - t < 2000), now];
+
+    /* Small animo boost */
+    const s = getTamaStats();
+    s.animo = Math.min(100, s.animo + 2);
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s);
+    setTamaStats({ ...s });
+
+    /* Evolution tap record + achievements */
+    const { totalTaps } = recordTap();
+    const ach1 = tryUnlock("first_tap");
+    if (ach1) showAchievement(ach1);
+    if (totalTaps >= 50)  { const a = tryUnlock("tap_50");  if (a) showAchievement(a); }
+    if (totalTaps >= 200) { const a = tryUnlock("tap_200"); if (a) showAchievement(a); }
+
+    /* Tickle: 5 rapid taps */
+    if (tapTimesRef.current.length >= 5) {
+      tapTimesRef.current = [];
+      setIsTickling(true);
+      setVisualState("muy_feliz");
+      const a = tryUnlock("tickle");
+      if (a) showAchievement(a);
+      setTimeout(() => {
+        setIsTickling(false);
+        const fresh = getTamaStats();
+        const vs = computeVisualState(fresh);
+        setVisualState(vs);
+        setTamaMessage(getContextualMessage(vs, 0));
+      }, 1500);
+    }
+  }
+
+  function handleMiniGameFinish(score: number) {
+    const animoBoost = Math.min(30, Math.floor(score * 2));
+    const s = getTamaStats();
+    s.animo = Math.min(100, s.animo + animoBoost);
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s);
+    setTamaStats({ ...s });
+    const vs = computeVisualState(s);
+    setVisualState(vs);
+    setTamaMessage(getContextualMessage(vs, 0));
+    if (score >= 10) { const a = tryUnlock("minigame_5");   if (a) showAchievement(a); }
+    if (score >= 20) { const a = tryUnlock("minigame_pro"); if (a) showAchievement(a); }
+    setShowMiniGame(false);
+  }
+
   function handleEquipAvatar(emoji: string | null) {
     setEquippedAvatar(emoji); setEquippedAvatarState(emoji);
   }
@@ -363,15 +494,13 @@ export default function Home() {
   const { level, currentXp, nextLevelXp, progress } = getLevelInfo(xp);
   const avatarEmoji = equippedAvatar ?? "🐿️";
 
-  /* Food inventory for panel */
   const foodInv = getFoodInventory();
   const foodItems = FOOD_CATALOG.map(f => ({
     id: f.id, emoji: f.emoji, name: f.name,
     desc: `+${f.hambreRestore} hambre${f.animoBoost ? ` +${f.animoBoost} ánimo` : ""} · tienes ${foodInv[f.id] ?? 0}`,
     disabled: (foodInv[f.id] ?? 0) === 0,
-  })).filter(f => (foodInv[f.id.replace("","")]  || (foodInv as Record<string,number>)[f.id] || 0) >= 0);
+  }));
 
-  /* Toy inventory for panel */
   const ownedToyIds = getOwnedToys();
   const toyItems = TOY_CATALOG.filter(t => ownedToyIds.includes(t.id)).map(t => {
     const cd = isToyOnCooldown(t.id, t.cooldownMinutes);
@@ -383,122 +512,142 @@ export default function Home() {
     };
   });
 
+  const phaseInfo = PHASE_INFO[evolutionPhase];
+
   return (
     <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-sky-100 via-teal-50 to-emerald-100 overflow-hidden">
 
+      {/* Achievement toast */}
+      {achToast && <AchievementToast ach={achToast}/>}
+
       {/* ── Perfil ── */}
-      <div className="shrink-0 px-5 pt-5">
-        <div className="bg-white/75 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-md flex items-center gap-3">
+      <div className="shrink-0 px-4 pt-4">
+        <div className="bg-white/75 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-md flex items-center gap-3">
           <button onClick={() => { loadEquipped(); setShowModal(true); }}
-            className="shrink-0 w-14 h-14 rounded-full bg-teal-100 border-2 border-teal-300 flex items-center justify-center text-3xl shadow-sm active:scale-95 relative">
+            className="shrink-0 w-12 h-12 rounded-full bg-teal-100 border-2 border-teal-300 flex items-center justify-center text-2xl shadow-sm active:scale-95 relative">
             {avatarEmoji}
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[9px] shadow-sm">✏️</span>
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center justify-between gap-2 mb-0.5">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-base font-extrabold text-slate-700 shrink-0">Vicky</span>
-                {tituloText && <span className="text-[11px] font-bold text-violet-500 truncate">· {tituloText}</span>}
+                <span className="text-sm font-extrabold text-slate-700 shrink-0">Vicky</span>
+                {tituloText && <span className="text-[10px] font-bold text-violet-500 truncate">· {tituloText}</span>}
               </div>
-              <span className="flex items-center gap-1 text-sm font-bold text-amber-600 shrink-0">🌰 {loaded ? bellotas : "—"}</span>
+              <span className="flex items-center gap-1 text-xs font-bold text-amber-600 shrink-0">🌰 {loaded ? bellotas : "—"}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="shrink-0 text-[10px] font-bold text-white bg-teal-500 px-1.5 py-0.5 rounded-full">Nv.{level}</span>
-              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+              <span className="shrink-0 text-[9px] font-bold text-white bg-teal-500 px-1.5 py-0.5 rounded-full">Nv.{level}</span>
+              <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                 <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-500 transition-all duration-700" style={{ width:`${Math.max(progress*100,3)}%` }}/>
               </div>
-              <span className="shrink-0 text-[9px] text-slate-400">{loaded?`${currentXp}/${nextLevelXp} XP`:"—"}</span>
+              <span className="shrink-0 text-[9px] text-slate-400">{loaded?`${currentXp}/${nextLevelXp}`:"—"}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Escena + chibi ── */}
-      <div className="flex-1 min-h-0 px-5 py-2 flex flex-col">
-        <div className="flex-1 min-h-0 relative rounded-3xl overflow-hidden shadow-xl border border-white/20">
+      {/* ── Escena ── */}
+      <div className="flex-1 min-h-0 px-4 py-2">
+        <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-xl border border-white/20">
           <div className="absolute inset-0"><SceneBg seg={timeSegment}/></div>
           <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
 
-          {/* Iconos superiores */}
+          {/* Top icons */}
           <button onClick={() => setShowMisiones(true)}
             className="absolute top-3 left-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
-            <span className="text-base">📋</span>
+            <span className="text-sm">📋</span>
           </button>
+
+          {/* Evolution phase badge */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
+            <span className="text-xs">{phaseInfo.emoji}</span>
+            <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
+          </div>
+
           <Link href="/tienda"
             className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
-            <span className="text-base">🛒</span>
-            {loaded && <span className="text-[11px] font-bold text-white">{bellotas}🌰</span>}
+            <span className="text-sm">🛒</span>
+            {loaded && <span className="text-[10px] font-bold text-white">{bellotas}🌰</span>}
           </Link>
 
-          {/* Chibi + texto */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-4 pt-10 pb-28">
-            <div className="text-center mb-1">
-              <h1 className="text-2xl font-extrabold text-white tracking-tight"
+          {/* Chibi + greeting + bubble */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-4 pt-8 pb-3">
+            <div className="text-center mb-0.5">
+              <h1 className="text-xl font-extrabold text-white tracking-tight"
                 style={{ textShadow:"0 2px 12px rgba(0,0,0,0.6)" }}>¡Hola, Vicky!</h1>
-              <p className="text-white/85 text-xs font-semibold"
+              <p className="text-white/85 text-[11px] font-semibold"
                 style={{ textShadow:"0 1px 6px rgba(0,0,0,0.5)" }}>{greeting()}</p>
             </div>
-            <ChibiArdilla
-              state={visualState}
-              equipped={equippedCloth}
-              catalog={CLOTHING_CATALOG}
-              className="drop-shadow-2xl"
-            />
-            {/* Bocadillo */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-3 py-2 shadow-lg border border-white/60 max-w-[200px] mt-1">
+
+            {/* Tappable squirrel */}
+            <button
+              onClick={tapSquirrel}
+              className="active:scale-95 transition-transform duration-75 focus:outline-none"
+              style={{ background: "none", border: "none", padding: 0 }}>
+              <ChibiArdilla
+                state={visualState}
+                phase={evolutionPhase}
+                equipped={equippedCloth}
+                catalog={CLOTHING_CATALOG}
+                isTickling={isTickling}
+                className="drop-shadow-2xl"
+              />
+            </button>
+
+            {/* Speech bubble */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-3 py-1.5 shadow-lg border border-white/60 max-w-[210px]">
               <p className="text-center text-xs font-semibold text-slate-700 leading-snug">
-                {TAMA_MESSAGES[visualState]}
+                {tamaMessage || "..."}
               </p>
             </div>
           </div>
-
-          {/* Botones de acción */}
-          <div className="absolute bottom-12 left-3 right-3 z-10 flex gap-2">
-            <button onClick={() => setShowFeedPanel(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-500/80 backdrop-blur-sm rounded-2xl border border-amber-300/50 active:scale-95 transition-transform">
-              <span className="text-base">🍎</span>
-              <span className="text-[11px] font-bold text-white">Comer</span>
-            </button>
-            <button onClick={handleSleep}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-500/80 backdrop-blur-sm rounded-2xl border border-indigo-300/50 active:scale-95 transition-transform">
-              <span className="text-base">😴</span>
-              <span className="text-[11px] font-bold text-white">Dormir</span>
-            </button>
-            <button onClick={() => setShowPlayPanel(true)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/80 backdrop-blur-sm rounded-2xl border border-emerald-300/50 active:scale-95 transition-transform">
-              <span className="text-base">🎾</span>
-              <span className="text-[11px] font-bold text-white">Jugar</span>
-            </button>
-          </div>
-
-          {/* Stat bars */}
-          {tamaStats && (
-            <div className="absolute bottom-2 left-3 right-3 z-10">
-              <div className="bg-black/30 backdrop-blur-sm rounded-xl px-3 py-1.5 flex flex-col gap-1">
-                <StatBar emoji="🍖" label="Hambre"  value={tamaStats.hambre}  color="#fbbf24"/>
-                <StatBar emoji="⚡" label="Energía" value={tamaStats.energia} color="#818cf8"/>
-                <StatBar emoji="🌸" label="Ánimo"   value={tamaStats.animo}   color="#f472b6"/>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
+      {/* ── Stats (outside the scene) ── */}
+      {tamaStats && (
+        <div className="shrink-0 px-4 py-1">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2 border border-white/60 shadow-sm">
+            <StatsRow stats={tamaStats}/>
+          </div>
+        </div>
+      )}
+
+      {/* ── Acción (outside the scene) ── */}
+      <div className="shrink-0 px-4 pb-1 flex gap-2">
+        <button onClick={() => setShowFeedPanel(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
+          <span className="text-base">🍎</span>
+          <span className="text-xs font-bold text-white">Comer</span>
+        </button>
+        <button onClick={handleSleep}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
+          <span className="text-base">😴</span>
+          <span className="text-xs font-bold text-white">Dormir</span>
+        </button>
+        <button onClick={() => setShowPlayPanel(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
+          <span className="text-base">🎾</span>
+          <span className="text-xs font-bold text-white">Jugar</span>
+        </button>
+      </div>
+
       {/* ── Botones 2×2 ── */}
-      <div className="shrink-0 px-5 pb-6 grid grid-cols-2 gap-2">
-        <Link href="/registro" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-xl">✏️</span> Registro
+      <div className="shrink-0 px-4 pb-5 grid grid-cols-2 gap-2">
+        <Link href="/registro" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-teal-200 text-teal-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-lg">✏️</span> Registro
         </Link>
-        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-xl">🎓</span> Ejercicios
+        <Link href="/formaciones" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-violet-200 text-violet-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-lg">🎓</span> Ejercicios
         </Link>
-        <Link href="/informacion" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-xl">ℹ️</span> Información
+        <Link href="/informacion" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-amber-200 text-amber-800 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-lg">ℹ️</span> Información
         </Link>
-        <Link href="/opciones" className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
-          <span className="text-xl">⚙️</span> Ajustes
+        <Link href="/opciones" className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-lg">⚙️</span> Ajustes
         </Link>
       </div>
 
@@ -514,9 +663,27 @@ export default function Home() {
           onSelect={handleFeed} onClose={() => setShowFeedPanel(false)}/>
       )}
       {showPlayPanel && (
-        <ActionPanel title="¿Con qué jugamos?" items={toyItems.length > 0 ? toyItems : []}
-          onSelect={handlePlay} onClose={() => setShowPlayPanel(false)}/>
+        <ActionPanel
+          title="¿Con qué jugamos?"
+          items={toyItems}
+          onSelect={handlePlay}
+          onClose={() => setShowPlayPanel(false)}
+          extraAction={{ label: "¡Mini-juego de bellotas!", emoji: "🎮", onClick: () => setShowMiniGame(true) }}
+        />
       )}
+      {showMiniGame && (
+        <TamaMiniGame
+          onFinish={handleMiniGameFinish}
+          onClose={() => setShowMiniGame(false)}
+        />
+      )}
+
+      <style>{`
+        @keyframes slideDown {
+          from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+          to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
