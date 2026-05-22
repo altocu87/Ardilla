@@ -34,6 +34,61 @@ import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
 
+/* ── Frases de bienvenida del caracol ───────────────────────────── */
+const WELCOME_PHRASES = [
+  /* Caracol */
+  "Los caracoles llevamos nuestra casa a cuestas. Tú llevas tu fuerza. Absolutamente imponente. 🐌",
+  "Aunque voy despacio, siempre llego. Y tú también llegas, Vicky. Siempre. 🐌",
+  "Mi concha = tu zona de confort. Pero hoy volviste. Bravísima. 🐌",
+  "Los grandes éxitos se construyen despacio. Como yo. Como tú. Sigue así. 🐌",
+  "No soy rápido pero soy constante. Igual que tú, Vicky. Orgulloso de ti. 🐌",
+  "¡Hoy vuelves! Lo sabía. Los caracoles tenemos instinto para las personas especiales. 🐌",
+  "Yo dejo un rastro de brillo donde paso. Tú también, aunque no lo veas. 🐌",
+  "Caracol de honor: llevas más racha que yo subiendo una montaña. Impresionante. 🐌",
+  "Hoy el caracol se quita la concha en señal de respeto. Eso es mucho, ¿sabes? 🐌",
+  "Mi velocidad máxima + tu energía de hoy = una combinación imbatible. 🐌",
+  "Soy el caracol más orgulloso del bosque en este momento. Y es por ti. 🐌",
+  "El caracol dice: despacio pero sin parar. Eso eres tú todos los días. 🐌",
+  "He recorrido todo el jardín para decirte esto: eres increíble, Vicky. 🐌",
+  "Los caracoles vivimos mucho tiempo. Y yo voy a estar aquí animándote siempre. 🐌",
+  "Concha nueva desbloqueada: la de los campeones. Hoy te la mereces tú. 🐌",
+  /* Ardilla */
+  "La ardilla sabe que has vuelto. Y ya está dando saltos de alegría. 🐿️",
+  "Bellota a bellota se hace el árbol más grande. Tú ya eres un árbol enorme, Vicky. 🐿️",
+  "La ardilla guardó esta bellota especial para cuando aparecieras hoy. Toma. 🌰",
+  "Ardilla nivel: muy orgullosa de tenerte aquí. Nivel máximo desbloqueado. 🐿️",
+  "No todas las ardillas tienen a alguien como tú. Ella sí. Qué suerte tan grande. 🐿️",
+  "La ardilla ha estado esperándote subida a su árbol favorito. Ya puede bajar feliz. 🐿️",
+  "El bosque entero sabe que hoy has venido. Se nota el buen ambiente. 🌳",
+  "La ardilla colecciona bellotas. Tú coleccionas días de esfuerzo. Los tuyos valen más. 🐿️",
+  "Ardilla confidencial: cada vez que apareces, ella mejora un poco más. Magia pura. 🐿️",
+  "La ardilla dice que eres la mejor cuidadora del bosque. Y la ardilla no miente. 🐿️",
+  /* Gato */
+  "Miau. El gato del bosque dice que eres absolutamente espectacular. 🐱",
+  "Los gatos duermen 16 horas y siguen siendo majestuosos. Tú con lo que duermas ya eres una reina. 🐱",
+  "El gato te mira fijo. No es acoso. Es admiración pura y dura. 🐱",
+  "Miau = 'hoy también lo vas a petar, Vicky' en idioma gato. Traducción garantizada. 🐱",
+  "El gato del bosque ha dejado un ronroneo especial justo aquí para ti. Shhh, escúchalo. 🐱",
+  "Los gatos solo muestran afecto a personas especiales. Hoy el gato ronronea. Ya sabes. 🐱",
+  "El gato ha ignorado a todos hoy menos a ti. Eso en el mundo felino es un oscar. 🐱",
+  "Miau miau miau = 'Vicky, estoy muy orgulloso de ti' en gato bosquero. 🐱",
+  "El gato se ha enrollado en tus pies. No te muevas. Momento sagrado. 🐱",
+  "Los gatos tienen 9 vidas. Tú tienes una y la estás aprovechando de lujo. 🐱",
+  /* Mixtas con todos */
+  "El caracol, la ardilla y el gato del bosque han formado un comité de bienvenida. Para ti. ✨",
+  "Informe oficial del bosque: Vicky apareció hoy. Estado del bosque: eufórico. 🌿",
+  "Esta bellota es tuya. Te la has ganado solo por aparecer hoy. 🌰",
+  "Hoy también aquí. Eso ya es mucho, Vicky. Más de lo que crees. ✨",
+  "El bosque estaba esperando exactamente esto: que abrieras la app hoy. 🍃",
+  "Datos oficiales: personas increíbles que han entrado hoy = 1. Esa eres tú. 📊",
+  "El comité de animales del bosque ha votado por unanimidad: Vicky mola mucho. 🗳️",
+  "Notificación del bosque: alguien genial acaba de llegar. Spoiler: eres tú. 🔔",
+];
+
+function pickWelcomePhrase(): string {
+  return WELCOME_PHRASES[Math.floor(Math.random() * WELCOME_PHRASES.length)];
+}
+
 /* ── Hora del día ─────────────────────────────────────────────── */
 type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
 function getTimeSegment(): TimeSegment {
@@ -433,6 +488,7 @@ export default function Home() {
   const [tituloText,       setTituloText]            = useState<string | null>(null);
   const [showModal,        setShowModal]             = useState(false);
   const [showMisiones,     setShowMisiones]          = useState(false);
+  const [welcomePhrase,    setWelcomePhrase]         = useState<string | null>(null);
   const [ownedTitulos, setOwnedTitulos] = useState<TituloItem[]>([]);
   const [avatarItems,  setAvatarItems]  = useState<AvatarItem[]>([]);
   const [ownedIds,     setOwnedIds]     = useState<string[]>([]);
@@ -508,6 +564,14 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         setTamaMessage(getContextualMessage(vs, 0, regCtxRef.current));
       });
   }, [currentAction]);
+
+  /* Bienvenida del caracol — una vez por sesión */
+  useEffect(() => {
+    if (!sessionStorage.getItem("welcomed")) {
+      sessionStorage.setItem("welcomed", "1");
+      setWelcomePhrase(pickWelcomePhrase());
+    }
+  }, []);
 
   /* Sync registro context once on mount */
   useEffect(() => {
@@ -939,7 +1003,52 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
           to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
         }
+        @keyframes snail-bounce {
+          0%,100% { transform: translateY(0) rotate(-4deg); }
+          50%      { transform: translateY(-10px) rotate(4deg); }
+        }
+        @keyframes welcome-in {
+          from { opacity: 0; transform: scale(0.85); }
+          to   { opacity: 1; transform: scale(1); }
+        }
       `}</style>
+
+      {/* Modal bienvenida del caracol */}
+      {welcomePhrase && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+          style={{ background: "rgba(2,6,23,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={() => setWelcomePhrase(null)}
+        >
+          <div
+            className="relative bg-white rounded-3xl shadow-2xl px-7 pt-8 pb-7 max-w-xs w-full text-center flex flex-col items-center gap-4"
+            style={{ animation: "welcome-in 0.35s cubic-bezier(.34,1.56,.64,1) both" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Caracol animado */}
+            <div style={{ animation: "snail-bounce 1.4s ease-in-out infinite" }}
+              className="text-[80px] leading-none drop-shadow-lg select-none">
+              🐌
+            </div>
+
+            <div>
+              <p className="text-[11px] font-bold text-violet-400 uppercase tracking-widest mb-1">
+                ¡Hola, Vicky!
+              </p>
+              <p className="text-sm font-semibold text-slate-700 leading-snug">
+                {welcomePhrase}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setWelcomePhrase(null)}
+              className="mt-1 w-full py-3 rounded-2xl bg-violet-600 text-white font-bold text-sm active:scale-95 transition-transform shadow-md"
+            >
+              ¡Gracias, caracol! ✨
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
