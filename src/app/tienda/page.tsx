@@ -11,7 +11,7 @@ import {
   ShopItem, AvatarItem, TituloItem,
 } from "@/lib/shop";
 import {
-  FOOD_CATALOG, CLOTHING_CATALOG, TOY_CATALOG,
+  FOOD_CATALOG, CLOTHING_CATALOG, TOY_CATALOG, SLEEP_ITEM_IDS,
   getFoodInventory, getOwnedClothing, getOwnedToys,
   addFood, addOwnedClothing, addOwnedToy,
   getEquippedClothing, toggleClothing,
@@ -420,49 +420,83 @@ export default function Tienda() {
         )}
 
         {/* ══ TAB: ROPA ══ */}
-        {tab === "ropa" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-slate-400 px-1">Compra ropa y equípasela a la ardilla · se verá en la pantalla principal</p>
-            {CLOTHING_CATALOG.map(item => {
-              const owned     = ownedCloth.includes(item.id);
-              const equipped  = equippedCloth[item.slot] === item.id;
-              const canAfford = bellotas >= item.price;
-              const isBuying  = buying === item.id;
-              return (
-                <div key={item.id} className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${equipped ? "border-violet-300 bg-violet-50" : "border-transparent"}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0 border border-slate-100"
-                      style={{ background: item.color + "22" }}>
-                      {item.emoji}
+        {tab === "ropa" && (() => {
+          const sleepItems  = CLOTHING_CATALOG.filter(c => SLEEP_ITEM_IDS.includes(c.id));
+          const normalItems = CLOTHING_CATALOG.filter(c => !SLEEP_ITEM_IDS.includes(c.id));
+
+          function ClothCard({ item }: { item: typeof CLOTHING_CATALOG[0] }) {
+            const owned     = ownedCloth.includes(item.id);
+            const equipped  = equippedCloth[item.slot] === item.id;
+            const canAfford = bellotas >= item.price;
+            const isBuying  = buying === item.id;
+            const isSleep   = SLEEP_ITEM_IDS.includes(item.id);
+            return (
+              <div className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${
+                equipped
+                  ? isSleep ? "border-indigo-400 bg-indigo-50" : "border-violet-300 bg-violet-50"
+                  : "border-transparent"
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0 border border-slate-100"
+                    style={{ background: item.color + "22" }}>
+                    {item.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-bold text-slate-700">{item.name}</p>
+                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full capitalize">{item.slot}</span>
+                      {equipped && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isSleep ? "text-indigo-600 bg-indigo-100" : "text-violet-600 bg-violet-100"}`}>Puesta ✓</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm font-bold text-slate-700">{item.name}</p>
-                        <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full capitalize">{item.slot}</span>
-                        {equipped && <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-full">Puesta ✓</span>}
-                      </div>
-                      <p className="text-xs text-slate-400">{item.desc}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm font-extrabold text-amber-700">🌰 {item.price}</span>
-                        {!owned ? (
-                          <button onClick={() => buySquirrelItem(item.id, item.price, "clothing")} disabled={!canAfford || !!isBuying}
-                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${canAfford ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md" : "bg-slate-100 text-slate-400"}`}>
-                            {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
-                          </button>
-                        ) : (
-                          <button onClick={() => handleToggleClothing(item.id)}
-                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${equipped ? "bg-violet-200 text-violet-800" : "bg-violet-100 text-violet-700"}`}>
-                            {equipped ? "Quitar" : "Poner"}
-                          </button>
-                        )}
-                      </div>
+                    <p className="text-xs text-slate-400">{item.desc}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm font-extrabold text-amber-700">🌰 {item.price}</span>
+                      {!owned ? (
+                        <button onClick={() => buySquirrelItem(item.id, item.price, "clothing")} disabled={!canAfford || !!isBuying}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${canAfford
+                            ? isSleep
+                              ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md"
+                              : "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md"
+                            : "bg-slate-100 text-slate-400"}`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      ) : (
+                        <button onClick={() => handleToggleClothing(item.id)}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${equipped
+                            ? isSleep ? "bg-indigo-200 text-indigo-800" : "bg-violet-200 text-violet-800"
+                            : isSleep ? "bg-indigo-100 text-indigo-700" : "bg-violet-100 text-violet-700"}`}>
+                          {equipped ? "Quitar" : "Poner"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-slate-400 px-1">Compra ropa y equípasela a la ardilla · se verá en la pantalla principal</p>
+
+              {/* ── Sección: Ítems de sueño ── */}
+              <div className="rounded-2xl bg-indigo-50 border-2 border-indigo-200 p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">😴</span>
+                  <div>
+                    <p className="text-sm font-bold text-indigo-700">Ítems de sueño</p>
+                    <p className="text-[10px] text-indigo-400">Reducen la probabilidad de dormir mal · cada uno dura 10 noches</p>
+                  </div>
+                </div>
+                {sleepItems.map(item => <ClothCard key={item.id} item={item} />)}
+              </div>
+
+              {/* ── Sección: Ropa normal ── */}
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mt-1">Ropa y accesorios</p>
+              {normalItems.map(item => <ClothCard key={item.id} item={item} />)}
+            </div>
+          );
+        })()}
+
 
         {/* ══ TAB: JUGUETES ══ */}
         {tab === "juguetes" && (
