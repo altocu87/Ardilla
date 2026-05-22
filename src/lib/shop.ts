@@ -26,7 +26,28 @@ export type TituloItem = {
 const DEFAULT_BELLOTAS: ShopItem[]  = [];
 const DEFAULT_RATA:     ShopItem[]  = [];
 const DEFAULT_AVATARES: AvatarItem[] = [];
-const DEFAULT_TITULOS:  TituloItem[] = [];
+const DEFAULT_TITULOS: TituloItem[] = [
+  { id: "dt01", text: "🌱 Pequeña Ardilla",           price: 50  },
+  { id: "dt02", text: "🧘 Mente en calma",             price: 75  },
+  { id: "dt03", text: "🌿 Naturaleza interior",        price: 75  },
+  { id: "dt04", text: "🦋 En transformación",          price: 100 },
+  { id: "dt05", text: "🌸 Flor de la tranquilidad",    price: 100 },
+  { id: "dt06", text: "💪 Guerrera del bienestar",     price: 125 },
+  { id: "dt07", text: "🌙 Soñadora consciente",        price: 125 },
+  { id: "dt08", text: "⚡ Energía positiva",           price: 150 },
+  { id: "dt09", text: "🎯 Maestra del registro",       price: 150 },
+  { id: "dt10", text: "🌺 Jardín interior",            price: 200 },
+  { id: "dt11", text: "🏆 Campeona del bienestar",     price: 200 },
+  { id: "dt12", text: "🦁 Corazón valiente",           price: 250 },
+  { id: "dt13", text: "🔮 Mente brillante",            price: 250 },
+  { id: "dt14", text: "🌈 Arcoíris emocional",         price: 300 },
+  { id: "dt15", text: "🧠 Sabia de la calma",          price: 300 },
+  { id: "dt16", text: "🌟 Estrella del progreso",      price: 350 },
+  { id: "dt17", text: "👑 Reina de la constancia",     price: 350 },
+  { id: "dt18", text: "🪄 Magia interior",             price: 400 },
+  { id: "dt19", text: "💎 Joya del bienestar",         price: 450 },
+  { id: "dt20", text: "🏅 Leyenda de la Tranquilidad", price: 500 },
+];
 
 // IDs hardcodeados de la versión anterior — se limpian automáticamente.
 const LEGACY_BELL_IDS   = ["b1","b2","b3","b4"];
@@ -76,7 +97,12 @@ export function getShopAvatares(): AvatarItem[]       { return load("shop_avatar
 export function saveShopAvatares(items: AvatarItem[]) { save("shop_avatares", items); }
 
 // ── Títulos ──────────────────────────────────────────────────────────────────
-export function getShopTitulos(): TituloItem[]       { return load("shop_titulos", DEFAULT_TITULOS); }
+export function getShopTitulos(): TituloItem[] {
+  const stored = load<TituloItem>("shop_titulos", []);
+  const storedIds = new Set(stored.map(t => t.id));
+  const merged = [...stored, ...DEFAULT_TITULOS.filter(d => !storedIds.has(d.id))];
+  return merged;
+}
 export function saveShopTitulos(items: TituloItem[]) { save("shop_titulos", items); }
 
 // ── Owned / equipado ─────────────────────────────────────────────────────────
