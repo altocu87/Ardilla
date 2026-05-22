@@ -67,9 +67,9 @@ export const CLOTHING_CATALOG: SquirrelClothing[] = [
   { id: "cloth_collar",      emoji: "📿", name: "Collar de perlas",    desc: "Un toque de elegancia",             price: 50, slot: "neck",  clothingType: "collar",   color: "#e2e8f0" },
   { id: "cloth_pajarita",    emoji: "🎀", name: "Pajarita formal",     desc: "Para ocasiones especiales",         price: 42, slot: "neck",  clothingType: "pajarita", color: "#1e293b" },
   // ── Ítems de sueño ───────────────────────────────────────────────────────────
-  { id: "cloth_tapones",     emoji: "🔇", name: "Tapones para oídos", desc: "Sin ruidos, mejor sueño 😴",        price: 45, slot: "head",  clothingType: "tapones",  color: "#fef08a" },
-  { id: "cloth_antifaz",     emoji: "🌙", name: "Antifaz para dormir",desc: "Oscuridad total, sueño perfecto ✨", price: 45, slot: "eyes",  clothingType: "antifaz",  color: "#312e81" },
-  { id: "cloth_pijama",      emoji: "🩲", name: "Pijama cómodo",      desc: "El más suave del bosque 💜",        price: 55, slot: "body",  clothingType: "pijama",   color: "#c4b5fd" },
+  { id: "cloth_tapones",     emoji: "🔇", name: "Tapones para oídos", desc: "Mejor sueño 😴 · dura 10 noches",   price: 45, slot: "head",  clothingType: "tapones",  color: "#fef08a" },
+  { id: "cloth_antifaz",     emoji: "🌙", name: "Antifaz para dormir",desc: "Oscuridad total ✨ · dura 10 noches", price: 45, slot: "eyes",  clothingType: "antifaz",  color: "#312e81" },
+  { id: "cloth_pijama",      emoji: "🩲", name: "Pijama cómodo",      desc: "El más suave 💜 · dura 10 noches",  price: 55, slot: "body",  clothingType: "pijama",   color: "#c4b5fd" },
 ];
 
 export const TOY_CATALOG: SquirrelToy[] = [
@@ -117,15 +117,15 @@ export function consumeFood(id: string): boolean {
 ════════════════════════════════════════════════════ */
 export function getOwnedClothing(): string[] { return load("sq_owned_cloth", []); }
 export function addOwnedClothing(id: string): void {
-  const arr = getOwnedClothing(); if (!arr.includes(id)) { arr.push(id); save("sq_owned_cloth", arr); }
+  const arr = getOwnedClothing();
+  if (!arr.includes(id)) {
+    arr.push(id);
+    save("sq_owned_cloth", arr);
+    initSleepDurability(id);
+  }
 }
 export function getEquippedClothing(): EquippedClothing { return load("sq_equipped_cloth", {}); }
 export function setEquippedClothing(eq: EquippedClothing): void { save("sq_equipped_cloth", eq); }
-
-const SLEEP_ITEM_IDS = ["cloth_tapones", "cloth_antifaz", "cloth_pijama"];
-export function getSleepItemCount(equipped: EquippedClothing): number {
-  return SLEEP_ITEM_IDS.filter(id => Object.values(equipped).includes(id)).length;
-}
 
 export function toggleClothing(clothingId: string): EquippedClothing {
   const item = CLOTHING_CATALOG.find(c => c.id === clothingId);
@@ -135,6 +135,58 @@ export function toggleClothing(clothingId: string): EquippedClothing {
   else eq[item.slot] = clothingId;
   setEquippedClothing(eq);
   return eq;
+}
+
+/* ════════════════════════════════════════════════════
+   SLEEP ITEMS  (protección + durabilidad)
+════════════════════════════════════════════════════ */
+export const SLEEP_ITEM_IDS = ["cloth_tapones", "cloth_antifaz", "cloth_pijama"];
+export const SLEEP_ITEM_MAX_NIGHTS = 10;
+
+export function getSleepItemCount(equipped: EquippedClothing): number {
+  return SLEEP_ITEM_IDS.filter(id => Object.values(equipped).includes(id)).length;
+}
+
+function getSleepDurability(): Record<string, number> { return load("sq_sleep_durability", {}); }
+
+function initSleepDurability(id: string): void {
+  if (!SLEEP_ITEM_IDS.includes(id)) return;
+  const d = getSleepDurability(); d[id] = SLEEP_ITEM_MAX_NIGHTS; save("sq_sleep_durability", d);
+}
+
+export function getSleepItemNights(id: string): number {
+  return getSleepDurability()[id] ?? SLEEP_ITEM_MAX_NIGHTS;
+}
+
+/** Una vez por día: desgasta los ítems de sueño equipados y rompe los que llegan a 0. */
+export function tickSleepDurability(): SquirrelClothing[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const last  = load<string>("sq_sleep_night_tick", "");
+  if (last >= today) return [];
+  save("sq_sleep_night_tick", today);
+
+  const eq    = getEquippedClothing();
+  const dur   = getSleepDurability();
+  const owned = getOwnedClothing();
+  const broken: SquirrelClothing[] = [];
+
+  for (const id of SLEEP_ITEM_IDS) {
+    if (!Object.values(eq).includes(id)) continue; // solo se desgasta lo que se lleva puesto
+    const remaining = (dur[id] ?? SLEEP_ITEM_MAX_NIGHTS) - 1;
+    if (remaining <= 0) {
+      const item = CLOTHING_CATALOG.find(c => c.id === id);
+      if (item && eq[item.slot] === id) delete eq[item.slot];
+      const idx = owned.indexOf(id); if (idx >= 0) owned.splice(idx, 1);
+      delete dur[id];
+      if (item) broken.push(item);
+    } else {
+      dur[id] = remaining;
+    }
+  }
+  setEquippedClothing(eq);
+  save("sq_owned_cloth", owned);
+  save("sq_sleep_durability", dur);
+  return broken;
 }
 
 /* ════════════════════════════════════════════════════

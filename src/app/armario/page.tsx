@@ -6,6 +6,7 @@ import {
   CLOTHING_CATALOG, TOY_CATALOG,
   getOwnedClothing, getEquippedClothing, toggleClothing,
   getOwnedToys, getEquippedToy, setEquippedToy,
+  SLEEP_ITEM_IDS, SLEEP_ITEM_MAX_NIGHTS, getSleepItemNights,
   type EquippedClothing, type ClothingSlot,
 } from "@/lib/squirrel-shop";
 
@@ -181,6 +182,8 @@ export default function Armario() {
             <div className="p-3 grid grid-cols-3 gap-2.5">
               {items.map(item => {
                 const isEquipped = equippedCloth[slot] === item.id;
+                const isSleepItem = SLEEP_ITEM_IDS.includes(item.id);
+                const nights = isSleepItem ? getSleepItemNights(item.id) : 0;
                 return (
                   <button key={item.id} onClick={() => handleToggleClothing(item.id)}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all active:scale-95 ${
@@ -195,6 +198,15 @@ export default function Armario() {
                     <p className="text-[9px] font-semibold text-slate-600 text-center leading-tight line-clamp-2 w-full">
                       {item.name}
                     </p>
+                    {isSleepItem && (
+                      <div className="w-full flex flex-col items-center gap-0.5">
+                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${nights <= 3 ? "bg-red-400" : nights <= 6 ? "bg-amber-400" : "bg-emerald-400"}`}
+                            style={{ width: `${(nights / SLEEP_ITEM_MAX_NIGHTS) * 100}%` }}/>
+                        </div>
+                        <span className="text-[7px] font-bold text-slate-400">🌙 {nights}/{SLEEP_ITEM_MAX_NIGHTS} noches</span>
+                      </div>
+                    )}
                     <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
                       isEquipped
                         ? "bg-violet-200 text-violet-700"

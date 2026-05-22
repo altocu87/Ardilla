@@ -210,17 +210,8 @@ export function getTamaStats(): TamaStats {
       dirty = true;
     }
 
-    /* Daily bad sleep check */
-    const today = now.toISOString().slice(0, 10);
-    if (!s.badSleep && (s.lastBadSleepCheck ?? "1970") < today) {
-      s.lastBadSleepCheck = today;
-      const e = s.energia;
-      const sleepChance = e < 10 ? 0.45 : e < 30 ? 0.30 : e < 50 ? 0.18 : e < 70 ? 0.08 : 0.02;
-      if (Math.random() < sleepChance) s.badSleep = true;
-      dirty = true;
-    }
-
     /* Daily sickness check */
+    const today = now.toISOString().slice(0, 10);
     if (!s.illness && (s.lastSickCheck ?? "1970") < today) {
       s.lastSickCheck = today;
       const chance = s.hambre < 15 ? 0.18 : 0.04;
@@ -284,14 +275,29 @@ export function feedTama(hambreRestore: number, animoBoost = 0): TamaStats {
 
 export function sleepTama(sleepItemCount = 0): TamaStats {
   const s = getTamaStats();
-  const energyGain = 36 + sleepItemCount * 12; // 36 / 48 / 60 / 72
-  const animoGain  = 5  + sleepItemCount * 3;  // 5 / 8 / 11 / 14
+  const energyGain = 8 + sleepItemCount * 4; // 8 / 12 / 16 / 20
+  const animoGain  = 3 + sleepItemCount;     // 3 / 4 / 5 / 6
   s.energia  = Math.min(100, s.energia + energyGain);
   s.animo    = Math.min(100, s.animo   + animoGain);
   s.badSleep = false;
   s.salud    = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
   saveTamaStats(s);
+  return s;
+}
+
+/* Tirada nocturna de mal descanso — una vez por día.
+   40% base, -10% por cada ítem de sueño equipado (mín. 10%). */
+export function rollBadSleep(sleepItemCount = 0): TamaStats {
+  const s = getTamaStats();
+  const today = new Date().toISOString().slice(0, 10);
+  if (!s.badSleep && (s.lastBadSleepCheck ?? "1970") < today) {
+    s.lastBadSleepCheck = today;
+    const chance = Math.max(0, 0.40 - 0.10 * sleepItemCount);
+    if (Math.random() < chance) s.badSleep = true;
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s);
+  }
   return s;
 }
 

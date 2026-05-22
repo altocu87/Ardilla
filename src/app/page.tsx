@@ -13,14 +13,14 @@ import {
 import { getMascotConfig } from "@/lib/mascot";
 import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
-  cureIllness, getContextualMessage, ILLNESS_INFO,
+  cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
-  getEquippedToy, getSleepItemCount,
+  getEquippedToy, getSleepItemCount, tickSleepDurability,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
 import {
@@ -737,6 +737,7 @@ export default function Home() {
   const [showSopaLetras,    setShowSopaLetras]    = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
+  const [brokenSleepItems,  setBrokenSleepItems]  = useState<string[]>([]);
 
   /* Evolution & tickle */
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
@@ -792,6 +793,15 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   }, []);
 
   const loadTama = useCallback(() => {
+    /* Procesado nocturno (protegido internamente a una vez por día) */
+    const sleepCount = getSleepItemCount(getEquippedClothing());
+    rollBadSleep(sleepCount);
+    const broken = tickSleepDurability();
+    if (broken.length) {
+      setEquippedCloth(getEquippedClothing());
+      setBrokenSleepItems(broken.map(b => `${b.emoji} ${b.name}`));
+    }
+
     const stats = getTamaStats();
     setTamaStats(stats);
 
@@ -1286,6 +1296,38 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           50%      { opacity: 0.65; }
         }
       `}</style>
+
+      {/* Aviso: ítem de sueño roto */}
+      {brokenSleepItems.length > 0 && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+          style={{ background: "rgba(2,6,23,0.65)", backdropFilter: "blur(6px)" }}
+          onClick={() => setBrokenSleepItems([])}
+        >
+          <div
+            className="relative bg-white rounded-3xl shadow-2xl px-7 pt-8 pb-6 max-w-xs w-full text-center flex flex-col items-center gap-3"
+            style={{ animation: "welcome-in 0.35s cubic-bezier(.34,1.56,.64,1) both" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-5xl leading-none">💔</div>
+            <div>
+              <p className="text-sm font-extrabold text-slate-700 mb-1">
+                {brokenSleepItems.length > 1 ? "¡Se han roto unos objetos!" : "¡Se ha roto un objeto!"}
+              </p>
+              <p className="text-xs text-slate-500 leading-snug">
+                {brokenSleepItems.join(", ")} se {brokenSleepItems.length > 1 ? "han" : "ha"} desgastado tras 10 noches. Cómpra{brokenSleepItems.length > 1 ? "los" : "lo"} de nuevo en la tienda.
+              </p>
+            </div>
+            <Link href="/tienda" onClick={() => setBrokenSleepItems([])}
+              className="w-full py-3 rounded-2xl bg-violet-600 text-white font-bold text-sm active:scale-95 transition-transform shadow-md">
+              Ir a la tienda 🛒
+            </Link>
+            <button onClick={() => setBrokenSleepItems([])} className="text-xs text-slate-400 font-semibold">
+              Ahora no
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal bienvenida del caracol */}
       {welcomePhrase && (
