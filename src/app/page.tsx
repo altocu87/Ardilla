@@ -14,8 +14,9 @@ import { getMascotConfig } from "@/lib/mascot";
 import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO,
-  type TamaStats, type TamaVisualState, type IllnessType,
+  type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
+import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
@@ -390,6 +391,7 @@ export default function Home() {
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const regCtxRef   = useRef<MessageContext>({});
 
   /* Clothing */
   const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
@@ -459,19 +461,36 @@ export default function Home() {
         const boosted = streak >= cfg.rachaFeliz
           ? { ...s, animo: Math.min(100, s.animo + 15) } : s;
 
-        /* Night auto-sleep override */
         const isNight = isNightTime();
         const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(boosted, currentAction ?? undefined);
         setVisualState(vs);
-        setTamaMessage(getContextualMessage(vs, streak));
+        setTamaMessage(getContextualMessage(vs, streak, regCtxRef.current));
       })
       .catch(() => {
         const isNight = isNightTime();
         const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(stats, currentAction ?? undefined);
         setVisualState(vs);
-        setTamaMessage(getContextualMessage(vs, 0));
+        setTamaMessage(getContextualMessage(vs, 0, regCtxRef.current));
       });
   }, [currentAction]);
+
+  /* Sync registro context once on mount */
+  useEffect(() => {
+    getRegistroContext()
+      .then((ctx: RegistroContext) => {
+        const illness = getTamaStats().illness;
+        regCtxRef.current = {
+          tristeza:    ctx.tristeza,
+          cacaIllness: illness === "caca" && (ctx.hasConstipation || ctx.hasDiarrhea),
+        };
+      })
+      .catch(() => {});
+
+    syncCacaIllness()
+      .then(triggered => { if (triggered) loadTama(); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     pullFromCloud().finally(() => { loadProfile(); loadEquipped(); loadTama(); });
@@ -718,6 +737,7 @@ export default function Home() {
                 equipped={equippedCloth}
                 catalog={CLOTHING_CATALOG}
                 isTickling={isTickling}
+                illnessType={tamaStats?.illness ?? undefined}
                 className="drop-shadow-2xl"
               />
             </button>

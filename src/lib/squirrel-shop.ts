@@ -42,7 +42,7 @@ export const FOOD_CATALOG: SquirrelFood[] = [
 
 export const MEDICINE_CATALOG: SquirrelFood[] = [
   { id: "med_probiotics", emoji: "💊", name: "Probióticos",    desc: "Cura el dolor de barriga",    price: 0, hambreRestore: 5,  animoBoost: 10, curesIllness: "stomach" },
-  { id: "med_fibra",      emoji: "🌾", name: "Fibra natural",  desc: "Cura los problemas de caca",  price: 0, hambreRestore: 8,  animoBoost: 8,  curesIllness: "caca"    },
+  { id: "med_fibra",      emoji: "🌾", name: "CacaMax",        desc: "Cura el estreñimiento",       price: 0, hambreRestore: 8,  animoBoost: 8,  curesIllness: "caca"    },
   { id: "med_vitaminas",  emoji: "🍊", name: "Vitaminas C",    desc: "Cura el cansancio crónico",   price: 0, hambreRestore: 5,  animoBoost: 15, curesIllness: "tired"   },
 ];
 
