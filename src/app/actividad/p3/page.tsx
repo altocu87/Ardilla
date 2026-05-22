@@ -5,7 +5,7 @@ import { savePracticeLog } from "@/lib/db";
 import { awardXp, type AwardResult } from "@/lib/profile";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
-import { applyActivityToStats } from "@/lib/mascot";
+import { applyActivityToTama } from "@/lib/tamagotchi";
 import SobreModal from "@/components/SobreModal";
 
 /* ── Tareas somáticas ──────────────────────────────────────────────────────── */
@@ -174,7 +174,7 @@ export default function P3() {
       const mision = await completeMission("p3");
       setMisionResult(mision);
     } catch { /* no bloquear UI */ }
-    try { applyActivityToStats("p3"); } catch { /* noop */ }
+    try { applyActivityToTama("p3"); } catch { /* noop */ }
     setSaving(false);
     setSobreData(generarSobre());
     setDone(true);

@@ -8,7 +8,7 @@ import { getPregLog, savePregEntry, updatePregEntry } from "@/lib/db";
 import { awardXp } from "@/lib/profile";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
-import { applyActivityToStats } from "@/lib/mascot";
+import { applyActivityToTama } from "@/lib/tamagotchi";
 import SobreModal from "@/components/SobreModal";
 
 function getRandomPhrase(): string { return getCentralPhrase(); }
@@ -191,7 +191,7 @@ export default function RegistroDiario() {
       const mision = await completeMission("diario");
       setMisionResult(mision);
     } catch (e) { console.error("completeMission error:", e); }
-    try { applyActivityToStats("diario"); } catch { /* noop */ }
+    try { applyActivityToTama("diario"); } catch { /* noop */ }
     setSobreData(generarSobre());
   }
 

@@ -7,7 +7,7 @@ import SnailProgress from "@/components/SnailProgress";
 import { awardXp, type AwardResult } from "@/lib/profile";
 import { generarSobre, type SobreReward } from "@/lib/sobre";
 import { completeMission, type MissionCompletionResult } from "@/lib/missions";
-import { applyActivityToStats } from "@/lib/mascot";
+import { applyActivityToTama } from "@/lib/tamagotchi";
 import SobreModal from "@/components/SobreModal";
 
 const TOTAL_STEPS = 6;
@@ -158,7 +158,7 @@ export default function P2() {
       const mision = await completeMission("p2");
       setMisionResult(mision);
     } catch { /* no bloquear UI */ }
-    try { applyActivityToStats("p2"); } catch { /* noop */ }
+    try { applyActivityToTama("p2"); } catch { /* noop */ }
     setSaving(false);
     setSobreData(generarSobre());
     setDone(true);

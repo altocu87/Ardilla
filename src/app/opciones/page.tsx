@@ -434,11 +434,7 @@ export default function Opciones() {
     setMascotSaved(true);
     setTimeout(() => setMascotSaved(false), 2000);
   }
-  function handleMascotNum(field: keyof MascotConfig, val: string) {
-    const n = Math.max(0, parseInt(val) || 0);
-    setMascotCfg(prev => ({ ...prev, [field]: n }));
-    setMascotSaved(false);
-  }
+
 
   /* ── Frases ──────────────────────────────────────────────────────────────── */
   function saveCustomPhrases(phrases: string[]) {
@@ -783,25 +779,18 @@ export default function Opciones() {
 
           {/* Threshold inputs */}
           <div className="flex flex-col gap-2">
-            {([
-              { field: "diasTriste" as const,   label: "Días sin actividad → triste",    emoji: "💙" },
-              { field: "diasDormida" as const,  label: "Días sin actividad → dormida",   emoji: "💤" },
-              { field: "diasEnfadada" as const, label: "Días sin actividad → enfadada",  emoji: "😤" },
-              { field: "rachaFeliz" as const,   label: "Racha para \"muy feliz\"",        emoji: "🥳" },
-            ] as { field: keyof MascotConfig; label: string; emoji: string }[]).map(({ field, label, emoji }) => (
-              <div key={field} className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-base shrink-0">{emoji}</span>
-                  <p className="text-xs font-medium text-slate-600 leading-tight">{label}</p>
-                </div>
-                <input
-                  type="number" min={0} max={99}
-                  value={typeof mascotCfg[field] === "number" ? (mascotCfg[field] as number) : 0}
-                  onChange={e => handleMascotNum(field, e.target.value)}
-                  className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-teal-400 shrink-0"
-                />
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-slate-100">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-base">🥳</span>
+                <p className="text-xs font-medium text-slate-600">Días de racha para &ldquo;muy feliz&rdquo;</p>
               </div>
-            ))}
+              <input
+                type="number" min={1} max={99}
+                value={mascotCfg.rachaFeliz}
+                onChange={e => { const n = Math.max(1, parseInt(e.target.value)||1); setMascotCfg(prev=>({...prev,rachaFeliz:n})); setMascotSaved(false); }}
+                className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:border-teal-400 shrink-0"
+              />
+            </div>
           </div>
 
           <button onClick={saveMascot}
