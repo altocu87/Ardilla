@@ -6,7 +6,7 @@ const links = [
   { href: "/", label: "Inicio", icon: "🏠" },
   { href: "/actividad/p1", label: "Registrar", icon: "📝" },
   { href: "/progreso", label: "Progreso", icon: "📊" },
-  { href: "/recompensas", label: "Logros", icon: "🏆" },
+  { href: "/logros", label: "Logros", icon: "🏆" },
 ];
 
 export default function Navbar() {

@@ -794,7 +794,10 @@ export default function Home() {
         <Link href="/estadisticas" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-rose-200 text-rose-700 font-bold text-sm shadow-sm active:scale-95">
           <span className="text-base">📊</span> Estadísticas
         </Link>
-        <Link href="/opciones" className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
+        <Link href="/logros" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-yellow-200 text-yellow-700 font-bold text-sm shadow-sm active:scale-95">
+          <span className="text-base">🏆</span> Logros
+        </Link>
+        <Link href="/opciones" className="flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/80 border border-slate-200 text-slate-600 font-bold text-sm shadow-sm active:scale-95">
           <span className="text-base">⚙️</span> Ajustes
         </Link>
       </div>
