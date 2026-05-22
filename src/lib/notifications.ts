@@ -38,6 +38,10 @@ export async function subscribeToPush(): Promise<{ ok: boolean; error?: string }
     return { ok: false, error: "Este navegador no soporta notificaciones push" };
   }
 
+  if (!VAPID_PUBLIC_KEY) {
+    return { ok: false, error: "Configuración incompleta: falta VAPID_PUBLIC_KEY en el servidor" };
+  }
+
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
     return { ok: false, error: "Permiso de notificaciones denegado" };

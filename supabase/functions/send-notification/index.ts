@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   // ── Modo programado: comprueba qué schedules tocan ahora ─────────────────
   if (body.mode === "scheduled") {
     const now = new Date();
-    const currentHour = now.getUTCHours();
+    const currentHour = (now.getUTCHours() + 1) % 24; // GMT+1 España
     const currentDay  = now.getUTCDay(); // 0=domingo … 6=sábado
 
     const { data: schedules } = await supabase

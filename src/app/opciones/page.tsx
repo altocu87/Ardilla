@@ -886,12 +886,12 @@ export default function Opciones() {
               placeholder="Mensaje (ej: Recuerda registrar cómo te sientes hoy 🌿)" rows={2}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-purple-400 resize-none placeholder:text-slate-300"/>
             <div className="flex items-center gap-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hora UTC</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Hora</p>
               <select value={schedForm.hour} onChange={e => setSchedForm(f => ({ ...f, hour: Number(e.target.value) }))}
                 className="border border-slate-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-purple-400">
-                {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2,"0")}h</option>)}
+                {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2,"0")}:00</option>)}
               </select>
-              <p className="text-[10px] text-slate-400">España = UTC+1 invierno / UTC+2 verano</p>
+              <p className="text-[10px] text-slate-400">hora española (GMT+1)</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Días</p>
@@ -927,7 +927,7 @@ export default function Opciones() {
                       <p className={`text-xs font-bold truncate ${s.active ? "text-slate-700" : "text-slate-400"}`}>{s.title}</p>
                       <p className="text-[10px] text-slate-400 truncate mt-0.5">{s.body}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-bold text-purple-600">{String(s.hour).padStart(2,"0")}:00 UTC</span>
+                        <span className="text-[10px] font-bold text-purple-600">{String(s.hour).padStart(2,"0")}:00</span>
                         <span className="text-[10px] text-slate-400">{[1,2,3,4,5,6,0].filter(d => s.days.includes(d)).map(d => DAYS_LABELS[d]).join(" ")}</span>
                       </div>
                     </div>
