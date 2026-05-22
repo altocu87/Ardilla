@@ -30,6 +30,7 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   { id: "minigame_pro", emoji: "🎖️", title: "Maestra bellotera",     desc: "20+ bellotas atrapadas en el mini-juego",     rewardBellotas: 25  },
   { id: "good_night_3", emoji: "🌙", title: "Buenas noches",         desc: "3 noches sin despertar a la ardilla",         rewardBellotas: 15  },
   { id: "tickle",       emoji: "😂", title: "¡Cosquillas!",          desc: "Le hiciste cosquillas a la ardilla",          rewardBellotas: 5   },
+  { id: "cured_sick",  emoji: "💊", title: "¡Curada!",             desc: "Curaste el dolor de barriga con probióticos", rewardBellotas: 10  },
 ];
 
 const LS_KEY = "tama_achievements_v1";

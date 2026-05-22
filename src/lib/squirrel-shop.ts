@@ -6,6 +6,7 @@ import { pushToCloud } from "./cloudsync";
 export type SquirrelFood = {
   id: string; emoji: string; name: string; desc: string;
   price: number; hambreRestore: number; animoBoost?: number;
+  curesStomach?: boolean;
 };
 
 export type ClothingSlot = "head" | "neck" | "body" | "eyes";
@@ -35,6 +36,7 @@ export const FOOD_CATALOG: SquirrelFood[] = [
   { id: "food_manzana",  emoji: "🍎", name: "Manzana roja",      desc: "Sana y crujiente",                 price: 7,  hambreRestore: 28, animoBoost: 5  },
   { id: "food_pastel",   emoji: "🎂", name: "Pastel de nueces",  desc: "Para días especiales ✨",          price: 30, hambreRestore: 60, animoBoost: 25 },
   { id: "food_miel",     emoji: "🍯", name: "Miel de bosque",    desc: "Un lujazo para la ardilla",        price: 18, hambreRestore: 40, animoBoost: 15 },
+  { id: "food_probio",  emoji: "💊", name: "Probióticos",       desc: "Cura el dolor de barriga 🤒",      price: 25, hambreRestore: 10, animoBoost: 8, curesStomach: true },
 ];
 
 export const CLOTHING_CATALOG: SquirrelClothing[] = [

@@ -13,7 +13,7 @@ import {
 import { getMascotConfig } from "@/lib/mascot";
 import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
-  getContextualMessage, type TamaStats, type TamaVisualState,
+  cureStomach, getContextualMessage, type TamaStats, type TamaVisualState,
 } from "@/lib/tamagotchi";
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/squirrel-shop";
 import {
   getEvolutionData, tickDailyEvolution, recordTap, isNightTime,
-  PHASE_INFO, type EvolutionPhase,
+  getEvolutionProgress, PHASE_INFO, type EvolutionPhase,
 } from "@/lib/tama-evolution";
 import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
@@ -233,26 +233,52 @@ function ActionPanel({ title, items, onSelect, onClose, extraAction }: {
 }
 
 /* ── Stats compactos ───────────────────────────────────────────── */
-function StatsRow({ stats }: { stats: TamaStats }) {
+function StatsRow({ stats, evoPhase }: { stats: TamaStats; evoPhase: EvolutionPhase }) {
   const bars = [
-    { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: "#f59e0b" },
+    { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: stats.stomachSick ? "#86efac" : "#f59e0b" },
     { emoji: "⚡", label: "Energía", value: stats.energia, color: "#818cf8" },
     { emoji: "🌸", label: "Ánimo",   value: stats.animo,   color: "#f472b6" },
   ];
+  const evoProg = getEvolutionProgress();
+  const evoPct  = Math.min(100, (evoProg.daysFor / evoProg.daysNeeded) * 100);
+  const phaseInfo = PHASE_INFO[evoPhase];
+
   return (
-    <div className="flex gap-2">
-      {bars.map(b => (
-        <div key={b.label} className="flex-1">
-          <div className="flex items-center justify-between mb-0.5">
-            <span className="text-[9px] text-slate-500 font-semibold">{b.emoji} {b.label}</span>
-            <span className="text-[9px] font-bold text-slate-400">{Math.round(b.value)}</span>
-          </div>
-          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${b.value}%`, background: b.color }}/>
-          </div>
+    <div>
+      {stats.stomachSick && (
+        <div className="flex items-center gap-1.5 mb-1.5 bg-green-50 border border-green-200 rounded-xl px-2 py-1">
+          <span className="text-sm">🤒</span>
+          <span className="text-[10px] text-green-700 font-bold flex-1">La ardilla está malita de la barriga</span>
+          <span className="text-[9px] text-green-600">Dale probióticos 💊</span>
         </div>
-      ))}
+      )}
+      <div className="flex gap-2">
+        {bars.map(b => (
+          <div key={b.label} className="flex-1">
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-[9px] text-slate-500 font-semibold">{b.emoji} {b.label}</span>
+              <span className="text-[9px] font-bold text-slate-400">{Math.round(b.value)}</span>
+            </div>
+            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${b.value}%`, background: b.color }}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Evolution progress bar */}
+      {evoProg.nextPhase && (
+        <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-slate-100">
+          <span className="text-[9px]">{phaseInfo.emoji}</span>
+          <span className="text-[9px] text-slate-400 font-semibold shrink-0">Evolución</span>
+          <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-amber-400 to-violet-500 rounded-full transition-all duration-1000"
+              style={{ width: `${evoPct}%` }}/>
+          </div>
+          <span className="text-[9px] text-slate-400 shrink-0">{evoProg.daysFor}/{evoProg.daysNeeded}d</span>
+          <span className="text-[9px]">{PHASE_INFO[evoProg.nextPhase].emoji}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -413,7 +439,14 @@ export default function Home() {
     const food = FOOD_CATALOG.find(f => f.id === foodId);
     if (!food) return;
     if (!consumeFood(foodId)) return;
-    const s = feedTama(food.hambreRestore, food.animoBoost ?? 0);
+    let s;
+    if (food.curesStomach) {
+      s = cureStomach();
+      const a = tryUnlock("cured_sick");
+      if (a) showAchievement(a);
+    } else {
+      s = feedTama(food.hambreRestore, food.animoBoost ?? 0);
+    }
     setTamaStats(s);
     triggerAction("comiendo", 2500);
   }
@@ -468,7 +501,7 @@ export default function Home() {
   }
 
   function handleMiniGameFinish(score: number) {
-    const animoBoost = Math.min(30, Math.floor(score * 2));
+    const animoBoost = score >= 20 ? 40 : score >= 15 ? 30 : score >= 10 ? 20 : score >= 5 ? 10 : 3;
     const s = getTamaStats();
     s.animo = Math.min(100, s.animo + animoBoost);
     s.lastSaved = new Date().toISOString();
@@ -611,7 +644,7 @@ export default function Home() {
       {tamaStats && (
         <div className="shrink-0 px-4 py-1">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2 border border-white/60 shadow-sm">
-            <StatsRow stats={tamaStats}/>
+            <StatsRow stats={tamaStats} evoPhase={evolutionPhase}/>
           </div>
         </div>
       )}

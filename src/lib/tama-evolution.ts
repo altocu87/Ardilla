@@ -86,3 +86,22 @@ export function isNightTime(): boolean {
   const h = new Date().getHours();
   return h >= 22 || h < 7;
 }
+
+export function getEvolutionProgress(): {
+  daysFor: number;
+  daysNeeded: number;
+  nextPhase: EvolutionPhase | null;
+} {
+  const data = getEvolutionData();
+  const nextThreshold: Partial<Record<EvolutionPhase, number>> = {
+    bebe: 7, joven: 30, adulta: 90,
+  };
+  const nextPhaseMap: Partial<Record<EvolutionPhase, EvolutionPhase>> = {
+    bebe: "joven", joven: "adulta", adulta: "anciana",
+  };
+  return {
+    daysFor:   data.daysCaredFor,
+    daysNeeded: nextThreshold[data.phase] ?? 90,
+    nextPhase: nextPhaseMap[data.phase] ?? null,
+  };
+}

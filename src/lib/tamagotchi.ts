@@ -9,20 +9,16 @@ export type TamaStats = {
   energia:  number; // 0-100 (100 = descansada)
   animo:    number; // 0-100 (100 = feliz)
   salud:    number; // 0-100 (derivado)
+  stomachSick?:    boolean;
+  stomachSickSince?: string; // ISO timestamp when got sick
+  lastSickCheck?:  string;   // YYYY-MM-DD
   lastSaved: string; // ISO timestamp
 };
 
 export type TamaVisualState =
-  | "muy_feliz"
-  | "feliz"
-  | "neutral"
-  | "triste"
-  | "hambre"
-  | "cansada"
-  | "comiendo"
-  | "durmiendo"
-  | "jugando"
-  | "enfadada";
+  | "muy_feliz" | "feliz" | "neutral" | "triste" | "hambre"
+  | "cansada" | "comiendo" | "durmiendo" | "jugando" | "enfadada"
+  | "malita";
 
 /* ════════════════════════════════════════════════════
    DECAY (por hora)
@@ -55,6 +51,7 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
   durmiendo:  ["Zzz... dulces sueños... 😴", "Shh, estoy descansando 🌙", "Zzz... 💤"],
   jugando:    ["¡Esto es genial! 🎉", "¡Me encanta jugar! 🎮", "¡Más, más! 🌟"],
   enfadada:   ["¡Llevas mucho sin cuidarme! 😤", "Me siento abandonada 😠", "¡Presta atención! ⚡"],
+  malita:     ["Ay... me duele la barriguita 🤒", "Necesito mis probióticos 💊", "Me encuentro mal... 😞"],
 };
 
 const STREAK_MESSAGES: Record<number, string> = {
@@ -65,7 +62,6 @@ const STREAK_MESSAGES: Record<number, string> = {
 };
 
 export function getContextualMessage(state: TamaVisualState, streak: number): string {
-  /* Streak milestone takes priority */
   for (const days of [30, 14, 7, 3]) {
     if (streak === days && STREAK_MESSAGES[days]) return STREAK_MESSAGES[days];
   }
@@ -99,14 +95,42 @@ export function getTamaStats(): TamaStats {
     const now  = new Date();
     const last = new Date(s.lastSaved);
     const hrs  = Math.max(0, (now.getTime() - last.getTime()) / 3_600_000);
-    if (hrs > 0.016) { // >1 min
+    let dirty = false;
+
+    if (hrs > 0.016) {
       s.hambre  = Math.max(0, s.hambre  - DECAY.hambre  * hrs);
       s.energia = Math.max(0, s.energia - DECAY.energia * hrs);
-      s.animo   = Math.max(0, s.animo   - DECAY.animo   * hrs);
+      /* When sick, animo and energy decay faster */
+      const animoDecay = s.stomachSick ? DECAY.animo * 1.6 : DECAY.animo;
+      s.animo   = Math.max(0, s.animo   - animoDecay * hrs);
       s.salud   = computeSalud(s.hambre, s.energia, s.animo);
       s.lastSaved = now.toISOString();
-      saveTamaStats(s);
+      dirty = true;
     }
+
+    /* Daily sickness check */
+    const today = now.toISOString().slice(0, 10);
+    if (!s.stomachSick && (s.lastSickCheck ?? "1970") < today) {
+      s.lastSickCheck = today;
+      const chance = s.hambre < 15 ? 0.18 : 0.04;
+      if (Math.random() < chance) {
+        s.stomachSick     = true;
+        s.stomachSickSince = now.toISOString();
+      }
+      dirty = true;
+    }
+
+    /* Auto-heal after 48 hours */
+    if (s.stomachSick && s.stomachSickSince) {
+      const sickHrs = (now.getTime() - new Date(s.stomachSickSince).getTime()) / 3_600_000;
+      if (sickHrs >= 48) {
+        s.stomachSick      = false;
+        s.stomachSickSince = undefined;
+        dirty = true;
+      }
+    }
+
+    if (dirty) saveTamaStats(s);
     return s;
   } catch { return { ...DEFAULT }; }
 }
@@ -163,6 +187,18 @@ export function playTama(animoBoost: number): TamaStats {
   return s;
 }
 
+export function cureStomach(): TamaStats {
+  const s = getTamaStats();
+  s.stomachSick      = false;
+  s.stomachSickSince = undefined;
+  s.animo   = Math.min(100, s.animo   + 18);
+  s.energia = Math.min(100, s.energia + 10);
+  s.salud   = computeSalud(s.hambre, s.energia, s.animo);
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
 /* ════════════════════════════════════════════════════
    VISUAL STATE COMPUTATION
 ════════════════════════════════════════════════════ */
@@ -171,6 +207,7 @@ export function computeVisualState(
   action?: "comiendo" | "durmiendo" | "jugando",
 ): TamaVisualState {
   if (action) return action;
+  if (s.stomachSick) return "malita";
   const avg = (s.hambre + s.energia + s.animo) / 3;
   if (s.hambre  <= 12) return "hambre";
   if (s.energia <= 12) return "cansada";
