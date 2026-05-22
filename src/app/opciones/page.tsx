@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 /* ── Pantalla de PIN ──────────────────────────────────────────────────────── */
 const PIN_CORRECTO = "8553";
 
-function PinGate({ onUnlock }: { onUnlock: () => void }) {
+function PinGate({ onUnlock, onBack }: { onUnlock: () => void; onBack: () => void }) {
   const [pin, setPin]       = useState("");
   const [error, setError]   = useState(false);
   const [shake, setShake]   = useState(false);
@@ -47,6 +48,12 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         }
       `}</style>
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 px-6 select-none">
+
+        {/* Botón volver */}
+        <button onClick={onBack}
+          className="absolute top-5 left-5 flex items-center gap-1.5 text-slate-400 hover:text-white text-sm font-semibold active:scale-95 transition-all">
+          ← Volver
+        </button>
 
         {/* Caracol enfadado */}
         <div style={{ animation: "caracol-rage 0.6s ease-in-out infinite" }}
@@ -369,6 +376,8 @@ function RewardRow({
    PÁGINA PRINCIPAL
 ══════════════════════════════════════════════════════════════════════════════ */
 export default function Opciones() {
+  const router = useRouter();
+
   /* ── PIN gate ───────────────────────────────────────────────────────────── */
   const [pinUnlocked, setPinUnlocked] = useState(false);
 
@@ -633,7 +642,7 @@ export default function Opciones() {
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-20">
 
-      {!pinUnlocked && <PinGate onUnlock={() => setPinUnlocked(true)} />}
+      {!pinUnlocked && <PinGate onUnlock={() => setPinUnlocked(true)} onBack={() => router.back()} />}
 
       {/* Cabecera */}
       <header className="flex items-center gap-3 mb-8">
