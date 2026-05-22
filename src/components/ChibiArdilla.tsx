@@ -267,6 +267,12 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
   const body = get("body"); const eyes = get("eyes");
   return (
     <>
+      {/* Capa — renderizar antes para que quede detrás */}
+      {body?.clothingType === "capa" && (
+        <path d="M 84 162 Q 40 200 22 264 L 208 264 Q 190 200 146 162 Q 131 157 115 155 Q 99 157 84 162 Z"
+          fill={body.color} opacity="0.90" stroke={C.dark} strokeWidth="2.5"/>
+      )}
+
       {body?.clothingType === "jersey" && (
         <g>
           <rect x="52" y="170" width="106" height="68" rx="22" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="3"/>
@@ -281,6 +287,15 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <circle cx="115" cy="225" r="5" fill="#1e293b"/>
         </g>
       )}
+      {body?.clothingType === "chaleco" && (
+        <g>
+          <rect x="62" y="170" width="106" height="64" rx="20" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="2.5"/>
+          <path d="M 96 170 L 115 193 L 134 170" fill={C.belly} stroke="none"/>
+          <circle cx="115" cy="205" r="4" fill="#1e293b" opacity="0.6"/>
+          <circle cx="115" cy="220" r="4" fill="#1e293b" opacity="0.6"/>
+        </g>
+      )}
+
       {neck?.clothingType === "bufanda" && (
         <g>
           <ellipse cx="115" cy="162" rx="42" ry="12" fill={neck.color} stroke={C.dark} strokeWidth="2.5"/>
@@ -289,6 +304,22 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
             stroke={C.dark} strokeWidth="2" transform="rotate(15 98 172)"/>
         </g>
       )}
+      {neck?.clothingType === "collar" && (
+        <g>
+          <path d="M 80 163 Q 115 174 150 163" fill="none" stroke="#c4b5a0" strokeWidth="1.5"/>
+          {([[85,165],[96,169],[107,171],[115,171.5],[123,171],[134,169],[145,165]] as [number,number][]).map(([cx,cy],i) => (
+            <circle key={i} cx={cx} cy={cy} r="5" fill={neck.color} stroke="#b0a080" strokeWidth="1.2"/>
+          ))}
+        </g>
+      )}
+      {neck?.clothingType === "pajarita" && (
+        <g>
+          <path d="M 88 166 L 110 158 L 110 174 Z" fill={neck.color} stroke={C.dark} strokeWidth="2"/>
+          <path d="M 142 166 L 120 158 L 120 174 Z" fill={neck.color} stroke={C.dark} strokeWidth="2"/>
+          <ellipse cx="115" cy="166" rx="7" ry="8" fill={neck.color} stroke={C.dark} strokeWidth="2"/>
+        </g>
+      )}
+
       {eyes?.clothingType === "gafas" && (
         <g fill="none" stroke={eyes.color} strokeWidth={4}>
           <circle cx="84" cy="106" r="28"/>
@@ -298,6 +329,7 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <line x1="174" y1="106" x2="208" y2="104"/>
         </g>
       )}
+
       {head?.clothingType === "sombrero" && (
         <g>
           <ellipse cx="115" cy="40" rx="56" ry="13" fill={head.color} stroke={C.dark} strokeWidth="3"/>
@@ -310,6 +342,15 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
           <path d="M 89 36 Q 79 24 89 32 Q 97 40 115 34 Q 133 40 141 32 Q 151 24 141 36 Q 133 44 115 38 Q 97 44 89 36"
             fill={head.color} stroke={C.dark} strokeWidth="2.5"/>
           <circle cx="115" cy="36" r="8" fill={head.color} stroke={C.dark} strokeWidth="2"/>
+        </g>
+      )}
+      {head?.clothingType === "gorra" && (
+        <g>
+          <path d="M 74 52 Q 80 18 115 14 Q 150 18 156 52 Q 136 46 115 44 Q 94 46 74 52 Z"
+            fill={head.color} stroke={C.dark} strokeWidth="2.5"/>
+          <path d="M 66 56 Q 115 64 164 56 L 160 50 Q 115 58 70 50 Z"
+            fill={head.color} stroke={C.dark} strokeWidth="2"/>
+          <circle cx="115" cy="17" r="5" fill={C.dark} opacity="0.4"/>
         </g>
       )}
       {head?.clothingType === "corona" && (
@@ -353,17 +394,18 @@ import React from "react";
 
 type Props = {
   state: TamaVisualState;
-  phase?:       EvolutionPhase;
-  equipped?:    EquippedClothing;
-  catalog?:     SquirrelClothing[];
-  isTickling?:  boolean;
-  illnessType?: IllnessType;
-  className?:   string;
+  phase?:          EvolutionPhase;
+  equipped?:       EquippedClothing;
+  catalog?:        SquirrelClothing[];
+  isTickling?:     boolean;
+  illnessType?:    IllnessType;
+  heldToyEmoji?:   string;
+  className?:      string;
 };
 
 export default function ChibiArdilla({
   state, phase = "bebe", equipped = {}, catalog = [],
-  isTickling = false, illnessType, className = "",
+  isTickling = false, illnessType, heldToyEmoji, className = "",
 }: Props) {
   const scale = phase === "bebe" ? 0.92 : 1;
 
@@ -595,6 +637,14 @@ export default function ChibiArdilla({
 
         {/* ══ ACCESORIO ══ */}
         <Accessory state={state} illnessType={illnessType}/>
+
+        {/* ══ JUGUETE EQUIPADO (en la mano, solo en estados tranquilos) ══ */}
+        {heldToyEmoji && !["jugando","comiendo","durmiendo","malita"].includes(state) && (
+          <g>
+            <circle cx="44" cy="222" r="14" fill="white" opacity="0.75" stroke={C.dark} strokeWidth="1.5"/>
+            <text x="38" y="228" fontSize="14">{heldToyEmoji}</text>
+          </g>
+        )}
       </svg>
     </div>
   );

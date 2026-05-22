@@ -143,3 +143,14 @@ export function isToyOnCooldown(id: string, cooldownMin: number): boolean {
 export function recordToyUse(id: string): void {
   const u = getToyUsage(); u[id] = new Date().toISOString(); save("sq_toy_usage", u);
 }
+
+export function getEquippedToy(): string | null {
+  try { return localStorage.getItem("sq_equipped_toy"); } catch { return null; }
+}
+export function setEquippedToy(id: string | null): void {
+  try {
+    if (id) localStorage.setItem("sq_equipped_toy", id);
+    else localStorage.removeItem("sq_equipped_toy");
+  } catch { /* noop */ }
+  pushToCloud("sq_equipped_toy", id ?? "");
+}

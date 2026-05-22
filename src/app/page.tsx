@@ -20,6 +20,7 @@ import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib
 import {
   getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
+  getEquippedToy,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
 import {
@@ -408,8 +409,9 @@ export default function Home() {
   const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const regCtxRef   = useRef<MessageContext>({});
 
-  /* Clothing */
+  /* Clothing & toy */
   const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
+  const [equippedToyId, setEquippedToyId] = useState<string | null>(null);
 
   /* Avatar / título */
   const [equippedAvatar,   setEquippedAvatarState]   = useState<string | null>(null);
@@ -450,6 +452,7 @@ export default function Home() {
     setAvatarItems(allAvatares);
     setOwnedIds(owned);
     setEquippedCloth(getEquippedClothing());
+    setEquippedToyId(getEquippedToy());
   }, []);
 
   const loadTama = useCallback(() => {
@@ -674,6 +677,9 @@ export default function Home() {
 
   const { level, currentXp, nextLevelXp, progress } = getLevelInfo(xp);
   const equippedAvatarItem = avatarItems.find(a => a.id === equippedAvatar) ?? null;
+  const heldToyEmoji = equippedToyId
+    ? TOY_CATALOG.find(t => t.id === equippedToyId)?.emoji ?? undefined
+    : undefined;
 
   const foodInv = getFoodInventory();
   const foodItems = FOOD_CATALOG.map(f => ({
@@ -795,6 +801,7 @@ export default function Home() {
                 catalog={CLOTHING_CATALOG}
                 isTickling={isTickling}
                 illnessType={tamaStats?.illness ?? undefined}
+                heldToyEmoji={heldToyEmoji}
                 className="drop-shadow-2xl"
               />
             </button>
