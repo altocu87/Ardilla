@@ -15,6 +15,7 @@ import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
   canSleepNow, startSleepTimer, wakeUpTama, cureAngry, rollAngry,
+  wakeUpAngryNight, clearNightAngry,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
@@ -569,9 +570,9 @@ function ActionPanel({ title, items, onSelect, onClose, extraActions }: {
 
 /* ── Stats compactos ───────────────────────────────────────────── */
 function StatsRow({
-  stats, evoPhase, onOpenMedicine,
+  stats, evoPhase, nightAngrySecondsLeft, onOpenMedicine,
 }: {
-  stats: TamaStats; evoPhase: EvolutionPhase; onOpenMedicine: () => void;
+  stats: TamaStats; evoPhase: EvolutionPhase; nightAngrySecondsLeft?: number; onOpenMedicine: () => void;
 }) {
   const bars = [
     { emoji: "🍖", label: "Hambre",  value: stats.hambre,  color: "#f59e0b" },
@@ -585,6 +586,17 @@ function StatsRow({
 
   return (
     <div>
+      {nightAngrySecondsLeft != null && nightAngrySecondsLeft > 0 && (
+        <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-red-100 border-red-400 text-red-700"
+          style={{ animation: "badge-pulse 1s ease-in-out infinite" }}>
+          <span className="text-sm">😡</span>
+          <span className="text-[10px] font-bold flex-1 text-left">
+            ¡FURIOSA por despertarla! · Vuelve a dormir en{" "}
+            {`${Math.floor(nightAngrySecondsLeft / 60)}:${String(nightAngrySecondsLeft % 60).padStart(2,"0")}`}
+          </span>
+          <span className="text-[9px] font-bold shrink-0">🔥</span>
+        </div>
+      )}
       {stats.isAngry && (
         <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-red-100 border-red-400 text-red-700"
           style={{ animation: "badge-pulse 1.2s ease-in-out infinite" }}>
@@ -762,10 +774,12 @@ export default function Home() {
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
-  const [sleepSecondsLeft, setSleepSecondsLeft] = useState(0);
-  const tapTimesRef = useRef<number[]>([]);
-  const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const regCtxRef   = useRef<MessageContext>({});
+  const [sleepSecondsLeft,     setSleepSecondsLeft]     = useState(0);
+  const [nightAngrySecondsLeft, setNightAngrySecondsLeft] = useState(0);
+  const tapTimesRef     = useRef<number[]>([]);
+  const nightTapRef     = useRef<number>(0);   // toques nocturnos desde el último reset
+  const achTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const regCtxRef       = useRef<MessageContext>({});
 
   /* Clothing & toy */
   const [equippedCloth,  setEquippedCloth]  = useState<EquippedClothing>({}); // set activo mostrado
@@ -822,6 +836,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     if (raw.sleepUntil && Date.now() >= raw.sleepUntil) {
       wakeUpTama(false);
     }
+    /* Si el enfado nocturno terminó con la app cerrada, limpiarlo */
+    if (raw.nightAngryUntil && Date.now() >= raw.nightAngryUntil) {
+      clearNightAngry();
+    }
 
     /* Procesado periódico (protegidos con guardas internas) */
     const sleepCount = getSleepItemCount();
@@ -863,13 +881,17 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           ? { ...s, animo: Math.min(100, s.animo + 15) } : s;
 
         const isNight = isNightTime();
-        const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(boosted, currentAction ?? undefined);
+        const isNightAngry = !!(s.nightAngryUntil && Date.now() < s.nightAngryUntil);
+        const vs = isNightAngry ? "enfadada"
+          : (isNight && !currentAction ? "durmiendo" : computeVisualState(boosted, currentAction ?? undefined));
         setVisualState(vs);
         setTamaMessage(getContextualMessage(vs, streak, regCtxRef.current));
       })
       .catch(() => {
         const isNight = isNightTime();
-        const vs = isNight && !currentAction ? "durmiendo" : computeVisualState(stats, currentAction ?? undefined);
+        const isNightAngry = !!(stats.nightAngryUntil && Date.now() < stats.nightAngryUntil);
+        const vs = isNightAngry ? "enfadada"
+          : (isNight && !currentAction ? "durmiendo" : computeVisualState(stats, currentAction ?? undefined));
         setVisualState(vs);
         setTamaMessage(getContextualMessage(vs, 0, regCtxRef.current));
       });
@@ -926,6 +948,32 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     return () => clearInterval(tick);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sleepUntilTs]);
+
+  /* ── Temporizador enfado nocturno (5 min) ──────────────────────────────── */
+  const nightAngryUntilTs = tamaStats?.nightAngryUntil ?? 0;
+  useEffect(() => {
+    if (!nightAngryUntilTs || Date.now() >= nightAngryUntilTs) {
+      setNightAngrySecondsLeft(0);
+      return;
+    }
+    setVisualState("enfadada");
+    setEquippedCloth(getNightClothing());
+    const tick = setInterval(() => {
+      const remaining = Math.max(0, (nightAngryUntilTs - Date.now()) / 1000);
+      setNightAngrySecondsLeft(Math.ceil(remaining));
+      if (remaining <= 0) {
+        clearInterval(tick);
+        nightTapRef.current = 0;
+        const s = clearNightAngry();
+        setTamaStats({ ...s });
+        setVisualState("durmiendo");
+        setTamaMessage("Zzz... vuelvo a dormir... 😴💤");
+        setEquippedCloth(getNightClothing());
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nightAngryUntilTs]);
 
   useEffect(() => {
     pullFromCloud().finally(() => { loadProfile(); loadEquipped(); loadTama(); });
@@ -1040,6 +1088,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const now = Date.now();
     tapTimesRef.current = [...tapTimesRef.current.filter(t => now - t < 2000), now];
 
+    /* Si está en el enfado nocturno: ignorar toques */
+    const isNightAngry = !!(tamaStats?.nightAngryUntil && Date.now() < (tamaStats.nightAngryUntil ?? 0));
+    if (isNightAngry) return;
+
     /* Si está durmiendo la siesta: 5 toques = se despierta furiosa */
     const sleeping = !!(tamaStats?.sleepUntil && Date.now() < (tamaStats.sleepUntil ?? 0));
     if (sleeping) {
@@ -1057,6 +1109,27 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         }, 4000);
       }
       return; // no hacer más cosas mientras duerme
+    }
+
+    /* Si está durmiendo de noche (22h–8h): 5 toques = enfado nocturno 5 min */
+    const isNight = isNightTime();
+    if (isNight && !tamaStats?.sleepUntil) {
+      nightTapRef.current += 1;
+      const taps = nightTapRef.current;
+      if (taps === 3) {
+        setTamaMessage("⚠️ ¡Para! Si sigues tocando se despertará muy enfadada 😤");
+      } else if (taps === 4) {
+        setTamaMessage("🔥 ¡UN TOQUE MÁS Y SE DESPIERTA FURIOSA! 😡");
+      } else if (taps >= 5) {
+        nightTapRef.current = 0;
+        tapTimesRef.current = [];
+        const s = wakeUpAngryNight();
+        setTamaStats({ ...s });
+        setVisualState("enfadada");
+        setEquippedCloth(getNightClothing());
+        setTamaMessage("¡¡¡CÓMO OSAS DESPERTARME!!! 😡🔥 ¡5 MINUTOS SIN HABLARME!");
+      }
+      return; // no hacer más cosas mientras duerme de noche
     }
 
     /* Small animo boost */
@@ -1296,7 +1369,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       {tamaStats && (
         <div className="shrink-0 px-4 py-1">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2 border border-white/60 shadow-sm">
-            <StatsRow stats={tamaStats} evoPhase={evolutionPhase} onOpenMedicine={() => setShowMedicineModal(true)}/>
+            <StatsRow stats={tamaStats} evoPhase={evolutionPhase} nightAngrySecondsLeft={nightAngrySecondsLeft} onOpenMedicine={() => setShowMedicineModal(true)}/>
           </div>
         </div>
       )}
@@ -1309,6 +1382,19 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-xs font-bold text-white">Comer</span>
         </button>
         {(() => {
+          const isNightAngryNow = !!(tamaStats?.nightAngryUntil && Date.now() < (tamaStats.nightAngryUntil ?? 0));
+          if (isNightAngryNow) {
+            const mm = String(Math.floor(nightAngrySecondsLeft / 60)).padStart(2,"0");
+            const ss = String(nightAngrySecondsLeft % 60).padStart(2,"0");
+            return (
+              <div className="flex-1 flex flex-col items-center justify-center py-2 rounded-2xl bg-red-900/80 border border-red-400/40"
+                style={{ animation: "badge-pulse 1s ease-in-out infinite" }}>
+                <span className="text-base">😡</span>
+                <span className="text-[11px] font-bold text-red-200 leading-tight">{mm}:{ss}</span>
+                <span className="text-[8px] text-red-300/70">🔥 furiosa</span>
+              </div>
+            );
+          }
           const isSleepingNow = !!(tamaStats?.sleepUntil && Date.now() < (tamaStats.sleepUntil ?? 0));
           if (isSleepingNow) {
             const mm = String(Math.floor(sleepSecondsLeft / 60)).padStart(2,"0");
@@ -1318,6 +1404,16 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
                 <span className="text-base">💤</span>
                 <span className="text-[11px] font-bold text-indigo-200 leading-tight">{mm}:{ss}</span>
                 <span className="text-[8px] text-indigo-300/70">🤫 no toques</span>
+              </div>
+            );
+          }
+          /* Durante el sueño nocturno (sin siesta), mostrar durmiendo */
+          if (isNightTime() && !tamaStats?.sleepUntil) {
+            return (
+              <div className="flex-1 flex flex-col items-center justify-center py-2 rounded-2xl bg-indigo-900/60 border border-indigo-400/30">
+                <span className="text-base">🌙</span>
+                <span className="text-[11px] font-bold text-indigo-200 leading-tight">Durmiendo</span>
+                <span className="text-[8px] text-indigo-300/60">no la despiertes</span>
               </div>
             );
           }

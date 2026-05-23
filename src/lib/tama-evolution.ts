@@ -84,7 +84,7 @@ export function resetGoodNightStreak(): void {
 
 export function isNightTime(): boolean {
   const h = new Date().getHours();
-  return h >= 22 || h < 7;
+  return h >= 22 || h < 8;
 }
 
 export function getEvolutionProgress(): {

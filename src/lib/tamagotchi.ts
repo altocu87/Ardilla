@@ -31,6 +31,7 @@ export type TamaStats = {
   isAngry?:           boolean;   // enfadada por interrupción o azar
   lastAngryCheck?:    string;    // última hora comprobada "YYYY-MM-DDTHH"
   sleepUntil?:        number;    // timestamp fin de siesta (30 min)
+  nightAngryUntil?:   number;    // timestamp fin del enfado nocturno (5 min)
   /* legacy compat */
   stomachSick?: boolean;
   stomachSickSince?: string;
@@ -246,6 +247,12 @@ export function getTamaStats(): TamaStats {
       }
     }
 
+    /* Auto-clear expired night anger */
+    if (s.nightAngryUntil && now.getTime() >= s.nightAngryUntil) {
+      s.nightAngryUntil = undefined;
+      dirty = true;
+    }
+
     if (dirty) saveTamaStats(s);
     return s;
   } catch { return { ...DEFAULT }; }
@@ -349,6 +356,24 @@ export function cureAngry(): TamaStats {
   s.animo    = Math.min(100, s.animo + 20);
   s.salud    = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
+/** Despierta a la ardilla en mitad de la noche: 5 min furiosa y vuelve a dormir. */
+export function wakeUpAngryNight(): TamaStats {
+  const s = getTamaStats();
+  s.nightAngryUntil = Date.now() + 5 * 60 * 1000;
+  s.lastSaved       = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
+/** Termina el enfado nocturno (vuelve a dormir). */
+export function clearNightAngry(): TamaStats {
+  const s = getTamaStats();
+  s.nightAngryUntil = undefined;
+  s.lastSaved       = new Date().toISOString();
   saveTamaStats(s);
   return s;
 }
