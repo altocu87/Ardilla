@@ -270,6 +270,56 @@ export function playBurpRandom(vol = 0.52): void {
   else playBurp2(vol);
 }
 
+/* ════════════════════════════════════════════════════
+   COSITAS 🤲 — arpegio suave ascendente (purr mágico)
+════════════════════════════════════════════════════ */
+export function playCositas(): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+
+  // Arpegio C mayor + campanita final
+  const notes = [261.63, 329.63, 392.00, 523.25, 659.25]; // C4 E4 G4 C5 E5
+  notes.forEach((freq, i) => {
+    const t     = c.currentTime + i * 0.13;
+    const osc   = c.createOscillator();
+    osc.type    = "sine";
+    osc.frequency.value = freq;
+
+    // Ligero vibrato para efecto "ronroneo"
+    const vib  = c.createOscillator();
+    vib.type   = "sine";
+    vib.frequency.value = 5.5;
+    const vibG = c.createGain();
+    vibG.gain.value = 3;
+    vib.connect(vibG);
+    vibG.connect(osc.frequency);
+
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0,    t);
+    gain.gain.linearRampToValueAtTime(0.22, t + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.55);
+
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.6);
+    vib.start(t); vib.stop(t + 0.6);
+  });
+
+  // Destello final brillante (octava alta)
+  const sparkT = c.currentTime + notes.length * 0.13 + 0.1;
+  [1046.50, 1318.51].forEach((freq, i) => {
+    const t   = sparkT + i * 0.08;
+    const osc = c.createOscillator();
+    osc.type  = "sine";
+    osc.frequency.value = freq;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0,    t);
+    gain.gain.linearRampToValueAtTime(0.12, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.45);
+  });
+}
+
 /* ── Alias para eventos aleatorios de fondo ─────── */
 export function playFart(vol = 0.70): void { playFartRandom(vol); }
 export function playBurp(vol = 0.52): void { playBurpRandom(vol); }

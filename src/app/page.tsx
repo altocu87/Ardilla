@@ -36,7 +36,7 @@ import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
-import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom } from "@/lib/sounds";
+import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom, playCositas } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
 const WELCOME_PHRASES = [
@@ -748,6 +748,15 @@ function AchievementToast({ ach }: { ach: Achievement }) {
   );
 }
 
+/* ── Cositas: 2 por día ─────────────────────────────────────────── */
+function getCositasLeft(): number {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem("sq_cositas_date") !== today) return 2;
+    return Math.max(0, 2 - parseInt(localStorage.getItem("sq_cositas_count") ?? "0", 10));
+  } catch { return 2; }
+}
+
 /* ════════════════════════════════════════════════════════════════
    HOME
 ════════════════════════════════════════════════════════════════ */
@@ -779,6 +788,7 @@ export default function Home() {
   const [nightAngrySecondsLeft, setNightAngrySecondsLeft] = useState(0);
   const [fartCooldown,  setFartCooldown]  = useState(false);
   const [burpCooldown,  setBurpCooldown]  = useState(false);
+  const [cositasLeft,   setCositasLeft]   = useState(2);
   const tapTimesRef     = useRef<number[]>([]);
   const nightTapRef     = useRef<number>(0);
   const achTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -834,6 +844,9 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   }, []);
 
   const loadTama = useCallback(() => {
+    /* Actualizar cositas restantes hoy */
+    setCositasLeft(getCositasLeft());
+
     /* Si la siesta terminó mientras la app estaba cerrada, despertarla */
     const raw = getTamaStats();
     if (raw.sleepUntil && Date.now() >= raw.sleepUntil) {
@@ -1107,6 +1120,57 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     recordToyUse(toyId);
     const s = playTama(toy.animoBoost); setTamaStats(s);
     triggerAction("jugando", 2500);
+  }
+
+  function handleCositas() {
+    const left = getCositasLeft();
+    if (left <= 0) {
+      setInfoToast("Solo 2 cositas al día 🤲 ¡Vuelve mañana!");
+      setTimeout(() => setInfoToast(null), 3000);
+      return;
+    }
+    // Gastar una cosita
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      localStorage.setItem("sq_cositas_date",  today);
+      localStorage.setItem("sq_cositas_count", String(3 - left)); // 3-left = used count +1
+    } catch { /* noop */ }
+    setCositasLeft(left - 1);
+
+    // Curar enfado de cualquier tipo
+    let s = getTamaStats();
+    if (s.isAngry)        s = cureAngry();
+    if (s.nightAngryUntil) s = clearNightAngry();
+    s.animo = Math.min(100, s.animo + 25);
+    s.salud = Math.min(100, (s.hambre + s.energia + s.animo) / 3);
+    s.lastSaved = new Date().toISOString();
+    saveTamaStats(s);
+    setTamaStats({ ...s });
+
+    unlockAudio();
+    playCositas();
+    setIsTickling(true);
+    setVisualState("muy_feliz");
+
+    const msgs = [
+      "¡Aaaaaah las cositas! 😍💆 ¡Más, más!",
+      "¡Justo ahí! ¡Justo ahíiiii! 🥰✨",
+      "¡Las cositas me curan el alma! 💖",
+      "¡No pares nunca jamás! 😌🌟",
+      "¡Esto es lo mejor del mundoooo! 🥹✨",
+      "¡Mis lugares secretos de mimos! 🫶💛",
+      "¡Me derrito de felicidad! 😩💗",
+    ];
+    setTamaMessage(msgs[Math.floor(Math.random() * msgs.length)]);
+
+    setTimeout(() => {
+      setIsTickling(false);
+      const fresh = getTamaStats();
+      const isNight = isNightTime();
+      const vs = isNight && !fresh.sleepUntil ? "durmiendo" : computeVisualState(fresh);
+      setVisualState(vs);
+      setTamaMessage(getContextualMessage(vs, 0));
+    }, 4000);
   }
 
   function handleFartButton() {
@@ -1441,10 +1505,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
                 style={{ textShadow:"0 1px 6px rgba(0,0,0,0.5)" }}>{greeting()}</p>
             </div>
 
-            {/* Tappable squirrel + iconos de pedo/eructo a los lados */}
+            {/* Squirrel + 3 iconos laterales */}
             <div className="flex items-center gap-2">
 
-              {/* 🍑 Culo — pedo */}
+              {/* Izquierda: 🍑 pedo */}
               <button
                 onClick={handleFartButton}
                 className={`flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90 ${fartCooldown ? "opacity-25 pointer-events-none" : ""}`}>
@@ -1454,7 +1518,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
                 <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">PEDO</span>
               </button>
 
-              {/* Ardilla */}
+              {/* Centro: ardilla */}
               <button
                 onClick={tapSquirrel}
                 className="active:scale-95 transition-transform duration-75 focus:outline-none"
@@ -1471,16 +1535,36 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
                 />
               </button>
 
-              {/* 👄 Boca — eructo */}
-              <button
-                onClick={handleBurpButton}
-                className={`flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90 ${burpCooldown ? "opacity-25 pointer-events-none" : ""}`}>
-                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/35 flex items-center justify-center shadow-lg">
-                  <span className="text-2xl select-none">👄</span>
-                </div>
-                <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">ERUCTO</span>
-              </button>
+              {/* Derecha: 🤲 cositas (arriba) + 👄 eructo (abajo) */}
+              <div className="flex flex-col items-center gap-2">
 
+                {/* 🤲 Cositas */}
+                <button
+                  onClick={handleCositas}
+                  className="flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90">
+                  <div className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center shadow-lg transition-all ${
+                    cositasLeft === 0
+                      ? "bg-white/10 border-white/15 opacity-30 pointer-events-none"
+                      : "bg-white/20 border-white/35"
+                  }`}>
+                    <span className="text-2xl select-none">🤲</span>
+                  </div>
+                  <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">
+                    {cositasLeft > 0 ? `COSITAS ×${cositasLeft}` : "MAÑANA"}
+                  </span>
+                </button>
+
+                {/* 👄 Eructo */}
+                <button
+                  onClick={handleBurpButton}
+                  className={`flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90 ${burpCooldown ? "opacity-25 pointer-events-none" : ""}`}>
+                  <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/35 flex items-center justify-center shadow-lg">
+                    <span className="text-2xl select-none">👄</span>
+                  </div>
+                  <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">ERUCTO</span>
+                </button>
+
+              </div>
             </div>
 
             {/* Speech bubble */}
