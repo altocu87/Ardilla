@@ -28,6 +28,9 @@ export type TamaStats = {
   illnessByType?:  Partial<Record<IllnessType, number>>;
   badSleep?:          boolean;
   lastBadSleepCheck?: string;
+  isAngry?:           boolean;   // enfadada por interrupción o azar
+  lastAngryCheck?:    string;    // última hora comprobada "YYYY-MM-DDTHH"
+  sleepUntil?:        number;    // timestamp fin de siesta (30 min)
   /* legacy compat */
   stomachSick?: boolean;
   stomachSickSince?: string;
@@ -97,8 +100,10 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
     "¡Corro por el bosque! 🌿🏃", "¡El caracol se une al juego! 🐌🎉",
   ],
   enfadada:   [
-    "¡Llevas mucho sin cuidarme! 😤", "Me siento abandonada 😠", "¡Presta atención! ⚡",
-    "¡Hasta las ardillas necesitan amor! 🐿️",
+    "¡¡¡ME HAN DESPERTADO!!! 😡🔥", "¡FUERA DE AQUÍ! 😤💢",
+    "Estoy MUY enfadada. El pastel de nuez pecán, AHORA. 🥜😠",
+    "¡Qué maleducada! ¡Estaba soñando con bellotas! 😤",
+    "¡Grrrr! Solo el pastel de nuez pecán me calmará 🥜💥",
   ],
   malita:     [
     "Ay... me encuentro muy mal 🤒", "Necesito medicina... 💊", "Me encuentro fatal 😞",
@@ -288,7 +293,9 @@ function setLastSleepTime(): void {
   if (typeof window !== "undefined")
     localStorage.setItem(LAST_SLEEP_KEY, Date.now().toString());
 }
-export function canSleepNow(energia: number): { ok: boolean; reason?: string } {
+export function canSleepNow(energia: number, sleepUntil?: number): { ok: boolean; reason?: string } {
+  if (sleepUntil && Date.now() < sleepUntil)
+    return { ok: false, reason: "Ya está durmiendo la siesta 😴" };
   if (energia >= SLEEP_ENERGY_GATE)
     return { ok: false, reason: `Energía ${Math.round(energia)}/100 — no tiene sueño aún` };
   const elapsed  = Date.now() - getLastSleepTime();
@@ -303,17 +310,60 @@ export function canSleepNow(energia: number): { ok: boolean; reason?: string } {
   return { ok: true };
 }
 
-export function sleepTama(): TamaStats {
+/** Inicia el temporizador de siesta (30 min). No da energía todavía. */
+export function startSleepTimer(): TamaStats {
   const s = getTamaStats();
-  s.energia  = Math.min(100, s.energia + 10); // máximo +10
-  s.animo    = Math.min(100, s.animo   + 3);
-  s.badSleep = false;
-  s.salud    = computeSalud(s.hambre, s.energia, s.animo);
-  s.lastSaved = new Date().toISOString();
+  s.sleepUntil = Date.now() + 30 * 60 * 1000;
+  s.lastSaved  = new Date().toISOString();
   setLastSleepTime();
   saveTamaStats(s);
   return s;
 }
+
+/** Despierta a la ardilla. Si `angry=true` se despierta furiosa, sin energía. */
+export function wakeUpTama(angry: boolean): TamaStats {
+  const s = getTamaStats();
+  s.sleepUntil = undefined;
+  if (angry) {
+    s.isAngry = true;
+  } else {
+    s.energia  = Math.min(100, s.energia + 10);
+    s.animo    = Math.min(100, s.animo   + 3);
+    s.badSleep = false;
+  }
+  s.salud     = computeSalud(s.hambre, s.energia, s.animo);
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
+/** Calma el enfado con el pastel de nuez pecán. */
+export function cureAngry(): TamaStats {
+  const s = getTamaStats();
+  s.isAngry  = false;
+  s.animo    = Math.min(100, s.animo + 20);
+  s.salud    = computeSalud(s.hambre, s.energia, s.animo);
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
+/** Una vez por hora: 2% de posibilidad de enfadarse espontáneamente. */
+export function rollAngry(): TamaStats {
+  const s = getTamaStats();
+  if (s.isAngry) return s;
+  if (s.sleepUntil && Date.now() < s.sleepUntil) return s; // durmiendo
+  const nowHour = new Date().toISOString().slice(0, 13); // "2026-05-23T15"
+  if ((s.lastAngryCheck ?? "") >= nowHour) return s;
+  s.lastAngryCheck = nowHour;
+  if (Math.random() < 0.02) s.isAngry = true;
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+  return s;
+}
+
+/** @deprecated usa startSleepTimer + wakeUpTama */
+export function sleepTama(): TamaStats { return wakeUpTama(false); }
 
 /* Tirada nocturna de mal descanso — una vez por día.
    40% base, -10% por cada ítem de sueño equipado (mín. 10%). */
@@ -360,11 +410,13 @@ export function computeVisualState(
   action?: "comiendo" | "durmiendo" | "jugando",
 ): TamaVisualState {
   if (action) return action;
-  if (s.illness)        return "malita";
-  if (s.badSleep)       return "ojeras";
+  // Siesta activa — se pasa desde page.tsx como acción "durmiendo"
+  if (s.illness)  return "malita";
+  if (s.isAngry)  return "enfadada";
+  if (s.badSleep) return "ojeras";
   const avg = (s.hambre + s.energia + s.animo) / 3;
-  if (s.hambre  <= 12)  return "hambre";
-  if (s.energia <= 12)  return "cansada";
+  if (s.hambre  <= 12) return "hambre";
+  if (s.energia <= 12) return "cansada";
   const min = Math.min(s.hambre, s.energia, s.animo);
   if (avg >= 80 && min >= 60) return "muy_feliz";
   if (avg >= 62) return "feliz";

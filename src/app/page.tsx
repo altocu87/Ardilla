@@ -12,9 +12,9 @@ import {
 } from "@/lib/shop";
 import { getMascotConfig } from "@/lib/mascot";
 import {
-  getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
+  getTamaStats, saveTamaStats, computeVisualState, feedTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
-  canSleepNow,
+  canSleepNow, startSleepTimer, wakeUpTama, cureAngry, rollAngry,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
@@ -585,7 +585,15 @@ function StatsRow({
 
   return (
     <div>
-      {stats.badSleep && (
+      {stats.isAngry && (
+        <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-red-100 border-red-400 text-red-700"
+          style={{ animation: "badge-pulse 1.2s ease-in-out infinite" }}>
+          <span className="text-sm">😡</span>
+          <span className="text-[10px] font-bold flex-1 text-left">¡FURIOSA! · Dale el pastel de nuez pecán 🥜</span>
+          <span className="text-[9px] font-bold shrink-0">💢</span>
+        </div>
+      )}
+      {stats.badSleep && !stats.isAngry && (
         <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-indigo-100 border-indigo-300 text-indigo-700"
           style={{ animation: "badge-pulse 2s ease-in-out infinite" }}>
           <span className="text-sm">😤</span>
@@ -746,6 +754,7 @@ export default function Home() {
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
+  const [sleepSecondsLeft, setSleepSecondsLeft] = useState(0);
   const tapTimesRef = useRef<number[]>([]);
   const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const regCtxRef   = useRef<MessageContext>({});
@@ -800,9 +809,16 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   }, []);
 
   const loadTama = useCallback(() => {
-    /* Procesado nocturno (protegido internamente a una vez por día) */
-    const sleepCount = getSleepItemCount(); // usa el set de noche por defecto
+    /* Si la siesta terminó mientras la app estaba cerrada, despertarla */
+    const raw = getTamaStats();
+    if (raw.sleepUntil && Date.now() >= raw.sleepUntil) {
+      wakeUpTama(false);
+    }
+
+    /* Procesado periódico (protegidos con guardas internas) */
+    const sleepCount = getSleepItemCount();
     rollBadSleep(sleepCount);
+    rollAngry();
     const broken = tickSleepDurability();
     if (broken.length) {
       const night = getNightClothing();
@@ -877,6 +893,32 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Temporizador de siesta (30 min) ──────────────────────────────────── */
+  const sleepUntilTs = tamaStats?.sleepUntil ?? 0;
+  useEffect(() => {
+    if (!sleepUntilTs || Date.now() >= sleepUntilTs) {
+      setSleepSecondsLeft(0);
+      return;
+    }
+    setVisualState("durmiendo");
+    const tick = setInterval(() => {
+      const remaining = Math.max(0, (sleepUntilTs - Date.now()) / 1000);
+      setSleepSecondsLeft(Math.ceil(remaining));
+      if (remaining <= 0) {
+        clearInterval(tick);
+        const s = wakeUpTama(false);
+        setTamaStats({ ...s });
+        const vs = computeVisualState(s);
+        setVisualState(vs);
+        setTamaMessage("¡Mmm, qué rica siesta! 🌟 +10 energía");
+        setTimeout(() => setTamaMessage(getContextualMessage(vs, 0)), 3000);
+        setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sleepUntilTs]);
+
   useEffect(() => {
     pullFromCloud().finally(() => { loadProfile(); loadEquipped(); loadTama(); });
     const refresh = () => { loadProfile(); loadEquipped(); loadTama(); };
@@ -910,6 +952,20 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     if (!food) return;
     if (!consumeFood(foodId)) return;
     let s;
+    if (food.id === "food_pecan" && tamaStats?.isAngry) {
+      // Pastel de nuez pecán cura el enfado
+      s = cureAngry();
+      s = feedTama(food.hambreRestore, 0); // también da hambre restore
+      setTamaStats({ ...s });
+      triggerAction("comiendo", 2500);
+      setTamaMessage("Mmmm... bueno, quizás no estoy tan enfadada 😤🥜");
+      setTimeout(() => {
+        const vs = computeVisualState(s);
+        setVisualState(vs);
+        setTamaMessage(getContextualMessage(vs, 0));
+      }, 3000);
+      return;
+    }
     if (food.curesIllness && tamaStats?.illness === food.curesIllness) {
       s = cureIllness();
       const a = tryUnlock("cured_sick");
@@ -949,20 +1005,18 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
   function handleSleep() {
     if (!tamaStats) return;
-    const check = canSleepNow(tamaStats.energia);
+    const check = canSleepNow(tamaStats.energia, tamaStats.sleepUntil);
     if (!check.ok) {
       setInfoToast(check.reason ?? "No puede dormir ahora");
       setTimeout(() => setInfoToast(null), 3500);
       return;
     }
-    // Cambiar a ropa de noche durante el sueño
+    // Poner ropa de noche y arrancar el temporizador
     setEquippedCloth(nightCloth);
-    const s = sleepTama(); setTamaStats(s);
-    triggerAction("durmiendo", 3000);
-    // Tras la animación, mantener set según hora
-    setTimeout(() => {
-      setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
-    }, 3500);
+    const s = startSleepTimer();
+    setTamaStats({ ...s });
+    setVisualState("durmiendo");
+    setTamaMessage("Zzz... siesta de 30 min 💤 ¡No me despiertes!");
   }
 
   function handlePlay(toyId: string) {
@@ -977,6 +1031,25 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   function tapSquirrel() {
     const now = Date.now();
     tapTimesRef.current = [...tapTimesRef.current.filter(t => now - t < 2000), now];
+
+    /* Si está durmiendo la siesta: 5 toques = se despierta furiosa */
+    const sleeping = !!(tamaStats?.sleepUntil && Date.now() < (tamaStats.sleepUntil ?? 0));
+    if (sleeping) {
+      if (tapTimesRef.current.length >= 5) {
+        tapTimesRef.current = [];
+        const s = wakeUpTama(true);
+        setTamaStats({ ...s });
+        setVisualState("enfadada");
+        setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
+        setTamaMessage("¡¡¡ME HAN DESPERTADO!!! 😡🔥 ¡Dame el pastel de nuez pecán!");
+        setTimeout(() => {
+          const vs = computeVisualState(s);
+          setVisualState(vs);
+          setTamaMessage(getContextualMessage(vs, 0));
+        }, 4000);
+      }
+      return; // no hacer más cosas mientras duerme
+    }
 
     /* Small animo boost */
     const s = getTamaStats();
@@ -1228,7 +1301,19 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-xs font-bold text-white">Comer</span>
         </button>
         {(() => {
-          const sleepCheck = tamaStats ? canSleepNow(tamaStats.energia) : { ok: false };
+          const isSleepingNow = !!(tamaStats?.sleepUntil && Date.now() < (tamaStats.sleepUntil ?? 0));
+          if (isSleepingNow) {
+            const mm = String(Math.floor(sleepSecondsLeft / 60)).padStart(2,"0");
+            const ss = String(sleepSecondsLeft % 60).padStart(2,"0");
+            return (
+              <div className="flex-1 flex flex-col items-center justify-center py-2 rounded-2xl bg-indigo-900/80 border border-indigo-400/40">
+                <span className="text-base">💤</span>
+                <span className="text-[11px] font-bold text-indigo-200 leading-tight">{mm}:{ss}</span>
+                <span className="text-[8px] text-indigo-300/70">🤫 no toques</span>
+              </div>
+            );
+          }
+          const sleepCheck = tamaStats ? canSleepNow(tamaStats.energia, tamaStats.sleepUntil) : { ok: false };
           const canSleep   = sleepCheck.ok;
           const pulseAnim  = tamaStats?.badSleep && canSleep;
           return (

@@ -38,6 +38,7 @@ export const FOOD_CATALOG: SquirrelFood[] = [
   { id: "food_pastel",   emoji: "🎂", name: "Pastel de nueces",  desc: "Para días especiales ✨",          price: 30, hambreRestore: 60, animoBoost: 25 },
   { id: "food_miel",     emoji: "🍯", name: "Miel de bosque",    desc: "Un lujazo para la ardilla",        price: 18, hambreRestore: 40, animoBoost: 15 },
   { id: "food_probio",  emoji: "💊", name: "Probióticos",       desc: "Cura el dolor de barriga 🤒",      price: 25, hambreRestore: 10, animoBoost: 8, curesIllness: "stomach" },
+  { id: "food_pecan",   emoji: "🥜", name: "Pastel de nuez pecán", desc: "Cura el mal humor 😤 — solo esto funciona", price: 40, hambreRestore: 20, animoBoost: 30 },
 ];
 
 export const MEDICINE_CATALOG: SquirrelFood[] = [
