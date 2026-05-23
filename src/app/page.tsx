@@ -36,6 +36,7 @@ import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
+import { unlockAudio, maybeRandomFart, maybeEructo } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
 const WELCOME_PHRASES = [
@@ -845,6 +846,17 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const sleepCount = getSleepItemCount();
     rollBadSleep(sleepCount);
     rollAngry();
+    const fartMsg = maybeRandomFart();
+    if (fartMsg) {
+      setTimeout(() => {
+        setTamaMessage(fartMsg);
+        setTimeout(() => {
+          const s2 = getTamaStats();
+          const vs2 = computeVisualState(s2);
+          setTamaMessage(getContextualMessage(vs2, 0));
+        }, 3500);
+      }, 800);
+    }
     const broken = tickSleepDurability();
     if (broken.length) {
       const night = getNightClothing();
@@ -1031,6 +1043,18 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     }
     setTamaStats(s);
     triggerAction("comiendo", 2500);
+    // Posible eructo tras comer 😮‍💨
+    const burpMsg = maybeEructo();
+    if (burpMsg) {
+      setTimeout(() => {
+        setTamaMessage(burpMsg);
+        setTimeout(() => {
+          const s2 = getTamaStats();
+          const vs2 = computeVisualState(s2);
+          setTamaMessage(getContextualMessage(vs2, 0));
+        }, 3200);
+      }, 2700); // esperar a que acabe la animación de comer
+    }
   }
 
   function handleMedicineCure() {
@@ -1085,6 +1109,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
   /* Tap directly on the squirrel */
   function tapSquirrel() {
+    unlockAudio(); // desbloquea AudioContext en iOS en el primer gesto
     const now = Date.now();
     tapTimesRef.current = [...tapTimesRef.current.filter(t => now - t < 2000), now];
 
@@ -1376,7 +1401,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
       {/* ── Acción (outside the scene) ── */}
       <div className="shrink-0 px-4 pb-1 flex gap-2">
-        <button onClick={() => setShowFeedPanel(true)}
+        <button onClick={() => { unlockAudio(); setShowFeedPanel(true); }}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
           <span className="text-base">🍎</span>
           <span className="text-xs font-bold text-white">Comer</span>
