@@ -1115,12 +1115,26 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     playFartRandom();
     setFartCooldown(true);
     const msgs = [
+      "💨 ¡AQUÍ VIENE ESTE PEDO QUE ME GUARDO DESDE LOS 7 AÑOS!!!",
+      "💨 Este pedo va dedicado a mi familiaaaaaa 🌿❤️",
+      "💨 ¡Lo prometí y lo cumplo! Un pedo para cada árbol del bosque 🌳",
+      "💨 ¡LIBERTAD! Llevaba horas aguantando esto 😤💨",
+      "💨 Dedicado a todas las bellotas que me han hecho esto 🌰💨",
+      "💨 El bosque preguntó: '¿quién ha sido?' Yo: 😇",
+      "💨 Este pedo lleva nombre propio. Se llama: Jueves 💨",
+      "💨 Años de entrenamiento para esto. Vale cada segundo 😤",
       "💨 ¡PARA EL BOSQUE, ESTE PEDO PARA TIIIII! 🌿💨",
-      "💨 Las bellotas cobran… 🌰🫣",
-      "💨 El viento del bosque soy yo 😏",
-      "💨 ¡Que conste que me he disculpado! 😳",
+      "💨 El caracol lo huele desde 3 árboles 🐌😵",
       "💨 *PRRFFRT* …¿Qué miras? 😤",
-      "💨 Ardilla 1 — Protocolo 0 😎",
+      "💨 No es un pedo, es un abrazo de olfato 😏",
+      "💨 Ardilla 1 — Decoro 0 😎",
+      "💨 ¡DEDICADO A TODOS MIS ENEMIGOS! 💪💨",
+      "💨 El viento del bosque… soy yo 🍃",
+      "💨 Esto es arte. Arte aromático. 🎨💨",
+      "💨 Mi abuela me enseñó a aguantar. Hoy la fallo. 😔💨",
+      "💨 ¡Lo tenía guardado desde el desayuno! 🌰💨",
+      "💨 Las bellotas cobran… siempre cobran 🌰🫣",
+      "💨 Que conste en acta: yo no he sido 😇📋",
     ];
     const msg = msgs[Math.floor(Math.random() * msgs.length)];
     const prevVs = visualState;
@@ -1139,12 +1153,26 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     playBurpRandom();
     setBurpCooldown(true);
     const msgs = [
+      "¡ESTE ERUCTO LO DEDICO A MI FAMILIAAAAA! 😮‍💨❤️🌳",
       "¡PARA EL BOSQUEEEEE, ESTE ERUCTO PARA TIIIII! 😮‍💨🌳",
-      "¡BEEEELCH! ¿Aplausos? 🫡",
-      "¡El caracol ha salido volando! 🐌💨",
-      "¡B-U-A-A-A-R-P! Una obra de arte 🎨",
-      "¡¡BUAAARP!! El árbol más alto me escuchó 🌲😤",
-      "¡Eructo oficial del bosque! 🏆😮‍💨",
+      "¡BUAAARP! ¿Alguien tiene un micrófono? 🎤😤",
+      "¡Este eructo lleva fermento de bellota de 3 años! 🌰😮‍💨",
+      "¡B-U-A-A-A-R-P! Una obra maestra del arte contemporáneo 🎨",
+      "¡¡BUAAARP!! El árbol más alto del bosque se ha enterado 🌲",
+      "¡Eructo oficial del bosque! Certificado y sellado 🏆😮‍💨",
+      "¡DEDICADO A QUIEN YO SÉ! 😤 ¡BUAAARP!",
+      "¡El caracol ha salido volando! 🐌💨 ¡Vuelve!",
+      "¡BEEEELCH! Alguien aplauda, por favor 🫡👏",
+      "¡Este era el eructo del destino! Estaba escrito 📜😮‍💨",
+      "¡Lo he estado practicando toda la mañana! 💪😤",
+      "¡BUAAARP! Y lo volvería a hacer. Sin arrepentimiento 😎",
+      "Para mi madre, con todo mi amor y mis gases 💕😮‍💨",
+      "¡El bosque entero ha temblado! Misión cumplida 🌿✅",
+      "¡ESTO ES LO QUE PASA CUANDO ME DAN BELLOTAS! 🌰😤",
+      "Dicen que los grandes artistas sufren. Yo sufro de eructos 🎭",
+      "¡Le he dado nombre: se llama Rodrigo! 😤 ¡BUAAARP!",
+      "¡Eructo de campeonato mundial! Nuevo récord personal 🥇",
+      "¡El caracol aplaude desde lejos! 🐌👏 ¡Mucho lejos!",
     ];
     const msg = msgs[Math.floor(Math.random() * msgs.length)];
     const prevVs = visualState;
