@@ -36,7 +36,7 @@ import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
-import { unlockAudio, maybeRandomFart, maybeEructo } from "@/lib/sounds";
+import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
 const WELCOME_PHRASES = [
@@ -777,8 +777,10 @@ export default function Home() {
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
   const [sleepSecondsLeft,     setSleepSecondsLeft]     = useState(0);
   const [nightAngrySecondsLeft, setNightAngrySecondsLeft] = useState(0);
+  const [fartCooldown,  setFartCooldown]  = useState(false);
+  const [burpCooldown,  setBurpCooldown]  = useState(false);
   const tapTimesRef     = useRef<number[]>([]);
-  const nightTapRef     = useRef<number>(0);   // toques nocturnos desde el último reset
+  const nightTapRef     = useRef<number>(0);
   const achTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const regCtxRef       = useRef<MessageContext>({});
 
@@ -1105,6 +1107,54 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     recordToyUse(toyId);
     const s = playTama(toy.animoBoost); setTamaStats(s);
     triggerAction("jugando", 2500);
+  }
+
+  function handleFartButton() {
+    if (fartCooldown) return;
+    unlockAudio();
+    playFartRandom();
+    setFartCooldown(true);
+    const msgs = [
+      "💨 ¡PARA EL BOSQUE, ESTE PEDO PARA TIIIII! 🌿💨",
+      "💨 Las bellotas cobran… 🌰🫣",
+      "💨 El viento del bosque soy yo 😏",
+      "💨 ¡Que conste que me he disculpado! 😳",
+      "💨 *PRRFFRT* …¿Qué miras? 😤",
+      "💨 Ardilla 1 — Protocolo 0 😎",
+    ];
+    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+    const prevVs = visualState;
+    setVisualState("pedos");
+    setTamaMessage(msg);
+    setTimeout(() => {
+      setVisualState(prevVs);
+      setTamaMessage(getContextualMessage(prevVs, 0));
+      setFartCooldown(false);
+    }, 3000);
+  }
+
+  function handleBurpButton() {
+    if (burpCooldown) return;
+    unlockAudio();
+    playBurpRandom();
+    setBurpCooldown(true);
+    const msgs = [
+      "¡PARA EL BOSQUEEEEE, ESTE ERUCTO PARA TIIIII! 😮‍💨🌳",
+      "¡BEEEELCH! ¿Aplausos? 🫡",
+      "¡El caracol ha salido volando! 🐌💨",
+      "¡B-U-A-A-A-R-P! Una obra de arte 🎨",
+      "¡¡BUAAARP!! El árbol más alto me escuchó 🌲😤",
+      "¡Eructo oficial del bosque! 🏆😮‍💨",
+    ];
+    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+    const prevVs = visualState;
+    setVisualState("eructando");
+    setTamaMessage(msg);
+    setTimeout(() => {
+      setVisualState(prevVs);
+      setTamaMessage(getContextualMessage(prevVs, 0));
+      setBurpCooldown(false);
+    }, 2500);
   }
 
   /* Tap directly on the squirrel */
@@ -1468,6 +1518,25 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-base">🎾</span>
           <span className="text-xs font-bold text-white">Jugar</span>
         </button>
+      </div>
+
+      {/* ── Botones divertidos ── */}
+      <div className="shrink-0 px-4 pb-1 flex gap-2">
+        <button onClick={handleFartButton}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl shadow-sm transition-all active:scale-95 ${
+            fartCooldown ? "bg-slate-300 cursor-not-allowed" : "bg-green-500"
+          }`}>
+          <span className="text-lg">💨</span>
+          <span className="text-[11px] font-bold text-white leading-tight">Pedo</span>
+        </button>
+        <button onClick={handleBurpButton}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl shadow-sm transition-all active:scale-95 ${
+            burpCooldown ? "bg-slate-300 cursor-not-allowed" : "bg-teal-500"
+          }`}>
+          <span className="text-lg">😮‍💨</span>
+          <span className="text-[11px] font-bold text-white leading-tight">Eructo</span>
+        </button>
+        <div className="flex-1"/>
       </div>
 
       {/* ── Botones ── */}

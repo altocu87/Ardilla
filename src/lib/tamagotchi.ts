@@ -41,7 +41,7 @@ export type TamaStats = {
 export type TamaVisualState =
   | "muy_feliz" | "feliz" | "neutral" | "triste" | "hambre"
   | "cansada"   | "muy_cansada" | "comiendo" | "durmiendo" | "jugando"
-  | "enfadada"  | "malita" | "ojeras";
+  | "enfadada"  | "malita" | "ojeras" | "pedos" | "eructando";
 
 /* ════════════════════════════════════════════════════
    DECAY (por hora)
@@ -119,6 +119,22 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
     "No he pegado ojo en toda la noche 😤", "¡Estoy agotada y de malísimo humor! 😠",
     "Mírame estas ojeras... 💀", "¡Necesito dormir ya! 😡",
     "El bosque no duerme igual sin mi antifaz 🌙",
+  ],
+  pedos: [
+    "💨 ¡PARA EL BOSQUE, ESTE PEDO PARA TIIIII! 🌿💨",
+    "💨 Las bellotas cobran… 🌰🫣",
+    "💨 El viento del bosque soy yo 😏",
+    "💨 ¡Que conste que me he disculpado! 😳",
+    "💨 *PRRFFRT* …¿Qué miras? 😤",
+    "💨 Ardilla 1 — Protocolo 0 😎",
+  ],
+  eructando: [
+    "¡PARA EL BOSQUEEEEE, ESTE ERUCTO PARA TIIIII! 😮‍💨🌳",
+    "¡BEEEELCH! ¿Aplausos? 🫡",
+    "¡El caracol ha salido volando! 🐌💨",
+    "¡B-U-A-A-A-R-P! Una obra de arte 🎨",
+    "¡¡BUAAARP!! El árbol más alto me escuchó 🌲😤",
+    "¡Eructo oficial del bosque! 🏆😮‍💨",
   ],
 };
 

@@ -36,6 +36,36 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
     </g>
   );
 
+  /* Pedos: ojos entrecerrados con cara de "¿qué?" */
+  if (state === "pedos") return (
+    <g>
+      {[cx1, cx2].map((cx, i) => (
+        <g key={i}>
+          <circle cx={cx} cy={cy} r={22} fill="white" stroke={C.dark} strokeWidth={C.sw}/>
+          <circle cx={cx+(i===0?2:3)} cy={cy+5} r={13} fill={C.dark}/>
+          <circle cx={cx-5} cy={cy-3} r={5} fill="white"/>
+          {/* Párpado entrecerrado */}
+          <path d={`M ${cx-22} ${cy+2} Q ${cx} ${cy-12} ${cx+22} ${cy+2}`}
+            fill={C.body} stroke={C.body} strokeWidth={1}/>
+        </g>
+      ))}
+    </g>
+  );
+
+  /* Eructando: boca abierta, ojos de orgullo */
+  if (state === "eructando") return (
+    <g>
+      {[cx1, cx2].map((cx, i) => (
+        <g key={i}>
+          <circle cx={cx} cy={cy} r={22} fill="white" stroke={C.dark} strokeWidth={C.sw}/>
+          <circle cx={cx+3} cy={cy+3} r={15} fill={C.dark}/>
+          <circle cx={cx-5} cy={cy-5} r={7} fill="white"/>
+          <circle cx={cx+8} cy={cy-3} r={3} fill="white" opacity={0.7}/>
+        </g>
+      ))}
+    </g>
+  );
+
   if (state === "ojeras") return (
     <g>
       {[cx1, cx2].map((cx, i) => (
@@ -126,7 +156,13 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
 
 /* ── Eyebrows ───────────────────────────────────── */
 function Eyebrows({ state }: { state: TamaVisualState }) {
-  if (["durmiendo","cansada","muy_cansada","comiendo","muy_feliz","jugando"].includes(state)) return null;
+  if (["durmiendo","cansada","muy_cansada","comiendo","muy_feliz","jugando","eructando"].includes(state)) return null;
+  if (state === "pedos") return (
+    <g fill="none" stroke={C.dark} strokeWidth={5} strokeLinecap="round">
+      <path d="M 63 83 Q 78 76 93 81" fill="none"/>
+      <path d="M 137 81 Q 152 76 167 83" fill="none"/>
+    </g>
+  );
   if (state === "enfadada" || state === "ojeras") return (
     <g stroke={C.dark} strokeWidth={5} strokeLinecap="round">
       <path d="M 63 83 Q 78 76 93 81" fill="none"/>
@@ -173,6 +209,16 @@ function Mouth({ state }: { state: TamaVisualState }) {
   if (state === "durmiendo" || state === "cansada" || state === "muy_cansada") return (
     <path d="M 97 124 Q 115 132 133 124" {...s} strokeWidth={3.5}/>
   );
+  if (state === "pedos") return (
+    <path d="M 90 124 Q 105 134 115 128 Q 125 134 140 124" {...s} strokeWidth={4}/>
+  );
+  if (state === "eructando") return (
+    <g>
+      <ellipse cx="115" cy="132" rx="24" ry="20" fill={C.dark}/>
+      <ellipse cx="115" cy="136" rx="18" ry="13" fill="#3d1000"/>
+      <ellipse cx="115" cy="143" rx="12" ry="6" fill="white" opacity="0.12"/>
+    </g>
+  );
   if (state === "malita") return (
     <path d="M 86 130 Q 96 124 106 130 Q 116 136 126 130 Q 136 124 144 130"
       {...s} strokeWidth={3.5}/>
@@ -206,6 +252,50 @@ function Accessory({ state, illnessType }: { state: TamaVisualState; illnessType
       <text x="163" y="52" fontSize="14" fill="#94a3b8" fontWeight="bold" opacity="0.5"
         style={{ animation: "tama-zzz 3s ease-in-out 0.8s infinite" }}>z</text>
       <text x="88"  y="24" fontSize="14">😩</text>
+    </g>
+  );
+
+  if (state === "pedos") return (
+    <g>
+      {/* Nubes de gas verde saliendo del culo (parte trasera-derecha) */}
+      <circle cx="162" cy="248" r="9"  fill="#86efac" opacity="0.85"
+        style={{ animation: "tama-gas 1.1s ease-out 0s infinite" }}/>
+      <circle cx="174" cy="236" r="7"  fill="#4ade80" opacity="0.75"
+        style={{ animation: "tama-gas 1.1s ease-out 0.25s infinite" }}/>
+      <circle cx="184" cy="222" r="10" fill="#86efac" opacity="0.65"
+        style={{ animation: "tama-gas 1.1s ease-out 0.5s infinite" }}/>
+      <circle cx="178" cy="207" r="7"  fill="#bbf7d0" opacity="0.55"
+        style={{ animation: "tama-gas 1.1s ease-out 0.75s infinite" }}/>
+      {/* Moscas */}
+      <text x="172" y="200" fontSize="13"
+        style={{ animation: "tama-fly 0.7s ease-in-out 0s infinite" }}>🪰</text>
+      <text x="155" y="188" fontSize="11"
+        style={{ animation: "tama-fly 0.7s ease-in-out 0.35s infinite" }}>🪰</text>
+      <text x="190" y="190" fontSize="10"
+        style={{ animation: "tama-fly 0.7s ease-in-out 0.6s infinite" }}>🪰</text>
+      {/* Emoji de asco flotando */}
+      <text x="16" y="60" fontSize="16"
+        style={{ animation: "tama-zzz 1.8s ease-out 0.2s infinite" }}>🤢</text>
+    </g>
+  );
+
+  if (state === "eructando") return (
+    <g>
+      {/* Ondas de sonido saliendo de la boca */}
+      <text x="138" y="118" fontSize="18"
+        style={{ animation: "tama-wave 0.5s ease-out 0s infinite" }}>〰️</text>
+      <text x="154" y="106" fontSize="22"
+        style={{ animation: "tama-wave 0.5s ease-out 0.15s infinite" }}>〰️</text>
+      <text x="170" y="92"  fontSize="18"
+        style={{ animation: "tama-wave 0.5s ease-out 0.3s infinite" }}>〰️</text>
+      {/* Notas musicales volando */}
+      <text x="16"  y="55" fontSize="16"
+        style={{ animation: "tama-heartfloat 1s ease-out 0s infinite" }}>🎵</text>
+      <text x="154" y="50" fontSize="14"
+        style={{ animation: "tama-heartfloat 1s ease-out 0.4s infinite" }}>🎶</text>
+      {/* Expresión de "¿qué?" del entorno */}
+      <text x="16" y="130" fontSize="13"
+        style={{ animation: "tama-zzz 0.9s ease-out 0.2s infinite" }}>💨</text>
     </g>
   );
 
@@ -492,11 +582,14 @@ export default function ChibiArdilla({
     enfadada:    "tama-rage",
     malita:      "tama-nausea",
     ojeras:      "tama-grumpy-tired",
+    pedos:       "tama-pedo-push",
+    eructando:   "tama-eructo",
   };
   const dur: Record<TamaVisualState, string> = {
     muy_feliz: "0.7s", feliz: "1.8s", neutral: "3s", triste: "3.5s", hambre: "0.9s",
     cansada: "4s", muy_cansada: "5.5s", comiendo: "2s", durmiendo: "4s",
     jugando: "0.7s", enfadada: "0.45s", malita: "2.8s", ojeras: "2.2s",
+    pedos: "0.55s", eructando: "0.25s",
   };
 
   const anim = isTickling ? "tama-tickle" : animMap[state];
@@ -631,6 +724,41 @@ export default function ChibiArdilla({
           45%{transform:translateY(7px) rotate(2deg);}
           65%{transform:translateY(4px) rotate(-2deg);}
           85%{transform:translateY(6px) rotate(1deg);}
+        }
+        @keyframes tama-pedo-push {
+          0%,100%{transform:translateY(0) rotate(0) scale(1);}
+          20%{transform:translateY(6px) rotate(3deg) scale(0.97,1.03);}
+          40%{transform:translateY(10px) rotate(-2deg) scale(0.96,1.05);}
+          60%{transform:translateY(6px) rotate(2deg) scale(0.98,1.02);}
+          80%{transform:translateY(3px) rotate(-1deg) scale(0.99,1.01);}
+        }
+        @keyframes tama-eructo {
+          0%,100%{transform:translate(0,0) rotate(0deg) scale(1);}
+          10%{transform:translate(-5px,-3px) rotate(-3deg) scale(1.04);}
+          20%{transform:translate(5px,3px)  rotate(3deg)  scale(1.06);}
+          30%{transform:translate(-7px,-2px) rotate(-4deg) scale(1.05);}
+          40%{transform:translate(7px,2px)  rotate(4deg)  scale(1.07);}
+          50%{transform:translate(-5px,-3px) rotate(-3deg) scale(1.04);}
+          60%{transform:translate(5px,1px)  rotate(3deg)  scale(1.05);}
+          70%{transform:translate(-3px,-1px) rotate(-2deg) scale(1.03);}
+          80%{transform:translate(3px,1px)  rotate(2deg)  scale(1.02);}
+          90%{transform:translate(-1px,0)   rotate(-1deg) scale(1.01);}
+        }
+        @keyframes tama-gas {
+          0%{opacity:0;transform:translateY(0) scale(0.4);}
+          40%{opacity:0.85;transform:translateY(-14px) scale(1);}
+          100%{opacity:0;transform:translateY(-38px) scale(1.5);}
+        }
+        @keyframes tama-fly {
+          0%,100%{transform:translate(0,0) rotate(0deg);}
+          25%{transform:translate(4px,-5px) rotate(18deg);}
+          50%{transform:translate(-3px,-9px) rotate(-12deg);}
+          75%{transform:translate(5px,-4px) rotate(22deg);}
+        }
+        @keyframes tama-wave {
+          0%{opacity:0;transform:translateX(0) scale(0.6);}
+          45%{opacity:0.9;transform:translateX(8px) scale(1.1);}
+          100%{opacity:0;transform:translateX(22px) scale(1.5);}
         }
         .tama-body { transform-origin: center 82%; }
       `}</style>
