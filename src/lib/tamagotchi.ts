@@ -39,13 +39,13 @@ export type TamaStats = {
 
 export type TamaVisualState =
   | "muy_feliz" | "feliz" | "neutral" | "triste" | "hambre"
-  | "cansada"   | "comiendo" | "durmiendo" | "jugando" | "enfadada"
-  | "malita"    | "ojeras";
+  | "cansada"   | "muy_cansada" | "comiendo" | "durmiendo" | "jugando"
+  | "enfadada"  | "malita" | "ojeras";
 
 /* ════════════════════════════════════════════════════
    DECAY (por hora)
 ════════════════════════════════════════════════════ */
-const DECAY = { hambre: 2.8, energia: 2.0, animo: 2.2 };
+const DECAY = { hambre: 2.8, energia: 6.5, animo: 2.2 };
 
 /* ════════════════════════════════════════════════════
    ACTIVITY BOOSTS
@@ -86,6 +86,11 @@ const BASE_MESSAGES: Record<TamaVisualState, string[]> = {
   cansada:    [
     "Estoy agotada... 💤", "Necesito dormir un poco 😪", "Mis ojos se cierran... 🌙",
     "Hasta las ardillas necesitan su nidito 🌿",
+  ],
+  muy_cansada: [
+    "No puedo más... 😵 Necesito dormir YA", "Me caigo de sueño... 💤💤💤",
+    "Por favor... una siesta... 🛌", "¡Sin energía! No doy un paso más 😩",
+    "El bosque se mueve solo o soy yo que me tambaleo... 🌀",
   ],
   comiendo:   [
     "¡Mmm, está riquísimo! 😋", "¡Qué rico todo! 🍽️", "¡Gracias por la comida! 🥰",
@@ -415,8 +420,9 @@ export function computeVisualState(
   if (s.isAngry)  return "enfadada";
   if (s.badSleep) return "ojeras";
   const avg = (s.hambre + s.energia + s.animo) / 3;
-  if (s.hambre  <= 12) return "hambre";
-  if (s.energia <= 12) return "cansada";
+  if (s.hambre  <= 12)  return "hambre";
+  if (s.energia <= 5)   return "muy_cansada";
+  if (s.energia <= 25)  return "cansada";
   const min = Math.min(s.hambre, s.energia, s.animo);
   if (avg >= 80 && min >= 60) return "muy_feliz";
   if (avg >= 62) return "feliz";

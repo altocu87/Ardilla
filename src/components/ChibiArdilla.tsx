@@ -18,10 +18,13 @@ const C = {
 function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
   state: TamaVisualState; cx1?: number; cx2?: number; cy?: number;
 }) {
-  if (state === "durmiendo" || state === "cansada") return (
+  if (state === "durmiendo" || state === "cansada" || state === "muy_cansada") return (
     <g>
       {[cx1, cx2].map((cx, i) => (
         <g key={i}>
+          {state === "muy_cansada" && (
+            <ellipse cx={cx} cy={cy+20} rx={20} ry={9} fill="#6b21a8" opacity="0.45"/>
+          )}
           <path d={`M ${cx-24} ${cy} Q ${cx} ${cy-16} ${cx+24} ${cy}`}
             fill="none" stroke={C.dark} strokeWidth={5} strokeLinecap="round"/>
           {[-12, 0, 12].map((dx, j) => (
@@ -123,7 +126,7 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
 
 /* ── Eyebrows ───────────────────────────────────── */
 function Eyebrows({ state }: { state: TamaVisualState }) {
-  if (["durmiendo","cansada","comiendo","muy_feliz","jugando"].includes(state)) return null;
+  if (["durmiendo","cansada","muy_cansada","comiendo","muy_feliz","jugando"].includes(state)) return null;
   if (state === "enfadada" || state === "ojeras") return (
     <g stroke={C.dark} strokeWidth={5} strokeLinecap="round">
       <path d="M 63 83 Q 78 76 93 81" fill="none"/>
@@ -167,7 +170,7 @@ function Mouth({ state }: { state: TamaVisualState }) {
   if (state === "ojeras") return (
     <path d="M 88 128 Q 115 121 142 128" {...s} strokeWidth={4.5}/>
   );
-  if (state === "durmiendo" || state === "cansada") return (
+  if (state === "durmiendo" || state === "cansada" || state === "muy_cansada") return (
     <path d="M 97 124 Q 115 132 133 124" {...s} strokeWidth={3.5}/>
   );
   if (state === "malita") return (
@@ -193,6 +196,16 @@ function Accessory({ state, illnessType }: { state: TamaVisualState; illnessType
         style={{ animation: "tama-zzz 2.2s ease-in-out 1s infinite" }}>Z</text>
       <text x="16" y="86" fontSize="14" fill="#c4b5fd"
         style={{ animation: "tama-zzz 2.2s ease-in-out 1.5s infinite" }}>🌰</text>
+    </g>
+  );
+
+  if (state === "muy_cansada") return (
+    <g>
+      <text x="152" y="66" fontSize="11" fill="#94a3b8" fontWeight="bold" opacity="0.65"
+        style={{ animation: "tama-zzz 3s ease-in-out 0s infinite" }}>z</text>
+      <text x="163" y="52" fontSize="14" fill="#94a3b8" fontWeight="bold" opacity="0.5"
+        style={{ animation: "tama-zzz 3s ease-in-out 0.8s infinite" }}>z</text>
+      <text x="88"  y="24" fontSize="14">😩</text>
     </g>
   );
 
@@ -466,23 +479,24 @@ export default function ChibiArdilla({
   const scale = phase === "bebe" ? 0.92 : 1;
 
   const animMap: Record<TamaVisualState, string> = {
-    muy_feliz: "tama-dance",
-    feliz:     "tama-bounce",
-    neutral:   "tama-breathe",
-    triste:    "tama-sink",
-    hambre:    "tama-wobble",
-    cansada:   "tama-breathe-slow",
-    comiendo:  "tama-chomp-body",
-    durmiendo: "tama-float",
-    jugando:   "tama-hop",
-    enfadada:  "tama-rage",
-    malita:    "tama-nausea",
-    ojeras:    "tama-grumpy-tired",
+    muy_feliz:   "tama-dance",
+    feliz:       "tama-bounce",
+    neutral:     "tama-breathe",
+    triste:      "tama-sink",
+    hambre:      "tama-wobble",
+    cansada:     "tama-breathe-slow",
+    muy_cansada: "tama-breathe-slow",
+    comiendo:    "tama-chomp-body",
+    durmiendo:   "tama-float",
+    jugando:     "tama-hop",
+    enfadada:    "tama-rage",
+    malita:      "tama-nausea",
+    ojeras:      "tama-grumpy-tired",
   };
   const dur: Record<TamaVisualState, string> = {
     muy_feliz: "0.7s", feliz: "1.8s", neutral: "3s", triste: "3.5s", hambre: "0.9s",
-    cansada: "4s", comiendo: "2s", durmiendo: "4s", jugando: "0.7s", enfadada: "0.45s",
-    malita: "2.8s", ojeras: "2.2s",
+    cansada: "4s", muy_cansada: "5.5s", comiendo: "2s", durmiendo: "4s",
+    jugando: "0.7s", enfadada: "0.45s", malita: "2.8s", ojeras: "2.2s",
   };
 
   const anim = isTickling ? "tama-tickle" : animMap[state];

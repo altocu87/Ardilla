@@ -593,6 +593,14 @@ function StatsRow({
           <span className="text-[9px] font-bold shrink-0">💢</span>
         </div>
       )}
+      {stats.energia <= 5 && !stats.isAngry && !(stats.sleepUntil && Date.now() < stats.sleepUntil) && (
+        <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-orange-100 border-orange-400 text-orange-700"
+          style={{ animation: "badge-pulse 1.5s ease-in-out infinite" }}>
+          <span className="text-sm">😵</span>
+          <span className="text-[10px] font-bold flex-1 text-left">¡Sin energía! Muy cansada — necesita dormir ya</span>
+          <span className="text-[9px] font-bold shrink-0">💤</span>
+        </div>
+      )}
       {stats.badSleep && !stats.isAngry && (
         <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-indigo-100 border-indigo-300 text-indigo-700"
           style={{ animation: "badge-pulse 2s ease-in-out infinite" }}>
