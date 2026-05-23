@@ -1441,22 +1441,47 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
                 style={{ textShadow:"0 1px 6px rgba(0,0,0,0.5)" }}>{greeting()}</p>
             </div>
 
-            {/* Tappable squirrel */}
-            <button
-              onClick={tapSquirrel}
-              className="active:scale-95 transition-transform duration-75 focus:outline-none"
-              style={{ background: "none", border: "none", padding: 0 }}>
-              <ChibiArdilla
-                state={visualState}
-                phase={evolutionPhase}
-                equipped={equippedCloth}
-                catalog={CLOTHING_CATALOG}
-                isTickling={isTickling}
-                illnessType={tamaStats?.illness ?? undefined}
-                heldToyEmoji={heldToyEmoji}
-                className="drop-shadow-2xl"
-              />
-            </button>
+            {/* Tappable squirrel + iconos de pedo/eructo a los lados */}
+            <div className="flex items-center gap-2">
+
+              {/* 🍑 Culo — pedo */}
+              <button
+                onClick={handleFartButton}
+                className={`flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90 ${fartCooldown ? "opacity-25 pointer-events-none" : ""}`}>
+                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/35 flex items-center justify-center shadow-lg">
+                  <span className="text-2xl select-none">🍑</span>
+                </div>
+                <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">PEDO</span>
+              </button>
+
+              {/* Ardilla */}
+              <button
+                onClick={tapSquirrel}
+                className="active:scale-95 transition-transform duration-75 focus:outline-none"
+                style={{ background: "none", border: "none", padding: 0 }}>
+                <ChibiArdilla
+                  state={visualState}
+                  phase={evolutionPhase}
+                  equipped={equippedCloth}
+                  catalog={CLOTHING_CATALOG}
+                  isTickling={isTickling}
+                  illnessType={tamaStats?.illness ?? undefined}
+                  heldToyEmoji={heldToyEmoji}
+                  className="drop-shadow-2xl"
+                />
+              </button>
+
+              {/* 👄 Boca — eructo */}
+              <button
+                onClick={handleBurpButton}
+                className={`flex flex-col items-center gap-0.5 transition-all duration-150 active:scale-90 ${burpCooldown ? "opacity-25 pointer-events-none" : ""}`}>
+                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm border border-white/35 flex items-center justify-center shadow-lg">
+                  <span className="text-2xl select-none">👄</span>
+                </div>
+                <span className="text-white/75 text-[8px] font-extrabold tracking-wide drop-shadow">ERUCTO</span>
+              </button>
+
+            </div>
 
             {/* Speech bubble */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-3 py-1.5 shadow-lg border border-white/60 max-w-[210px]">
@@ -1546,25 +1571,6 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-base">🎾</span>
           <span className="text-xs font-bold text-white">Jugar</span>
         </button>
-      </div>
-
-      {/* ── Botones divertidos ── */}
-      <div className="shrink-0 px-4 pb-1 flex gap-2">
-        <button onClick={handleFartButton}
-          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl shadow-sm transition-all active:scale-95 ${
-            fartCooldown ? "bg-slate-300 cursor-not-allowed" : "bg-green-500"
-          }`}>
-          <span className="text-lg">💨</span>
-          <span className="text-[11px] font-bold text-white leading-tight">Pedo</span>
-        </button>
-        <button onClick={handleBurpButton}
-          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl shadow-sm transition-all active:scale-95 ${
-            burpCooldown ? "bg-slate-300 cursor-not-allowed" : "bg-teal-500"
-          }`}>
-          <span className="text-lg">😮‍💨</span>
-          <span className="text-[11px] font-bold text-white leading-tight">Eructo</span>
-        </button>
-        <div className="flex-1"/>
       </div>
 
       {/* ── Botones ── */}
