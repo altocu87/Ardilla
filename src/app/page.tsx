@@ -14,11 +14,13 @@ import { getMascotConfig } from "@/lib/mascot";
 import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, sleepTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
+  canSleepNow,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
 import {
-  getEquippedClothing, CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
+  getDayClothing, getNightClothing,
+  CLOTHING_CATALOG, getFoodInventory, FOOD_CATALOG, MEDICINE_CATALOG,
   getOwnedToys, TOY_CATALOG, isToyOnCooldown, recordToyUse, consumeFood,
   getEquippedToy, getSleepItemCount, tickSleepDurability,
   type EquippedClothing,
@@ -743,13 +745,15 @@ export default function Home() {
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
+  const [infoToast,      setInfoToast]      = useState<string | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const achTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const regCtxRef   = useRef<MessageContext>({});
 
   /* Clothing & toy */
-  const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
-  const [equippedToyId, setEquippedToyId] = useState<string | null>(null);
+  const [equippedCloth,  setEquippedCloth]  = useState<EquippedClothing>({}); // set activo mostrado
+  const [nightCloth,     setNightCloth]     = useState<EquippedClothing>({}); // set noche (para sleep)
+  const [equippedToyId,  setEquippedToyId]  = useState<string | null>(null);
 
   /* Avatar / título */
   const [equippedAvatar,   setEquippedAvatarState]   = useState<string | null>(null);
@@ -788,17 +792,21 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const allAvatares = getShopAvatares();
     setAvatarItems(allAvatares);
     setOwnedIds(owned);
-    setEquippedCloth(getEquippedClothing());
+    const night = getNightClothing();
+    const day   = getDayClothing();
+    setNightCloth(night);
+    setEquippedCloth(isNightTime() ? night : day);
     setEquippedToyId(getEquippedToy());
   }, []);
 
   const loadTama = useCallback(() => {
     /* Procesado nocturno (protegido internamente a una vez por día) */
-    const sleepCount = getSleepItemCount(getEquippedClothing());
+    const sleepCount = getSleepItemCount(); // usa el set de noche por defecto
     rollBadSleep(sleepCount);
     const broken = tickSleepDurability();
     if (broken.length) {
-      setEquippedCloth(getEquippedClothing());
+      const night = getNightClothing();
+      setNightCloth(night);
       setBrokenSleepItems(broken.map(b => `${b.emoji} ${b.name}`));
     }
 
@@ -940,9 +948,21 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
   }
 
   function handleSleep() {
-    const count = getSleepItemCount(equippedCloth);
-    const s = sleepTama(count); setTamaStats(s);
+    if (!tamaStats) return;
+    const check = canSleepNow(tamaStats.energia);
+    if (!check.ok) {
+      setInfoToast(check.reason ?? "No puede dormir ahora");
+      setTimeout(() => setInfoToast(null), 3500);
+      return;
+    }
+    // Cambiar a ropa de noche durante el sueño
+    setEquippedCloth(nightCloth);
+    const s = sleepTama(); setTamaStats(s);
     triggerAction("durmiendo", 3000);
+    // Tras la animación, mantener set según hora
+    setTimeout(() => {
+      setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
+    }, 3500);
   }
 
   function handlePlay(toyId: string) {
@@ -1062,6 +1082,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
       {/* Achievement toast */}
       {achToast && <AchievementToast ach={achToast}/>}
+
+      {/* Info toast (ej. no puede dormir) */}
+      {infoToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-800/95 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl max-w-[80vw] text-center leading-snug">
+          {infoToast}
+        </div>
+      )}
 
       {/* ── Perfil ── */}
       <div className="shrink-0 px-4 pt-4">
@@ -1200,12 +1227,28 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
           <span className="text-base">🍎</span>
           <span className="text-xs font-bold text-white">Comer</span>
         </button>
-        <button onClick={handleSleep}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl shadow-sm active:scale-95 transition-transform ${tamaStats?.badSleep ? "bg-indigo-600 ring-2 ring-indigo-300 ring-offset-1" : "bg-indigo-500"}`}
-          style={tamaStats?.badSleep ? { animation: "badge-pulse 1.5s ease-in-out infinite" } : {}}>
-          <span className="text-base">😴</span>
-          <span className="text-xs font-bold text-white">Dormir</span>
-        </button>
+        {(() => {
+          const sleepCheck = tamaStats ? canSleepNow(tamaStats.energia) : { ok: false };
+          const canSleep   = sleepCheck.ok;
+          const pulseAnim  = tamaStats?.badSleep && canSleep;
+          return (
+            <button onClick={handleSleep}
+              className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl shadow-sm transition-all ${
+                canSleep
+                  ? pulseAnim
+                    ? "bg-indigo-600 ring-2 ring-indigo-300 ring-offset-1 active:scale-95"
+                    : "bg-indigo-500 active:scale-95"
+                  : "bg-slate-300 cursor-not-allowed"
+              }`}
+              style={pulseAnim ? { animation: "badge-pulse 1.5s ease-in-out infinite" } : {}}>
+              <span className="text-base">😴</span>
+              <span className="text-xs font-bold text-white leading-tight">Dormir</span>
+              {!canSleep && tamaStats && tamaStats.energia >= 50 && (
+                <span className="text-[8px] text-white/70 leading-none">E≥50</span>
+              )}
+            </button>
+          );
+        })()}
         <button onClick={() => setShowPlayPanel(true)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 rounded-2xl shadow-sm active:scale-95 transition-transform">
           <span className="text-base">🎾</span>

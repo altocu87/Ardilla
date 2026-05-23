@@ -14,7 +14,7 @@ import {
   FOOD_CATALOG, CLOTHING_CATALOG, TOY_CATALOG, SLEEP_ITEM_IDS,
   getFoodInventory, getOwnedClothing, getOwnedToys,
   addFood, addOwnedClothing, addOwnedToy,
-  getEquippedClothing, toggleClothing,
+  getDayClothing, getNightClothing, toggleClothing,
   getEquippedToy, setEquippedToy,
   type EquippedClothing,
 } from "@/lib/squirrel-shop";
@@ -60,11 +60,12 @@ export default function Tienda() {
   const [titulos,   setTitulos]     = useState<TituloItem[]>([]);
 
   // Squirrel shop
-  const [foodInv,       setFoodInv]       = useState<Record<string,number>>({});
-  const [ownedCloth,    setOwnedCloth]    = useState<string[]>([]);
-  const [ownedToys,     setOwnedToys]     = useState<string[]>([]);
-  const [equippedCloth, setEquippedCloth] = useState<EquippedClothing>({});
-  const [equippedToy,   setEquippedToyState] = useState<string | null>(null);
+  const [foodInv,        setFoodInv]        = useState<Record<string,number>>({});
+  const [ownedCloth,     setOwnedCloth]     = useState<string[]>([]);
+  const [ownedToys,      setOwnedToys]      = useState<string[]>([]);
+  const [dayEquipped,    setDayEquipped]    = useState<EquippedClothing>({});
+  const [nightEquipped,  setNightEquipped]  = useState<EquippedClothing>({});
+  const [equippedToy,    setEquippedToyState] = useState<string | null>(null);
 
   useEffect(() => {
     getPlayerProfile()
@@ -80,7 +81,8 @@ export default function Tienda() {
     setFoodInv(getFoodInventory());
     setOwnedCloth(getOwnedClothing());
     setOwnedToys(getOwnedToys());
-    setEquippedCloth(getEquippedClothing());
+    setDayEquipped(getDayClothing());
+    setNightEquipped(getNightClothing());
     setEquippedToyState(getEquippedToy());
   }, []);
 
@@ -188,9 +190,11 @@ export default function Tienda() {
   }
 
   function handleToggleClothing(id: string) {
-    const newEq = toggleClothing(id);
-    setEquippedCloth({...newEq});
-    showToast("Ropa actualizada ✓");
+    toggleClothing(id); // enruta al set correcto: sueño→noche, resto→día
+    setDayEquipped({...getDayClothing()});
+    setNightEquipped({...getNightClothing()});
+    const isSleep = SLEEP_ITEM_IDS.includes(id);
+    showToast(isSleep ? "Ropa de noche actualizada 🌙" : "Ropa de día actualizada ☀️");
   }
 
   function handleToggleToy(id: string) {
@@ -426,10 +430,11 @@ export default function Tienda() {
 
           function ClothCard({ item }: { item: typeof CLOTHING_CATALOG[0] }) {
             const owned     = ownedCloth.includes(item.id);
-            const equipped  = equippedCloth[item.slot] === item.id;
+            const isSleep   = SLEEP_ITEM_IDS.includes(item.id);
+            const activeSet = isSleep ? nightEquipped : dayEquipped;
+            const equipped  = activeSet[item.slot] === item.id;
             const canAfford = bellotas >= item.price;
             const isBuying  = buying === item.id;
-            const isSleep   = SLEEP_ITEM_IDS.includes(item.id);
             return (
               <div className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${
                 equipped
@@ -483,8 +488,8 @@ export default function Tienda() {
                 <div className="flex items-center gap-2">
                   <span className="text-xl">😴</span>
                   <div>
-                    <p className="text-sm font-bold text-indigo-700">Ítems de sueño</p>
-                    <p className="text-[10px] text-indigo-400">Reducen la probabilidad de dormir mal · cada uno dura 10 noches</p>
+                    <p className="text-sm font-bold text-indigo-700">Ítems de sueño 🌙</p>
+                    <p className="text-[10px] text-indigo-400">Se asignan al set de noche · duran 10 noches · reducen el riesgo de dormir mal</p>
                   </div>
                 </div>
                 {sleepItems.map(item => <ClothCard key={item.id} item={item} />)}

@@ -273,15 +273,44 @@ export function feedTama(hambreRestore: number, animoBoost = 0): TamaStats {
   return s;
 }
 
-export function sleepTama(sleepItemCount = 0): TamaStats {
+/* ════════════════════════════════════════════════════
+   SLEEP COOLDOWN
+════════════════════════════════════════════════════ */
+export const SLEEP_COOLDOWN_H  = 6;    // horas entre cada sueño
+export const SLEEP_ENERGY_GATE = 50;   // energía máxima para poder dormir
+const LAST_SLEEP_KEY = "sq_last_sleep_ts";
+
+export function getLastSleepTime(): number {
+  if (typeof window === "undefined") return 0;
+  return parseInt(localStorage.getItem(LAST_SLEEP_KEY) ?? "0", 10);
+}
+function setLastSleepTime(): void {
+  if (typeof window !== "undefined")
+    localStorage.setItem(LAST_SLEEP_KEY, Date.now().toString());
+}
+export function canSleepNow(energia: number): { ok: boolean; reason?: string } {
+  if (energia >= SLEEP_ENERGY_GATE)
+    return { ok: false, reason: `Energía ${Math.round(energia)}/100 — no tiene sueño aún` };
+  const elapsed  = Date.now() - getLastSleepTime();
+  const cooldown = SLEEP_COOLDOWN_H * 3_600_000;
+  if (elapsed < cooldown) {
+    const mins = Math.ceil((cooldown - elapsed) / 60_000);
+    const hrs  = Math.floor(mins / 60);
+    const rem  = mins % 60;
+    const txt  = hrs > 0 ? `${hrs}h ${rem}min` : `${mins} min`;
+    return { ok: false, reason: `Descansó hace poco · faltan ${txt}` };
+  }
+  return { ok: true };
+}
+
+export function sleepTama(): TamaStats {
   const s = getTamaStats();
-  const energyGain = 8 + sleepItemCount * 4; // 8 / 12 / 16 / 20
-  const animoGain  = 3 + sleepItemCount;     // 3 / 4 / 5 / 6
-  s.energia  = Math.min(100, s.energia + energyGain);
-  s.animo    = Math.min(100, s.animo   + animoGain);
+  s.energia  = Math.min(100, s.energia + 10); // máximo +10
+  s.animo    = Math.min(100, s.animo   + 3);
   s.badSleep = false;
   s.salud    = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
+  setLastSleepTime();
   saveTamaStats(s);
   return s;
 }

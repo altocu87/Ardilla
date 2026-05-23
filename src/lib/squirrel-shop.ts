@@ -113,7 +113,7 @@ export function consumeFood(id: string): boolean {
 }
 
 /* ════════════════════════════════════════════════════
-   CLOTHING
+   CLOTHING  (día / noche)
 ════════════════════════════════════════════════════ */
 export function getOwnedClothing(): string[] { return load("sq_owned_cloth", []); }
 export function addOwnedClothing(id: string): void {
@@ -124,17 +124,63 @@ export function addOwnedClothing(id: string): void {
     initSleepDurability(id);
   }
 }
-export function getEquippedClothing(): EquippedClothing { return load("sq_equipped_cloth", {}); }
-export function setEquippedClothing(eq: EquippedClothing): void { save("sq_equipped_cloth", eq); }
 
-export function toggleClothing(clothingId: string): EquippedClothing {
+/* ── Sets de día y noche ──────────────────────────────────────────────────── */
+function migrateOldEquipped(): void {
+  if (typeof window === "undefined") return;
+  if (localStorage.getItem("sq_equipped_day") !== null) return; // ya migrado
+  const legacy = load<EquippedClothing>("sq_equipped_cloth", {});
+  const day: EquippedClothing = {}; const night: EquippedClothing = {};
+  for (const [slot, id] of Object.entries(legacy)) {
+    if (!id) continue;
+    if (SLEEP_ITEM_IDS.includes(id)) night[slot as ClothingSlot] = id;
+    else day[slot as ClothingSlot] = id;
+  }
+  save("sq_equipped_day",   day);
+  save("sq_equipped_night", night);
+}
+
+export function getDayClothing(): EquippedClothing {
+  migrateOldEquipped();
+  return load("sq_equipped_day", {});
+}
+export function setDayClothing(eq: EquippedClothing): void {
+  save("sq_equipped_day", eq);
+}
+
+export function getNightClothing(): EquippedClothing {
+  migrateOldEquipped();
+  return load("sq_equipped_night", {});
+}
+export function setNightClothing(eq: EquippedClothing): void {
+  save("sq_equipped_night", eq);
+}
+
+/** Alias backward-compat — devuelve el set de DÍA */
+export function getEquippedClothing(): EquippedClothing { return getDayClothing(); }
+export function setEquippedClothing(eq: EquippedClothing): void { setDayClothing(eq); }
+
+export function toggleDayClothing(clothingId: string): EquippedClothing {
   const item = CLOTHING_CATALOG.find(c => c.id === clothingId);
-  if (!item) return getEquippedClothing();
-  const eq = getEquippedClothing();
-  if (eq[item.slot] === clothingId) delete eq[item.slot];
-  else eq[item.slot] = clothingId;
-  setEquippedClothing(eq);
-  return eq;
+  if (!item) return getDayClothing();
+  const eq = getDayClothing();
+  if (eq[item.slot] === clothingId) delete eq[item.slot]; else eq[item.slot] = clothingId;
+  setDayClothing(eq); return eq;
+}
+
+export function toggleNightClothing(clothingId: string): EquippedClothing {
+  const item = CLOTHING_CATALOG.find(c => c.id === clothingId);
+  if (!item) return getNightClothing();
+  const eq = getNightClothing();
+  if (eq[item.slot] === clothingId) delete eq[item.slot]; else eq[item.slot] = clothingId;
+  setNightClothing(eq); return eq;
+}
+
+/** Enruta al set correcto automáticamente: ítems de sueño → noche, resto → día */
+export function toggleClothing(clothingId: string): EquippedClothing {
+  return SLEEP_ITEM_IDS.includes(clothingId)
+    ? toggleNightClothing(clothingId)
+    : toggleDayClothing(clothingId);
 }
 
 /* ════════════════════════════════════════════════════
@@ -143,8 +189,10 @@ export function toggleClothing(clothingId: string): EquippedClothing {
 export const SLEEP_ITEM_IDS = ["cloth_tapones", "cloth_antifaz", "cloth_pijama"];
 export const SLEEP_ITEM_MAX_NIGHTS = 10;
 
-export function getSleepItemCount(equipped: EquippedClothing): number {
-  return SLEEP_ITEM_IDS.filter(id => Object.values(equipped).includes(id)).length;
+/** Cuenta ítems de sueño equipados en el set de NOCHE (o en el set pasado) */
+export function getSleepItemCount(equipped?: EquippedClothing): number {
+  const eq = equipped ?? getNightClothing();
+  return SLEEP_ITEM_IDS.filter(id => Object.values(eq).includes(id)).length;
 }
 
 function getSleepDurability(): Record<string, number> { return load("sq_sleep_durability", {}); }
@@ -165,7 +213,7 @@ export function tickSleepDurability(): SquirrelClothing[] {
   if (last >= today) return [];
   save("sq_sleep_night_tick", today);
 
-  const eq    = getEquippedClothing();
+  const eq    = getNightClothing();   // los ítems de sueño solo están en el set de noche
   const dur   = getSleepDurability();
   const owned = getOwnedClothing();
   const broken: SquirrelClothing[] = [];
@@ -183,7 +231,7 @@ export function tickSleepDurability(): SquirrelClothing[] {
       dur[id] = remaining;
     }
   }
-  setEquippedClothing(eq);
+  setNightClothing(eq);
   save("sq_owned_cloth", owned);
   save("sq_sleep_durability", dur);
   return broken;
