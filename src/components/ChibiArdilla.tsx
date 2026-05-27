@@ -229,7 +229,6 @@ function Mouth({ state }: { state: TamaVisualState }) {
 /* ── Action accessories ─────────────────────────── */
 function Accessory({ state, illnessType }: { state: TamaVisualState; illnessType?: IllnessType }) {
   const floatStyle = (delay: string) => ({ animation: `tama-heartfloat 1.5s ease-out ${delay} infinite` } as React.CSSProperties);
-  const tearStyle  = (delay: string) => ({ animation: `tama-tearfall 2s ease-in ${delay} infinite` } as React.CSSProperties);
   const waveStyle  = (delay: string) => ({ animation: `tama-wobble 1.2s ease-in-out ${delay} infinite` } as React.CSSProperties);
 
   if (state === "durmiendo") return (

@@ -167,7 +167,7 @@ export default function GameStatsModal({ onClose }: { onClose: () => void }) {
                 <div className="text-center py-10">
                   <p className="text-5xl mb-3">🎮</p>
                   <p className="text-slate-500 text-sm font-semibold">Todavía no has jugado ninguna partida</p>
-                  <p className="text-slate-400 text-xs mt-1">Toca "Jugar" para empezar</p>
+                  <p className="text-slate-400 text-xs mt-1">Toca &quot;Jugar&quot; para empezar</p>
                 </div>
               )}
             </div>
@@ -325,7 +325,7 @@ export default function GameStatsModal({ onClose }: { onClose: () => void }) {
                 <div className="text-center py-10">
                   <p className="text-5xl mb-3">👥</p>
                   <p className="text-slate-500 text-sm font-semibold">Sin partidas 2 jugadores todavía</p>
-                  <p className="text-slate-400 text-xs mt-1">Elige el modo "2 Jugadores" en cualquier juego</p>
+                  <p className="text-slate-400 text-xs mt-1">Elige el modo &quot;2 Jugadores&quot; en cualquier juego</p>
                 </div>
               )}
             </div>

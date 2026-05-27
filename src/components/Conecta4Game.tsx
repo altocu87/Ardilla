@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 import { recordResult1P, record2PResult } from "@/lib/game-stats";
 
