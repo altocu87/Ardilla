@@ -37,6 +37,7 @@ import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
 import MayorMenorGame from "@/components/MayorMenorGame";
+import AnimalRaceGame from "@/components/AnimalRaceGame";
 import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom, playCositas } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
@@ -777,6 +778,7 @@ export default function Home() {
   const [showMemoryGame,    setShowMemoryGame]    = useState(false);
   const [showSopaLetras,    setShowSopaLetras]    = useState(false);
   const [showMayorMenor,    setShowMayorMenor]    = useState(false);
+  const [showAnimalRace,    setShowAnimalRace]    = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
   const [brokenSleepItems,  setBrokenSleepItems]  = useState<string[]>([]);
@@ -1696,6 +1698,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             { label: "Memoria animal",    emoji: "🃏", onClick: () => setShowMemoryGame(true) },
             { label: "Sopa de letras",    emoji: "🔤", onClick: () => setShowSopaLetras(true) },
             { label: "Mayor o Menor",     emoji: "🎴", onClick: () => setShowMayorMenor(true) },
+            { label: "Carrera del Bosque", emoji: "🏁", onClick: () => setShowAnimalRace(true) },
           ]}
         />
       )}
@@ -1720,6 +1723,11 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       {showMayorMenor && (
         <MayorMenorGame
           onClose={() => setShowMayorMenor(false)}
+        />
+      )}
+      {showAnimalRace && (
+        <AnimalRaceGame
+          onClose={() => setShowAnimalRace(false)}
         />
       )}
       {showMedicineModal && tamaStats?.illness && (
