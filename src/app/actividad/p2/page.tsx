@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SIGNALS, EMOTIONS, BODY_R, IMPULSES } from "@/lib/constants";
+import { SIGNALS, EMOTIONS, EMOTION_EMOJIS, BODY_R, IMPULSES } from "@/lib/constants";
 import { savePracticeLog } from "@/lib/db";
 import SnailProgress from "@/components/SnailProgress";
 import { awardXp, type AwardResult } from "@/lib/profile";
@@ -65,11 +65,13 @@ function Sel({
   value,
   onChange,
   activeClass,
+  emojiMap,
 }: {
   options: string[];
   value: string[];
   onChange: (v: string[]) => void;
   activeClass: string;
+  emojiMap?: Record<string, string>;
 }) {
   function toggle(opt: string) {
     onChange(value.includes(opt) ? value.filter(x => x !== opt) : [...value, opt]);
@@ -78,6 +80,7 @@ function Sel({
     <div className="flex flex-col gap-2">
       {options.map(opt => {
         const sel = value.includes(opt);
+        const emoji = emojiMap?.[opt];
         return (
           <button
             key={opt}
@@ -86,7 +89,10 @@ function Sel({
               sel ? activeClass : "bg-white border-slate-200 text-slate-600"
             }`}
           >
-            <span>{opt}</span>
+            <span className="flex items-center gap-2">
+              {emoji && <span className="text-xl leading-none">{emoji}</span>}
+              {opt}
+            </span>
             {sel && <span className="shrink-0 text-base leading-none">✓</span>}
           </button>
         );
@@ -212,7 +218,7 @@ export default function P2() {
               <div className="h-px bg-slate-100"/>
               <SummaryRow label="Pensamiento" value={thought} />
               <div className="h-px bg-slate-100"/>
-              <SummaryRow label="Emoción"     value={emotion.join(", ")} />
+              <SummaryRow label="Emoción"     value={emotion.map(e => `${EMOTION_EMOJIS[e] ?? ""}${EMOTION_EMOJIS[e] ? " " : ""}${e}`).join("  ·  ")} />
               <div className="h-px bg-slate-100"/>
               <SummaryRow label="Cuerpo"      value={body.join(", ")}    />
               <div className="h-px bg-slate-100"/>
@@ -314,6 +320,7 @@ export default function P2() {
                 value={emotion}
                 onChange={setEmotion}
                 activeClass="bg-fuchsia-100 border-fuchsia-400 text-fuchsia-800 font-semibold"
+                emojiMap={EMOTION_EMOJIS}
               />
             )}
 

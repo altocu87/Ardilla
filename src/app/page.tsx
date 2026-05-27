@@ -36,6 +36,7 @@ import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
+import MayorMenorGame from "@/components/MayorMenorGame";
 import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom, playCositas } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
@@ -775,6 +776,7 @@ export default function Home() {
   const [showMiniGame,      setShowMiniGame]      = useState(false);
   const [showMemoryGame,    setShowMemoryGame]    = useState(false);
   const [showSopaLetras,    setShowSopaLetras]    = useState(false);
+  const [showMayorMenor,    setShowMayorMenor]    = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
   const [brokenSleepItems,  setBrokenSleepItems]  = useState<string[]>([]);
@@ -1693,6 +1695,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             { label: "¡Atrapa bellotas!", emoji: "🌰", onClick: () => setShowMiniGame(true) },
             { label: "Memoria animal",    emoji: "🃏", onClick: () => setShowMemoryGame(true) },
             { label: "Sopa de letras",    emoji: "🔤", onClick: () => setShowSopaLetras(true) },
+            { label: "Mayor o Menor",     emoji: "🎴", onClick: () => setShowMayorMenor(true) },
           ]}
         />
       )}
@@ -1712,6 +1715,11 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         <SopaDeLetras
           onFinish={handleSopaFinish}
           onClose={() => setShowSopaLetras(false)}
+        />
+      )}
+      {showMayorMenor && (
+        <MayorMenorGame
+          onClose={() => setShowMayorMenor(false)}
         />
       )}
       {showMedicineModal && tamaStats?.illness && (

@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { getPracticeLogs, deletePracticeLog, type PracticeLogEntry, type PracticeType } from "@/lib/db";
+import { EMOTION_EMOJIS } from "@/lib/constants";
 
 const PRACTICE_INFO: Record<PracticeType, {
   label: string; short: string; emoji: string; accent: string; bg: string; border: string;
@@ -71,7 +72,11 @@ function EntryContent({ entry }: { entry: PracticeLogEntry }) {
       <div className="flex flex-col gap-2 text-xs">
         <DataRow label="Sensación"   value={String(d.signal  ?? "—")} />
         <DataRow label="Pensamiento" value={String(d.thought ?? "—")} />
-        <DataRow label="Emoción"     value={String(d.emotion ?? "—")} />
+        <DataRow label="Emoción"     value={
+          d.emotion
+            ? String(d.emotion).split(", ").map(e => `${EMOTION_EMOJIS[e.trim()] ?? ""} ${e.trim()}`).join("  ·  ")
+            : "—"
+        } />
         <DataRow label="Cuerpo"      value={String(d.body    ?? "—")} />
         <DataRow label="Impulso"     value={String(d.impulse ?? "—")} />
         <DataRow label="Necesidad"   value={String(d.need    ?? "—")} />

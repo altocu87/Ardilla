@@ -40,6 +40,17 @@ export const EMOTIONS: string[] = [
   "Tristeza",
 ];
 
+export const EMOTION_EMOJIS: Record<string, string> = {
+  "Miedo":        "😨",
+  "Rabia":        "😡",
+  "Frustración":  "😤",
+  "Impotencia":   "😞",
+  "Asco":         "🤢",
+  "Desesperación":"😩",
+  "Ansiedad":     "😰",
+  "Tristeza":     "😢",
+};
+
 export const BODY_R: string[] = [
   "Se tensa todo el cuerpo",
   "Aprieto la mandíbula",
