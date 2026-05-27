@@ -16,6 +16,7 @@ export type ClothingType = "bufanda" | "sombrero" | "gafas" | "lazo" | "jersey" 
 export type SquirrelClothing = {
   id: string; emoji: string; name: string; desc: string;
   price: number; slot: ClothingSlot; clothingType: ClothingType; color: string;
+  treeExclusive?: boolean;  // solo se obtiene del árbol del bosque, no comprable
 };
 
 export type SquirrelToy = {
@@ -71,6 +72,13 @@ export const CLOTHING_CATALOG: SquirrelClothing[] = [
   { id: "cloth_tapones",     emoji: "🔇", name: "Tapones para oídos", desc: "Mejor sueño 😴 · dura 10 noches",   price: 45, slot: "head",  clothingType: "tapones",  color: "#fef08a" },
   { id: "cloth_antifaz",     emoji: "🌙", name: "Antifaz para dormir",desc: "Oscuridad total ✨ · dura 10 noches", price: 45, slot: "eyes",  clothingType: "antifaz",  color: "#312e81" },
   { id: "cloth_pijama",      emoji: "🩲", name: "Pijama cómodo",      desc: "El más suave 💜 · dura 10 noches",  price: 55, slot: "body",  clothingType: "pijama",   color: "#c4b5fd" },
+  // ── Prendas exclusivas del Árbol del Bosque (no comprables, solo recolectables) ─
+  { id: "tree_hoja_roble",       emoji: "🍃", name: "Hoja de Roble",       desc: "Brota en el árbol tras 3 días seguidos 🌳",      price: 0, slot: "head",  clothingType: "lazo",    color: "#15803d", treeExclusive: true },
+  { id: "tree_ristra_bellotas",  emoji: "🌰", name: "Ristra de Bellotas",  desc: "Collar forjado con las bellotas del árbol",       price: 0, slot: "neck",  clothingType: "collar",  color: "#92400e", treeExclusive: true },
+  { id: "tree_sombrero_seta",    emoji: "🍄", name: "Sombrero Seta",       desc: "Crece solo tras dos semanas de constancia 🍄",    price: 0, slot: "head",  clothingType: "sombrero", color: "#dc2626", treeExclusive: true },
+  { id: "tree_capa_hojas",       emoji: "🍂", name: "Capa de Hojas",       desc: "Tejida con hojas caídas del árbol legendario",    price: 0, slot: "body",  clothingType: "capa",    color: "#b45309", treeExclusive: true },
+  { id: "tree_corona_bosque",    emoji: "🌿", name: "Corona del Bosque",   desc: "Solo para quien cuida su árbol un mes entero 👑", price: 0, slot: "head",  clothingType: "corona",  color: "#16a34a", treeExclusive: true },
+  { id: "tree_manto_legendario", emoji: "🌳", name: "Manto Legendario",    desc: "El ítem más raro del bosque. 60 días de racha",   price: 0, slot: "body",  clothingType: "abrigo",  color: "#064e3b", treeExclusive: true },
 ];
 
 export const TOY_CATALOG: SquirrelToy[] = [

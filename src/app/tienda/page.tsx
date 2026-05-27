@@ -426,7 +426,7 @@ export default function Tienda() {
         {/* ══ TAB: ROPA ══ */}
         {tab === "ropa" && (() => {
           const sleepItems  = CLOTHING_CATALOG.filter(c => SLEEP_ITEM_IDS.includes(c.id));
-          const normalItems = CLOTHING_CATALOG.filter(c => !SLEEP_ITEM_IDS.includes(c.id));
+          const normalItems = CLOTHING_CATALOG.filter(c => !SLEEP_ITEM_IDS.includes(c.id) && !c.treeExclusive);
 
           function ClothCard({ item }: { item: typeof CLOTHING_CATALOG[0] }) {
             const owned     = ownedCloth.includes(item.id);

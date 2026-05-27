@@ -1,7 +1,17 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { getPregLog, getPlayerProfile } from "@/lib/db";
+import { getPregLog, getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
+import {
+  TREE_GIFTS,
+  getAvailableGift,
+  collectGift,
+  getHarvestAmount,
+  canHarvestToday,
+  recordHarvest,
+  getCollectedGifts,
+  type TreeGift,
+} from "@/lib/tree-gifts";
 
 /* ── Etapas del árbol ───────────────────────────────────────────────────── */
 const STAGES = [
@@ -14,7 +24,6 @@ const STAGES = [
   { min: 30, name: "Árbol legendario", desc: "El más antiguo del bosque. Indestructible.",    emoji: "✨" },
 ];
 
-/* Animales que habitan el árbol según racha */
 const HABITANTS = [
   { emoji: "🐌", name: "Caracol",    days: 3,  desc: "Sube despacio pero seguro"   },
   { emoji: "🐿️", name: "Ardilla",   days: 7,  desc: "Guarda bellotas en las ramas" },
@@ -25,59 +34,52 @@ const HABITANTS = [
 
 function getStage(total: number) {
   let s = STAGES[0];
-  for (const stage of STAGES) {
-    if (total >= stage.min) s = stage;
-  }
+  for (const stage of STAGES) { if (total >= stage.min) s = stage; }
   return s;
 }
-
 function getNextStage(total: number) {
   for (let i = STAGES.length - 1; i >= 0; i--) {
-    if (total >= STAGES[i].min) {
-      return STAGES[i + 1] ?? null;
-    }
+    if (total >= STAGES[i].min) return STAGES[i + 1] ?? null;
   }
   return STAGES[1];
 }
-
 function calcStreak(log: Record<string, unknown>): number {
   const today = new Date();
   for (let i = 0; i < 365; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
+    const d = new Date(today); d.setDate(d.getDate() - i);
     if (!log[d.toISOString().slice(0, 10)]) return i;
   }
   return 365;
 }
 
 /* ── SVG del árbol ──────────────────────────────────────────────────────── */
-function TreeSVG({ total, streak }: { total: number; streak: number }) {
+function TreeSVG({
+  total, streak, hasGift, harvestAmt,
+}: {
+  total: number; streak: number; hasGift: boolean; harvestAmt: number;
+}) {
   const stageIdx = STAGES.findIndex(s => s === getStage(total));
 
-  // Parámetros por etapa
-  const trunkH    = [0, 18, 40, 65, 85, 100, 108][stageIdx] ?? 108;
-  const trunkW    = [0,  7, 10, 13,  16,  18,  20][stageIdx] ?? 20;
-  const c1r       = [0, 22, 36, 52,  65,  74,  80][stageIdx] ?? 80;  // capa baja
-  const c2r       = [0, 16, 28, 42,  54,  62,  68][stageIdx] ?? 68;  // capa media
-  const c3r       = [0,  9, 18, 30,  40,  48,  54][stageIdx] ?? 54;  // capa alta
+  const trunkH  = [0, 18, 40, 65, 85, 100, 108][stageIdx] ?? 108;
+  const trunkW  = [0,  7, 10, 13,  16,  18,  20][stageIdx] ?? 20;
+  const c1r     = [0, 22, 36, 52,  65,  74,  80][stageIdx] ?? 80;
+  const c2r     = [0, 16, 28, 42,  54,  62,  68][stageIdx] ?? 68;
+  const c3r     = [0,  9, 18, 30,  40,  48,  54][stageIdx] ?? 54;
 
-  // Color de la copa según racha (salud)
   const leafColor1 = streak >= 7 ? "#15803d" : streak >= 3 ? "#16a34a" : streak >= 1 ? "#22c55e" : "#86efac";
   const leafColor2 = streak >= 7 ? "#16a34a" : streak >= 3 ? "#22c55e" : streak >= 1 ? "#4ade80" : "#bbf7d0";
   const leafColor3 = streak >= 7 ? "#22c55e" : streak >= 3 ? "#4ade80" : streak >= 1 ? "#86efac" : "#dcfce7";
 
-  const cx      = 150;
-  const groundY = 230;
+  const cx = 150; const groundY = 230;
   const trunkTop = groundY - trunkH;
   const canopyY  = trunkTop - c1r * 0.6;
 
-  // Animales (posiciones fijas en el árbol)
-  const animalPositions = [
-    { x: cx - 55, y: canopyY + 28 }, // caracol (rama izquierda baja)
-    { x: cx + 52, y: canopyY + 18 }, // ardilla (rama derecha)
-    { x: cx + 10, y: trunkTop + 6 }, // gato (en la horquilla)
-    { x: cx - 50, y: canopyY - 12 }, // rata (rama izquierda alta)
-    { x: cx + 40, y: canopyY - 22 }, // cucaracha (copa)
+  const animalPos = [
+    { x: cx - 55, y: canopyY + 28 },
+    { x: cx + 52, y: canopyY + 18 },
+    { x: cx + 10, y: trunkTop + 6 },
+    { x: cx - 50, y: canopyY - 12 },
+    { x: cx + 40, y: canopyY - 22 },
   ];
 
   const showFruits = stageIdx >= 5;
@@ -106,21 +108,13 @@ function TreeSVG({ total, streak }: { total: number; streak: number }) {
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
         )}
-        {/* Nube */}
-        <filter id="cloud-shadow">
-          <feDropShadow dx="1" dy="2" stdDeviation="2" floodOpacity="0.1"/>
-        </filter>
       </defs>
 
       {/* Cielo */}
       <rect x="0" y="0" width="300" height="235" fill="url(#sky)"/>
-
-      {/* Sol */}
       <circle cx="260" cy="35" r="22" fill="#fde68a" opacity="0.85"/>
       <circle cx="260" cy="35" r="16" fill="#fbbf24"/>
-
-      {/* Nubes */}
-      <g opacity="0.9" filter="url(#cloud-shadow)">
+      <g opacity="0.9">
         <ellipse cx="55"  cy="40" rx="28" ry="14" fill="white"/>
         <ellipse cx="72"  cy="34" rx="20" ry="13" fill="white"/>
         <ellipse cx="38"  cy="36" rx="18" ry="11" fill="white"/>
@@ -131,9 +125,7 @@ function TreeSVG({ total, streak }: { total: number; streak: number }) {
       {/* Suelo */}
       <ellipse cx="150" cy="232" rx="130" ry="22" fill="#15803d" opacity="0.3"/>
       <rect x="0" y="228" width="300" height="52" fill="url(#ground)"/>
-
-      {/* Hierba */}
-      {[20, 45, 65, 85, 110, 190, 215, 235, 258, 278].map((x, i) => (
+      {[20,45,65,85,110,190,215,235,258,278].map((x, i) => (
         <g key={i} transform={`translate(${x}, 228)`}>
           <line x1="0" y1="0" x2="-3" y2="-8" stroke="#15803d" strokeWidth="1.5" strokeLinecap="round"/>
           <line x1="0" y1="0" x2="0"  y2="-9" stroke="#166534" strokeWidth="1.5" strokeLinecap="round"/>
@@ -141,7 +133,7 @@ function TreeSVG({ total, streak }: { total: number; streak: number }) {
         </g>
       ))}
 
-      {/* ── ETAPA 0: Sólo bellota ── */}
+      {/* Etapa 0: sólo bellota */}
       {stageIdx === 0 && (
         <>
           <text x={cx} y={240} textAnchor="middle" fontSize="32">🌰</text>
@@ -151,96 +143,77 @@ function TreeSVG({ total, streak }: { total: number; streak: number }) {
         </>
       )}
 
-      {/* ── ETAPAS 1+: Tronco ── */}
+      {/* Tronco */}
       {stageIdx >= 1 && (
-        <rect
-          x={cx - trunkW / 2} y={trunkTop}
-          width={trunkW} height={trunkH}
-          rx={trunkW / 3}
-          fill="url(#trunk)"
-        />
+        <rect x={cx - trunkW/2} y={trunkTop} width={trunkW} height={trunkH} rx={trunkW/3} fill="url(#trunk)"/>
       )}
 
-      {/* Raíces decorativas */}
+      {/* Raíces */}
       {stageIdx >= 3 && (
         <>
-          <path d={`M${cx - trunkW/2},${groundY - 4} Q${cx - 30},${groundY + 8} ${cx - 50},${groundY + 5}`}
-            fill="none" stroke="#78350f" strokeWidth="4" strokeLinecap="round"/>
-          <path d={`M${cx + trunkW/2},${groundY - 4} Q${cx + 30},${groundY + 8} ${cx + 50},${groundY + 5}`}
-            fill="none" stroke="#78350f" strokeWidth="4" strokeLinecap="round"/>
+          <path d={`M${cx - trunkW/2},${groundY-4} Q${cx-30},${groundY+8} ${cx-50},${groundY+5}`} fill="none" stroke="#78350f" strokeWidth="4" strokeLinecap="round"/>
+          <path d={`M${cx + trunkW/2},${groundY-4} Q${cx+30},${groundY+8} ${cx+50},${groundY+5}`} fill="none" stroke="#78350f" strokeWidth="4" strokeLinecap="round"/>
         </>
       )}
 
-      {/* ── Copa (3 capas) ── */}
+      {/* Copa */}
       {stageIdx >= 1 && c1r > 0 && (
         <>
-          {/* Sombra copa */}
-          <ellipse cx={cx + 4} cy={canopyY + c1r * 0.55 + 4}
-            rx={c1r * 1.15} ry={c1r * 0.55}
-            fill="rgba(0,0,0,0.08)"/>
-
-          {/* Capa baja */}
-          <ellipse cx={cx} cy={canopyY + c1r * 0.55}
-            rx={c1r * 1.15} ry={c1r * 0.55}
-            fill={leafColor1} filter={glow ? "url(#glow)" : undefined}/>
-
-          {/* Capa media */}
-          {stageIdx >= 2 && (
-            <ellipse cx={cx} cy={canopyY}
-              rx={c2r * 1.1} ry={c2r * 0.7}
-              fill={leafColor2}/>
-          )}
-
-          {/* Capa alta */}
-          {stageIdx >= 3 && (
-            <ellipse cx={cx} cy={canopyY - c3r * 0.4}
-              rx={c3r * 0.95} ry={c3r * 0.75}
-              fill={leafColor3}/>
-          )}
+          <ellipse cx={cx+4} cy={canopyY + c1r*0.55+4} rx={c1r*1.15} ry={c1r*0.55} fill="rgba(0,0,0,0.08)"/>
+          <ellipse cx={cx}   cy={canopyY + c1r*0.55}   rx={c1r*1.15} ry={c1r*0.55} fill={leafColor1} filter={glow ? "url(#glow)" : undefined}/>
+          {stageIdx >= 2 && <ellipse cx={cx} cy={canopyY}           rx={c2r*1.1}  ry={c2r*0.7}  fill={leafColor2}/>}
+          {stageIdx >= 3 && <ellipse cx={cx} cy={canopyY-c3r*0.4}   rx={c3r*0.95} ry={c3r*0.75} fill={leafColor3}/>}
         </>
       )}
 
       {/* Ramas laterales */}
       {stageIdx >= 4 && (
         <>
-          <path d={`M${cx - trunkW/2},${trunkTop + 20} Q${cx - 45},${trunkTop + 5} ${cx - 65},${canopyY + 25}`}
-            fill="none" stroke="#92400e" strokeWidth="5" strokeLinecap="round"/>
-          <path d={`M${cx + trunkW/2},${trunkTop + 22} Q${cx + 45},${trunkTop + 4} ${cx + 62},${canopyY + 18}`}
-            fill="none" stroke="#92400e" strokeWidth="5" strokeLinecap="round"/>
+          <path d={`M${cx-trunkW/2},${trunkTop+20} Q${cx-45},${trunkTop+5} ${cx-65},${canopyY+25}`} fill="none" stroke="#92400e" strokeWidth="5" strokeLinecap="round"/>
+          <path d={`M${cx+trunkW/2},${trunkTop+22} Q${cx+45},${trunkTop+4} ${cx+62},${canopyY+18}`} fill="none" stroke="#92400e" strokeWidth="5" strokeLinecap="round"/>
         </>
       )}
 
-      {/* Flores en la copa */}
+      {/* Flores */}
       {stageIdx >= 4 && (
         <>
-          <text x={cx - 22} y={canopyY - 10}    fontSize="13" textAnchor="middle">🌸</text>
-          <text x={cx + 25} y={canopyY + 5}     fontSize="11" textAnchor="middle">🌸</text>
-          <text x={cx - 5}  y={canopyY - c3r * 0.85} fontSize="11" textAnchor="middle">🌼</text>
+          <text x={cx-22} y={canopyY-10}           fontSize="13" textAnchor="middle">🌸</text>
+          <text x={cx+25} y={canopyY+5}             fontSize="11" textAnchor="middle">🌸</text>
+          <text x={cx-5}  y={canopyY - c3r*0.85}    fontSize="11" textAnchor="middle">🌼</text>
         </>
       )}
 
-      {/* Frutos / bellotas en el árbol */}
-      {showFruits && (
+      {/* Bellotas en el árbol (cosechables) */}
+      {showFruits && harvestAmt > 0 && (
         <>
-          <text x={cx - 30} y={canopyY + 30}   fontSize="14" textAnchor="middle">🌰</text>
-          <text x={cx + 28} y={canopyY + 22}   fontSize="14" textAnchor="middle">🌰</text>
-          <text x={cx + 12} y={canopyY - 8}    fontSize="12" textAnchor="middle">🌰</text>
+          <text x={cx-30} y={canopyY+30}  fontSize="14" textAnchor="middle">🌰</text>
+          <text x={cx+28} y={canopyY+22}  fontSize="14" textAnchor="middle">🌰</text>
+          <text x={cx+12} y={canopyY-8}   fontSize="12" textAnchor="middle">🌰</text>
+          {harvestAmt > 6 && <text x={cx-12} y={canopyY-18} fontSize="12" textAnchor="middle">🌰</text>}
         </>
       )}
 
-      {/* Estrellas / brillo en etapa legendaria */}
+      {/* Estrellas legendarias */}
       {glow && (
         <>
-          <text x={cx - 65} y={canopyY - 18}  fontSize="12" textAnchor="middle">✨</text>
-          <text x={cx + 68} y={canopyY - 10}  fontSize="12" textAnchor="middle">✨</text>
-          <text x={cx}      y={canopyY - c3r * 1.15} fontSize="14" textAnchor="middle">⭐</text>
+          <text x={cx-65} y={canopyY-18}           fontSize="12" textAnchor="middle">✨</text>
+          <text x={cx+68} y={canopyY-10}            fontSize="12" textAnchor="middle">✨</text>
+          <text x={cx}    y={canopyY - c3r*1.15}    fontSize="14" textAnchor="middle">⭐</text>
         </>
       )}
 
-      {/* ── Animales habitantes ── */}
+      {/* Regalo disponible */}
+      {hasGift && stageIdx >= 1 && (
+        <text x={cx - 18} y={canopyY - c3r * 0.6 - 8} fontSize="22" textAnchor="middle"
+          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))" }}>
+          🎁
+        </text>
+      )}
+
+      {/* Animales habitantes */}
       {HABITANTS.map((h, i) => {
         if (streak < h.days) return null;
-        const pos = animalPositions[i];
+        const pos = animalPos[i];
         return (
           <text key={i} x={pos.x} y={pos.y} fontSize="17" textAnchor="middle"
             style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }}>
@@ -252,12 +225,49 @@ function TreeSVG({ total, streak }: { total: number; streak: number }) {
   );
 }
 
+/* ── Tarjeta de prenda exclusiva ────────────────────────────────────────── */
+function GiftCard({ gift, onCollect }: { gift: TreeGift; onCollect: () => void }) {
+  return (
+    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-3xl overflow-hidden shadow-lg">
+      <div className="bg-emerald-500 px-4 py-2 flex items-center gap-2">
+        <span className="text-xl">🎁</span>
+        <p className="text-white font-black text-sm">¡Hay un regalo para ti!</p>
+      </div>
+      <div className="px-4 py-4 flex items-center gap-4">
+        <span className="text-5xl">{gift.emoji}</span>
+        <div className="flex-1">
+          <p className="font-black text-slate-800 text-base">{gift.name}</p>
+          <p className="text-xs text-slate-500 mt-0.5 leading-snug">{gift.label}</p>
+          <p className="text-[10px] text-emerald-600 font-bold mt-1.5 uppercase tracking-wide">
+            🌳 Exclusivo del árbol · No se vende en ningún lado
+          </p>
+        </div>
+      </div>
+      <div className="px-4 pb-4">
+        <button
+          onClick={onCollect}
+          className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-black text-base shadow-md shadow-emerald-200 active:scale-95 transition"
+        >
+          Recoger {gift.emoji} {gift.name}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ══ PÁGINA ══════════════════════════════════════════════════════════════════ */
 export default function ArbolPage() {
-  const [total,    setTotal]    = useState(0);
-  const [streak,   setStreak]   = useState(0);
-  const [bellotas, setBellotas] = useState(0);
-  const [loading,  setLoading]  = useState(true);
+  const [total,       setTotal]       = useState(0);
+  const [streak,      setStreak]      = useState(0);
+  const [bellotas,    setBellotas]    = useState(0);
+  const [loading,     setLoading]     = useState(true);
+
+  // Estados de cosecha y regalo
+  const [harvestDone,   setHarvestDone]   = useState(false);
+  const [harvestMsg,    setHarvestMsg]    = useState<string | null>(null);
+  const [availableGift, setAvailableGift] = useState<TreeGift | null>(null);
+  const [collectedGift, setCollectedGift] = useState<TreeGift | null>(null);
+  const [collectedIds,  setCollectedIds]  = useState<string[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -268,22 +278,54 @@ export default function ArbolPage() {
         setTotal(entries);
         setStreak(s);
         setBellotas(profile.bellotas ?? 0);
+
+        // Estado cosecha y regalo (localStorage → solo client)
+        const alreadyHarvested = !canHarvestToday();
+        setHarvestDone(alreadyHarvested);
+        setAvailableGift(getAvailableGift(s));
+        setCollectedIds(getCollectedGifts());
       } catch (e) { console.error(e); }
       setLoading(false);
     }
     load();
   }, []);
 
-  const stage     = useMemo(() => getStage(total),     [total]);
-  const nextStage = useMemo(() => getNextStage(total),  [total]);
+  const stage     = useMemo(() => getStage(total),      [total]);
+  const nextStage = useMemo(() => getNextStage(total),   [total]);
   const stageIdx  = useMemo(() => STAGES.indexOf(stage), [stage]);
+
+  const harvestAmt = useMemo(
+    () => getHarvestAmount(stageIdx, streak),
+    [stageIdx, streak]
+  );
+  const canHarvest = harvestAmt > 0 && !harvestDone;
 
   const progressPct = useMemo(() => {
     if (!nextStage) return 100;
-    const prev = stage.min;
-    const next = nextStage.min;
-    return Math.round(((total - prev) / (next - prev)) * 100);
+    return Math.round(((total - stage.min) / (nextStage.min - stage.min)) * 100);
   }, [total, stage, nextStage]);
+
+  /* Cosechar bellotas */
+  async function handleHarvest() {
+    if (!canHarvest) return;
+    recordHarvest();
+    setHarvestDone(true);
+    const newVal = bellotas + harvestAmt;
+    setBellotas(newVal);
+    setHarvestMsg(`+${harvestAmt} 🌰 cosechadas del árbol`);
+    setTimeout(() => setHarvestMsg(null), 3000);
+    try { await upsertPlayerProfile({ bellotas: newVal }); } catch { /* noop */ }
+  }
+
+  /* Recoger regalo */
+  function handleCollectGift() {
+    if (!availableGift) return;
+    const gift = collectGift(availableGift.id);
+    if (!gift) return;
+    setCollectedGift(gift);
+    setCollectedIds(getCollectedGifts());
+    setAvailableGift(getAvailableGift(streak)); // busca el siguiente si hubiera
+  }
 
   if (loading) {
     return (
@@ -316,10 +358,42 @@ export default function ArbolPage() {
 
       <div className="max-w-lg mx-auto px-4 pt-4 flex flex-col gap-5">
 
+        {/* Toast de cosecha */}
+        {harvestMsg && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white font-black px-6 py-3 rounded-2xl shadow-xl text-sm">
+            {harvestMsg}
+          </div>
+        )}
+
+        {/* Modal de regalo recogido */}
+        {collectedGift && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6">
+            <div className="bg-white rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl">
+              <p className="text-6xl mb-3">{collectedGift.emoji}</p>
+              <p className="text-xl font-black text-slate-800 mb-1">¡{collectedGift.name}!</p>
+              <p className="text-xs text-slate-500 mb-1 leading-snug">
+                Se ha añadido a tu armario 👗
+              </p>
+              <p className="text-[10px] text-emerald-600 font-bold mb-4 uppercase tracking-wide">
+                Exclusivo del árbol · Solo tú lo tienes
+              </p>
+              <button
+                onClick={() => setCollectedGift(null)}
+                className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-black active:scale-95 transition"
+              >
+                ¡Qué ilusión! 🌳
+              </button>
+              <Link href="/armario" className="block mt-2 text-xs text-emerald-600 underline underline-offset-2">
+                Ver en el armario →
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Árbol SVG */}
         <div className="bg-white rounded-3xl shadow-md border border-slate-100 overflow-hidden">
           <div className="h-72 w-full">
-            <TreeSVG total={total} streak={streak} />
+            <TreeSVG total={total} streak={streak} hasGift={!!availableGift} harvestAmt={canHarvest ? harvestAmt : 0} />
           </div>
 
           {/* Info de etapa */}
@@ -331,33 +405,70 @@ export default function ArbolPage() {
                 <p className="text-xs text-slate-500 leading-snug">{stage.desc}</p>
               </div>
             </div>
-
-            {/* Progreso hacia la siguiente etapa */}
-            {nextStage && (
+            {nextStage ? (
               <div>
                 <div className="flex justify-between text-[10px] text-slate-400 font-semibold mb-1">
-                  <span>Progreso hacia {nextStage.emoji} {nextStage.name}</span>
+                  <span>Hacia {nextStage.emoji} {nextStage.name}</span>
                   <span>{total}/{nextStage.min} registros</span>
                 </div>
                 <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-700"
-                    style={{ width: `${progressPct}%` }}
-                  />
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-700" style={{ width: `${progressPct}%` }}/>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1 text-right">
                   {nextStage.min - total} {nextStage.min - total === 1 ? "registro más" : "registros más"}
                 </p>
               </div>
-            )}
-
-            {!nextStage && (
+            ) : (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-2 text-center">
                 <p className="text-emerald-700 font-bold text-xs">🏆 ¡Árbol legendario desbloqueado!</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Regalo disponible */}
+        {availableGift && (
+          <GiftCard gift={availableGift} onCollect={handleCollectGift} />
+        )}
+
+        {/* Cosecha de bellotas */}
+        {harvestAmt > 0 && (
+          <div className={`rounded-3xl overflow-hidden shadow-md border-2 ${canHarvest ? "border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-50" : "border-slate-200 bg-white"}`}>
+            <div className={`px-4 py-2 flex items-center gap-2 ${canHarvest ? "bg-amber-400" : "bg-slate-100"}`}>
+              <span className="text-xl">🌰</span>
+              <p className={`font-black text-sm ${canHarvest ? "text-white" : "text-slate-500"}`}>
+                {canHarvest ? "¡Hay bellotas para cosechar!" : "Cosechado hoy ✓"}
+              </p>
+            </div>
+            <div className="px-4 py-4 flex items-center gap-4">
+              <div className="flex gap-0.5 flex-wrap w-20 shrink-0">
+                {Array.from({ length: Math.min(harvestAmt, 10) }).map((_, i) => (
+                  <span key={i} className={`text-xl ${canHarvest ? "" : "opacity-30"}`}>🌰</span>
+                ))}
+              </div>
+              <div className="flex-1">
+                <p className={`font-black text-lg ${canHarvest ? "text-amber-700" : "text-slate-400"}`}>
+                  +{harvestAmt} bellotas
+                </p>
+                <p className="text-xs text-slate-400 leading-snug">
+                  {canHarvest
+                    ? "Tu árbol ha producido frutos hoy. ¡Recógelos!"
+                    : "Vuelve mañana para la próxima cosecha"}
+                </p>
+              </div>
+            </div>
+            {canHarvest && (
+              <div className="px-4 pb-4">
+                <button
+                  onClick={handleHarvest}
+                  className="w-full py-3 rounded-2xl bg-amber-400 text-amber-900 font-black text-base shadow-md shadow-amber-200 active:scale-95 transition"
+                >
+                  Cosechar {harvestAmt} 🌰
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
@@ -366,9 +477,7 @@ export default function ArbolPage() {
             <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Registros</p>
           </div>
           <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-slate-100">
-            <p className="text-2xl font-black text-orange-500">
-              {streak > 0 ? `🔥${streak}` : "0"}
-            </p>
+            <p className="text-2xl font-black text-orange-500">{streak > 0 ? `🔥${streak}` : "0"}</p>
             <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Racha días</p>
           </div>
           <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-slate-100">
@@ -377,35 +486,29 @@ export default function ArbolPage() {
           </div>
         </div>
 
-        {/* Habitantes del árbol */}
+        {/* Regalos del árbol — progresión */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-4 pt-4 pb-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Habitantes del árbol
-            </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              Los animales se instalan al mantener una racha de días
-            </p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Regalos del árbol</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Prendas exclusivas que solo nacen del árbol</p>
           </div>
           <div className="divide-y divide-slate-50">
-            {HABITANTS.map((h) => {
-              const unlocked = streak >= h.days;
+            {TREE_GIFTS.map(g => {
+              const collected = collectedIds.includes(g.id);
+              const available = streak >= g.streakRequired && !collected;
               return (
-                <div key={h.name}
-                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${unlocked ? "" : "opacity-40"}`}>
-                  <span className={`text-3xl ${unlocked ? "" : "grayscale"}`}>{h.emoji}</span>
+                <div key={g.id} className={`flex items-center gap-3 px-4 py-3 ${available ? "bg-emerald-50" : ""}`}>
+                  <span className={`text-3xl ${collected || available ? "" : "grayscale opacity-40"}`}>{g.emoji}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-700">{h.name}</p>
-                    <p className="text-xs text-slate-400 leading-snug">{h.desc}</p>
+                    <p className={`text-sm font-bold ${collected || available ? "text-slate-700" : "text-slate-400"}`}>{g.name}</p>
+                    <p className="text-xs text-slate-400 leading-snug">{g.label}</p>
                   </div>
-                  {unlocked ? (
-                    <span className="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
-                      ✓ Vive aquí
-                    </span>
+                  {collected ? (
+                    <span className="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">✓ Recogido</span>
+                  ) : available ? (
+                    <span className="shrink-0 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-300 px-2 py-1 rounded-full animate-pulse">¡Disponible!</span>
                   ) : (
-                    <span className="shrink-0 text-[10px] font-semibold text-slate-400 bg-slate-50 border border-slate-200 px-2 py-1 rounded-full">
-                      Racha {h.days}d
-                    </span>
+                    <span className="shrink-0 text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-2 py-1 rounded-full">Racha {g.streakRequired}d</span>
                   )}
                 </div>
               );
@@ -413,33 +516,26 @@ export default function ArbolPage() {
           </div>
         </div>
 
-        {/* Etapas del árbol */}
+        {/* Habitantes del árbol */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="px-4 pt-4 pb-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Etapas del árbol
-            </p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Habitantes</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Los animales del bosque que viven en tu árbol</p>
           </div>
           <div className="divide-y divide-slate-50">
-            {STAGES.map((s, i) => {
-              const reached   = total >= s.min;
-              const isCurrent = s === stage;
+            {HABITANTS.map(h => {
+              const unlocked = streak >= h.days;
               return (
-                <div key={s.name}
-                  className={`flex items-center gap-3 px-4 py-2.5 ${isCurrent ? "bg-emerald-50" : ""}`}>
-                  <span className={`text-xl ${reached ? "" : "grayscale opacity-40"}`}>{s.emoji}</span>
+                <div key={h.name} className={`flex items-center gap-3 px-4 py-3 ${unlocked ? "" : "opacity-40"}`}>
+                  <span className={`text-3xl ${unlocked ? "" : "grayscale"}`}>{h.emoji}</span>
                   <div className="flex-1">
-                    <p className={`text-xs font-bold ${reached ? "text-slate-700" : "text-slate-400"}`}>
-                      {s.name}
-                      {isCurrent && <span className="ml-2 text-[9px] text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full font-bold">ACTUAL</span>}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {i === 0 ? "Al empezar" : `Desde ${s.min} registros`}
-                    </p>
+                    <p className="text-sm font-bold text-slate-700">{h.name}</p>
+                    <p className="text-xs text-slate-400">{h.desc}</p>
                   </div>
-                  {reached
-                    ? <span className="text-emerald-400 text-base">✓</span>
-                    : <span className="text-slate-200 text-base">○</span>}
+                  {unlocked
+                    ? <span className="shrink-0 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">✓ Vive aquí</span>
+                    : <span className="shrink-0 text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-2 py-1 rounded-full">Racha {h.days}d</span>
+                  }
                 </div>
               );
             })}
@@ -447,10 +543,8 @@ export default function ArbolPage() {
         </div>
 
         {/* CTA */}
-        <Link
-          href="/registro/diario"
-          className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-black text-base text-center shadow-md shadow-emerald-200 active:scale-95 transition"
-        >
+        <Link href="/registro/diario"
+          className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-black text-base text-center shadow-md shadow-emerald-200 active:scale-95 transition">
           🌱 Hacer un registro y que crezca
         </Link>
 
