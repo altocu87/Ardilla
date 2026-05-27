@@ -1460,7 +1460,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
 
-          {/* Top icons — izquierda: misiones + logros + estadísticas */}
+          {/* Top icons — izquierda: misiones + logros + estadísticas + árbol */}
           <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5">
             <button onClick={() => setShowMisiones(true)}
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
@@ -1473,6 +1473,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             <Link href="/estadisticas"
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
               <span className="text-sm">📊</span>
+            </Link>
+            <Link href="/arbol"
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🌳</span>
             </Link>
           </div>
 

@@ -23,6 +23,7 @@ export default function Navbar() {
     pathname === "/historico/diario" ||
     pathname === "/historico/caca" ||
     pathname === "/historico/emocional" ||
+    pathname === "/arbol" ||
     pathname.startsWith("/actividad/")
   ) return null;
   return (
