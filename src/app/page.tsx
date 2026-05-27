@@ -38,8 +38,9 @@ import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
 import MayorMenorGame from "@/components/MayorMenorGame";
 import AnimalRaceGame from "@/components/AnimalRaceGame";
-import TresEnRayaGame from "@/components/TresEnRayaGame";
-import Conecta4Game   from "@/components/Conecta4Game";
+import TresEnRayaGame  from "@/components/TresEnRayaGame";
+import Conecta4Game    from "@/components/Conecta4Game";
+import GameStatsModal  from "@/components/GameStatsModal";
 import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom, playCositas } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
@@ -783,6 +784,7 @@ export default function Home() {
   const [showAnimalRace,    setShowAnimalRace]    = useState(false);
   const [showTresEnRaya,    setShowTresEnRaya]    = useState(false);
   const [showConecta4,      setShowConecta4]      = useState(false);
+  const [showGameStats,     setShowGameStats]     = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
   const [brokenSleepItems,  setBrokenSleepItems]  = useState<string[]>([]);
@@ -1482,6 +1484,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
               <span className="text-sm">🌳</span>
             </Link>
+            <button onClick={() => setShowGameStats(true)}
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🎮</span>
+            </button>
           </div>
 
           {/* Evolution phase badge */}
@@ -1749,6 +1755,9 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         <Conecta4Game
           onClose={() => setShowConecta4(false)}
         />
+      )}
+      {showGameStats && (
+        <GameStatsModal onClose={() => setShowGameStats(false)} />
       )}
       {showMedicineModal && tamaStats?.illness && (
         <MedicineModal

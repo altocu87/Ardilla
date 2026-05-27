@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
+import { recordResult1P } from "@/lib/game-stats";
 
 /* ── Configuración del juego ─────────────────────────────────────────────── */
 const MIN_CARD = 1;
@@ -134,8 +135,9 @@ export default function MayorMenorGame({ onClose }: Props) {
       setPhase("result");
       setRoundsDone(r => r + 1);
 
-      if (result === true)       updateBellotas(+bet);
-      else if (result === false) updateBellotas(-bet);
+      if (result === true)       { updateBellotas(+bet); recordResult1P("mayor_menor", "win", +bet); }
+      else if (result === false) { updateBellotas(-bet); recordResult1P("mayor_menor", "lose", -bet); }
+      else                       { recordResult1P("mayor_menor", "draw", 0); }
       // empate: no pierde ni gana
     }, 900);
   }

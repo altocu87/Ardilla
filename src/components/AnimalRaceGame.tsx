@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
+import { recordRaceResult, record2PResult } from "@/lib/game-stats";
 
 /* ── Configuración ───────────────────────────────────────────────────────── */
 const ANIMALS = [
@@ -41,7 +42,8 @@ const PAYOUT_MULT = 4;    // ganancia neta = apuesta × 4  (total = ×5 si se in
 const TICK_MS     = 90;   // ms por paso de animación
 const COUNTDOWN   = 3;    // segundos de cuenta atrás
 
-type Phase = "betting" | "countdown" | "racing" | "result";
+type Phase = "mode" | "betting" | "betting_p2" | "countdown" | "racing" | "result";
+type GameMode = "1p" | "2p";
 
 /* ── Pre-cómputo de toda la carrera ──────────────────────────────────────── */
 function simulateRace(n: number): { ticks: number[][]; winner: number } {
@@ -73,19 +75,23 @@ function Track({
   animal,
   index,
   position,
-  isChosen,
+  isChosenP1,
+  isChosenP2,
   isWinner,
   phase,
 }: {
   animal: typeof ANIMALS[0];
   index: number;
   position: number;
-  isChosen: boolean;
+  isChosenP1: boolean;
+  isChosenP2: boolean;
   isWinner: boolean;
   phase: Phase;
 }) {
   // rango visual del emoji: de 5% a 85% (restamos 15% para el flag al final)
   const pct = 5 + (position / 100) * 80;
+
+  const isChosen = isChosenP1 || isChosenP2;
 
   return (
     <div
@@ -110,7 +116,9 @@ function Track({
         {/* Nombre y apuesta visual */}
         <span className={`text-xs font-bold w-16 shrink-0 ${animal.text}`}>
           {animal.name}
-          {isChosen && <span className="ml-1 text-[9px] opacity-70">(tú)</span>}
+          {isChosenP1 && !isChosenP2 && <span className="ml-1 text-[9px] opacity-70">(J1)</span>}
+          {isChosenP2 && !isChosenP1 && <span className="ml-1 text-[9px] opacity-70">(J2)</span>}
+          {isChosenP1 && isChosenP2 && <span className="ml-1 text-[9px] opacity-70">(J1+J2)</span>}
         </span>
 
         {/* Pista */}
@@ -159,17 +167,25 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   const [bellotas,    setBellotas]    = useState(0);
   const [loading,     setLoading]     = useState(true);
 
-  const [chosen,      setChosen]      = useState<number | null>(null);
+  const [gameMode,    setGameMode]    = useState<GameMode>("1p");
+  const [chosen,      setChosen]      = useState<number | null>(null);   // J1 (o único en 1P)
+  const [chosenP2,    setChosenP2]    = useState<number | null>(null);   // J2
   const [bet,         setBet]         = useState(1);
-  const [phase,       setPhase]       = useState<Phase>("betting");
+  const [betP2,       setBetP2]       = useState(1);
+  const [phase,       setPhase]       = useState<Phase>("mode");
   const [countdown,   setCountdown]   = useState(COUNTDOWN);
   const [positions,   setPositions]   = useState<number[]>(ANIMALS.map(() => 0));
   const [winner,      setWinner]      = useState<number | null>(null);
-  const [won,         setWon]         = useState<boolean | null>(null);
+  const [won,         setWon]         = useState<boolean | null>(null);  // 1P result
 
   // Estadísticas de sesión
   const [races,       setRaces]       = useState(0);
   const [sessionGain, setSessionGain] = useState(0);
+
+  // 2P session score
+  const [p1Wins,      setP1Wins]      = useState(0);
+  const [p2Wins,      setP2Wins]      = useState(0);
+  const [draws2P,     setDraws2P]     = useState(0);
 
   // Datos pre-computados de la carrera
   const raceDataRef = useRef<{ ticks: number[][]; winner: number } | null>(null);
@@ -205,21 +221,68 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
 
       if (tick >= data.ticks.length) {
         clearInterval(interval);
-        // Carrera terminada
         const w = data.winner;
         setPositions(data.ticks[data.ticks.length - 1]);
         setWinner(w);
-
-        const playerWon = chosen === w;
-        setWon(playerWon);
         setPhase("result");
         setRaces(r => r + 1);
 
-        const delta = playerWon ? bet * PAYOUT_MULT : -bet;
-        setSessionGain(g => g + delta);
-        const newBellotas = Math.max(0, bellotas + delta);
-        setBellotas(newBellotas);
-        upsertPlayerProfile({ bellotas: newBellotas }).catch(() => {});
+        if (gameMode === "1p") {
+          const playerWon = chosen === w;
+          setWon(playerWon);
+
+          const delta = playerWon ? bet * PAYOUT_MULT : -bet;
+          setSessionGain(g => g + delta);
+          const newBellotas = Math.max(0, bellotas + delta);
+          setBellotas(newBellotas);
+          upsertPlayerProfile({ bellotas: newBellotas }).catch(() => {});
+
+          recordRaceResult({
+            mode: "1p",
+            winnerEmoji: ANIMALS[w].emoji,
+            bellotasDelta: delta,
+            pickedEmoji: chosen !== null ? ANIMALS[chosen].emoji : undefined,
+            wonRace: playerWon,
+          });
+        } else {
+          // 2P: J1 wins if chosen===w, J2 wins if chosenP2===w, else neither (draw / house)
+          const p1Won = chosen === w;
+          const p2Won = chosenP2 === w;
+
+          let delta = 0;
+          let winner2P: "p1" | "p2" | "draw" = "draw";
+
+          if (p1Won) {
+            // J1 gana: +bet×4, J2 pierde su apuesta
+            delta = bet * PAYOUT_MULT - betP2;
+            winner2P = "p1";
+            setP1Wins(n => n + 1);
+          } else if (p2Won) {
+            // J2 gana: +betP2×4, J1 pierde su apuesta
+            delta = betP2 * PAYOUT_MULT - bet;
+            winner2P = "p2";
+            setP2Wins(n => n + 1);
+          } else {
+            // Ninguno ganó — ambos pierden su apuesta (house wins)
+            delta = -(bet + betP2);
+            winner2P = "draw";
+            setDraws2P(n => n + 1);
+          }
+
+          setSessionGain(g => g + delta);
+          const newBellotas = Math.max(0, bellotas + delta);
+          setBellotas(newBellotas);
+          upsertPlayerProfile({ bellotas: newBellotas }).catch(() => {});
+
+          recordRaceResult({
+            mode: "2p",
+            winnerEmoji: ANIMALS[w].emoji,
+            bellotasDelta: delta,
+            p1Emoji: chosen !== null ? ANIMALS[chosen].emoji : undefined,
+            p2Emoji: chosenP2 !== null ? ANIMALS[chosenP2].emoji : undefined,
+          });
+          record2PResult("carrera", winner2P);
+        }
       } else {
         setPositions(data.ticks[tick]);
       }
@@ -229,16 +292,49 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  /* Iniciar apuesta y carrera */
-  function startRace() {
+  /* Seleccionar modo */
+  function selectMode(mode: GameMode) {
+    setGameMode(mode);
+    setChosen(null);
+    setChosenP2(null);
+    setBet(1);
+    setBetP2(1);
+    setPhase("betting");
+  }
+
+  /* Iniciar carrera desde apuesta J1 (1P) o confirmar J1 y pasar a J2 (2P) */
+  function confirmBettingP1() {
     if (chosen === null || bellotas < bet) return;
 
-    // Descontar apuesta inmediatamente
-    const afterBet = bellotas - bet;
+    if (gameMode === "1p") {
+      // Descontar apuesta inmediatamente
+      const afterBet = bellotas - bet;
+      setBellotas(afterBet);
+      upsertPlayerProfile({ bellotas: afterBet }).catch(() => {});
+
+      const data = simulateRace(ANIMALS.length);
+      raceDataRef.current = data;
+      tickRef.current = 0;
+      setPositions(ANIMALS.map(() => 0));
+      setWinner(null);
+      setWon(null);
+      setCountdown(COUNTDOWN);
+      setPhase("countdown");
+    } else {
+      // 2P: pasar a apuesta de J2
+      setPhase("betting_p2");
+    }
+  }
+
+  /* Confirmar apuesta J2 y arrancar carrera (2P) */
+  function confirmBettingP2() {
+    if (chosenP2 === null || bellotas < bet + betP2) return;
+
+    // Descontar ambas apuestas inmediatamente
+    const afterBet = bellotas - bet - betP2;
     setBellotas(afterBet);
     upsertPlayerProfile({ bellotas: afterBet }).catch(() => {});
 
-    // Pre-computar carrera
     const data = simulateRace(ANIMALS.length);
     raceDataRef.current = data;
     tickRef.current = 0;
@@ -252,11 +348,25 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   /* Nueva carrera */
   function playAgain() {
     setChosen(null);
+    setChosenP2(null);
     setPositions(ANIMALS.map(() => 0));
     setWinner(null);
     setWon(null);
-    setPhase("betting");
+    setPhase(gameMode === "1p" ? "betting" : "betting");
     if (bet > bellotas) setBet(BET_OPTIONS.filter(b => b <= bellotas)[0] ?? 1);
+    if (betP2 > bellotas) setBetP2(BET_OPTIONS.filter(b => b <= bellotas)[0] ?? 1);
+  }
+
+  /* Volver al selector de modo */
+  function backToMode() {
+    setChosen(null);
+    setChosenP2(null);
+    setPositions(ANIMALS.map(() => 0));
+    setWinner(null);
+    setWon(null);
+    setBet(1);
+    setBetP2(1);
+    setPhase("mode");
   }
 
   if (loading) {
@@ -272,6 +382,62 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
 
   const noBellotas = bellotas < 1;
 
+  /* ── Selector de modo ── */
+  if (phase === "mode") {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-emerald-900 via-green-800 to-teal-900 overflow-hidden">
+        <div className="shrink-0 flex items-center justify-between px-5 pt-6 pb-3">
+          <div>
+            <p className="text-emerald-300 text-[10px] font-bold uppercase tracking-widest">
+              Juego de apuestas
+            </p>
+            <h1 className="text-white text-xl font-black leading-tight">
+              🏁 Carrera del Bosque
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-black/30 rounded-2xl px-4 py-2 flex items-center gap-1.5">
+              <span className="text-xl">🌰</span>
+              <span className="text-white font-black text-lg">{bellotas}</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-black/30 text-white font-bold text-lg flex items-center justify-center active:scale-95"
+            >✕</button>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+          <p className="text-emerald-200 font-bold text-base uppercase tracking-wider">
+            Selecciona el modo de juego
+          </p>
+          <div className="w-full flex flex-col gap-4">
+            <button
+              onClick={() => selectMode("1p")}
+              className="w-full py-6 rounded-2xl bg-emerald-500 text-white font-black text-xl shadow-xl active:scale-95 transition flex flex-col items-center gap-1"
+            >
+              <span className="text-3xl">🏃</span>
+              <span>1 Jugador</span>
+              <span className="text-sm font-normal opacity-80">Apuesta y corre solo</span>
+            </button>
+            <button
+              onClick={() => selectMode("2p")}
+              className="w-full py-6 rounded-2xl bg-teal-500 text-white font-black text-xl shadow-xl active:scale-95 transition flex flex-col items-center gap-1"
+            >
+              <span className="text-3xl">👥</span>
+              <span>2 Jugadores</span>
+              <span className="text-sm font-normal opacity-80">Compite contra un amigo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Render principal ── */
+  const totalNeeded2P = bet + betP2;
+  const canAfford2P   = bellotas >= totalNeeded2P;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-emerald-900 via-green-800 to-teal-900 overflow-hidden">
 
@@ -279,7 +445,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
       <div className="shrink-0 flex items-center justify-between px-5 pt-6 pb-3">
         <div>
           <p className="text-emerald-300 text-[10px] font-bold uppercase tracking-widest">
-            Juego de apuestas
+            {gameMode === "2p" ? "2 Jugadores" : "Juego de apuestas"}
           </p>
           <h1 className="text-white text-xl font-black leading-tight">
             🏁 Carrera del Bosque
@@ -308,7 +474,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               animal={a}
               index={i}
               position={positions[i]}
-              isChosen={chosen === i}
+              isChosenP1={chosen === i}
+              isChosenP2={chosenP2 === i}
               isWinner={winner === i}
               phase={phase}
             />
@@ -333,9 +500,17 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
         {phase === "racing" && (
           <div className="flex items-center justify-center py-4">
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-3 text-center">
-              <p className="text-white font-black text-lg">
-                {chosen !== null ? `¡Vamos ${ANIMALS[chosen].name}! ${ANIMALS[chosen].emoji}` : "¡Corriendo!"}
-              </p>
+              {gameMode === "1p" ? (
+                <p className="text-white font-black text-lg">
+                  {chosen !== null ? `¡Vamos ${ANIMALS[chosen].name}! ${ANIMALS[chosen].emoji}` : "¡Corriendo!"}
+                </p>
+              ) : (
+                <p className="text-white font-black text-lg">
+                  {chosen !== null && chosenP2 !== null
+                    ? `J1: ${ANIMALS[chosen].emoji}  vs  J2: ${ANIMALS[chosenP2].emoji}`
+                    : "¡Corriendo!"}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -344,7 +519,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
         {phase === "result" && winner !== null && (
           <div className="flex flex-col gap-3">
 
-            {/* Ganador */}
+            {/* Ganador de la carrera */}
             <div className={`rounded-3xl p-4 text-center shadow-xl ${ANIMALS[winner].bg} border-2 ${ANIMALS[winner].border}`}>
               <p className="text-5xl mb-1">{ANIMALS[winner].emoji}</p>
               <p className={`font-black text-base ${ANIMALS[winner].text}`}>
@@ -352,21 +527,55 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               </p>
             </div>
 
-            {/* Resultado de la apuesta */}
-            <div className={`rounded-2xl px-5 py-4 text-center shadow-lg ${
-              won ? "bg-emerald-500" : "bg-red-500"
-            }`}>
-              <p className="text-white font-black text-xl">
-                {won
-                  ? `¡Ganaste! +${bet * PAYOUT_MULT} 🌰`
-                  : `¡Qué pena! -${bet} 🌰`}
-              </p>
-              <p className="text-white/80 text-xs mt-1">
-                {won
-                  ? `Apostaste por ${ANIMALS[chosen!].name} ${ANIMALS[chosen!].emoji} y acertaste`
-                  : `Apostaste por ${ANIMALS[chosen!].name} ${ANIMALS[chosen!].emoji} — ganó ${ANIMALS[winner].name}`}
-              </p>
-            </div>
+            {/* Resultado 1P */}
+            {gameMode === "1p" && (
+              <div className={`rounded-2xl px-5 py-4 text-center shadow-lg ${
+                won ? "bg-emerald-500" : "bg-red-500"
+              }`}>
+                <p className="text-white font-black text-xl">
+                  {won
+                    ? `¡Ganaste! +${bet * PAYOUT_MULT} 🌰`
+                    : `¡Qué pena! -${bet} 🌰`}
+                </p>
+                <p className="text-white/80 text-xs mt-1">
+                  {won
+                    ? `Apostaste por ${ANIMALS[chosen!].name} ${ANIMALS[chosen!].emoji} y acertaste`
+                    : `Apostaste por ${ANIMALS[chosen!].name} ${ANIMALS[chosen!].emoji} — ganó ${ANIMALS[winner].name}`}
+                </p>
+              </div>
+            )}
+
+            {/* Resultado 2P */}
+            {gameMode === "2p" && chosen !== null && chosenP2 !== null && (
+              <div className="flex flex-col gap-2">
+                {/* J1 result */}
+                <div className={`rounded-2xl px-5 py-3 shadow-lg ${
+                  chosen === winner ? "bg-emerald-500" : "bg-red-500"
+                }`}>
+                  <p className="text-white font-black text-base">
+                    {chosen === winner
+                      ? `J1 ${ANIMALS[chosen].emoji} ¡Gana! +${bet * PAYOUT_MULT} 🌰`
+                      : `J1 ${ANIMALS[chosen].emoji} Pierde -${bet} 🌰`}
+                  </p>
+                </div>
+                {/* J2 result */}
+                <div className={`rounded-2xl px-5 py-3 shadow-lg ${
+                  chosenP2 === winner ? "bg-emerald-500" : "bg-red-500"
+                }`}>
+                  <p className="text-white font-black text-base">
+                    {chosenP2 === winner
+                      ? `J2 ${ANIMALS[chosenP2].emoji} ¡Gana! +${betP2 * PAYOUT_MULT} 🌰`
+                      : `J2 ${ANIMALS[chosenP2].emoji} Pierde -${betP2} 🌰`}
+                  </p>
+                </div>
+                {/* Neither won */}
+                {chosen !== winner && chosenP2 !== winner && (
+                  <div className="rounded-2xl px-5 py-2 bg-slate-600 text-center">
+                    <p className="text-white/80 text-sm">Ninguno apostó al ganador — la casa se lleva todo</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Botones */}
             <div className="flex flex-col gap-2">
@@ -384,6 +593,12 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
                 </div>
               )}
               <button
+                onClick={backToMode}
+                className="w-full py-3 rounded-2xl bg-white/10 text-emerald-200 font-bold text-sm active:scale-95 transition"
+              >
+                Cambiar modo
+              </button>
+              <button
                 onClick={onClose}
                 className="w-full py-3 rounded-2xl bg-white/10 text-emerald-200 font-bold text-sm active:scale-95 transition"
               >
@@ -393,9 +608,17 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Zona de apuestas (solo en fase betting) */}
+        {/* Zona de apuestas J1 (fase betting — tanto 1P como 2P primer paso) */}
         {phase === "betting" && (
           <div className="flex flex-col gap-3">
+
+            {gameMode === "2p" && (
+              <div className="bg-teal-700/60 rounded-2xl px-4 py-2 text-center">
+                <p className="text-teal-200 font-bold text-sm">
+                  👤 Jugador 1, elige tu animal + apuesta
+                </p>
+              </div>
+            )}
 
             {/* Elige animal */}
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
@@ -424,7 +647,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* Apuesta */}
+            {/* Apuesta J1 */}
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
               <p className="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-3 text-center">
                 ¿Cuántas bellotas apuestas?
@@ -453,7 +676,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               </p>
             </div>
 
-            {/* Botón apostar */}
+            {/* Botón confirmar */}
             {noBellotas ? (
               <div className="bg-red-900/60 rounded-2xl px-5 py-4 text-center">
                 <p className="text-red-300 font-bold">¡Sin bellotas para apostar!</p>
@@ -461,7 +684,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               </div>
             ) : (
               <button
-                onClick={startRace}
+                onClick={confirmBettingP1}
                 disabled={chosen === null || bellotas < bet}
                 className={`w-full py-5 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all ${
                   chosen !== null && bellotas >= bet
@@ -471,9 +694,139 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               >
                 {chosen === null
                   ? "Elige un animal primero"
+                  : gameMode === "2p"
+                  ? `Confirmar J1 →`
                   : `¡Apostar ${bet} 🌰 y correr! 🏁`}
               </button>
             )}
+
+            {gameMode === "2p" && (
+              <button
+                onClick={backToMode}
+                className="w-full py-3 rounded-2xl bg-white/10 text-emerald-200 font-bold text-sm active:scale-95 transition"
+              >
+                ← Cambiar modo
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Zona de apuestas J2 (solo 2P) */}
+        {phase === "betting_p2" && (
+          <div className="flex flex-col gap-3">
+
+            <div className="bg-teal-700/60 rounded-2xl px-4 py-2 text-center">
+              <p className="text-teal-200 font-bold text-sm">
+                👤 Jugador 2, elige tu animal + apuesta
+              </p>
+              {chosen !== null && (
+                <p className="text-teal-300 text-xs mt-0.5">
+                  J1 eligió {ANIMALS[chosen].emoji} {ANIMALS[chosen].name}
+                </p>
+              )}
+            </div>
+
+            {/* Elige animal J2 */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+              <p className="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-3 text-center">
+                ¿A quién le apuestas? (no puedes elegir el mismo)
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {ANIMALS.map((a, i) => {
+                  const isP1Animal = i === chosen;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => !isP1Animal && setChosenP2(i)}
+                      disabled={isP1Animal}
+                      className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 transition-all active:scale-95 ${
+                        isP1Animal
+                          ? "bg-white/5 border-white/10 opacity-40 cursor-not-allowed"
+                          : chosenP2 === i
+                          ? `${a.bg} ${a.border} scale-105 shadow-lg`
+                          : "bg-white/10 border-white/20 hover:bg-white/20"
+                      }`}
+                    >
+                      <span className="text-3xl leading-none">{a.emoji}</span>
+                      <span className={`text-[9px] font-bold leading-tight text-center ${
+                        chosenP2 === i ? a.text : "text-white/70"
+                      }`}>
+                        {a.name}
+                      </span>
+                      {isP1Animal && (
+                        <span className="text-[8px] text-white/40">J1</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Apuesta J2 */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+              <p className="text-emerald-200 text-xs font-bold uppercase tracking-wider mb-3 text-center">
+                ¿Cuántas bellotas apuesta J2?
+              </p>
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {BET_OPTIONS.map(b => {
+                  const remaining = bellotas - bet; // J1 ya reservó su apuesta
+                  return (
+                    <button
+                      key={b}
+                      onClick={() => setBetP2(b)}
+                      disabled={b > remaining}
+                      className={`py-3 rounded-xl font-black text-base transition-all active:scale-95 ${
+                        betP2 === b
+                          ? "bg-teal-400 text-teal-900 shadow-lg scale-105"
+                          : b > remaining
+                          ? "bg-white/5 text-white/25 cursor-not-allowed"
+                          : "bg-white/20 text-white hover:bg-white/30"
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-emerald-300 text-xs text-center">
+                Si J2 gana: <strong className="text-white">+{betP2 * PAYOUT_MULT} 🌰</strong>
+                {" "}· Si pierde: <strong className="text-white/60">-{betP2} 🌰</strong>
+              </p>
+              <p className="text-emerald-400/70 text-xs text-center mt-1">
+                Total a descontar: {bet + betP2} 🌰 (disponibles: {bellotas})
+              </p>
+            </div>
+
+            {/* Botón arrancar */}
+            {!canAfford2P ? (
+              <div className="bg-red-900/60 rounded-2xl px-5 py-4 text-center">
+                <p className="text-red-300 font-bold">¡No hay suficientes bellotas!</p>
+                <p className="text-red-400 text-xs mt-1">
+                  Necesitas {totalNeeded2P} 🌰 (tienes {bellotas})
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={confirmBettingP2}
+                disabled={chosenP2 === null}
+                className={`w-full py-5 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all ${
+                  chosenP2 !== null
+                    ? "bg-teal-400 text-teal-900 shadow-teal-900/40"
+                    : "bg-white/10 text-white/30 cursor-not-allowed"
+                }`}
+              >
+                {chosenP2 === null
+                  ? "J2: Elige un animal primero"
+                  : `¡Apostar y correr! 🏁`}
+              </button>
+            )}
+
+            <button
+              onClick={() => setPhase("betting")}
+              className="w-full py-3 rounded-2xl bg-white/10 text-emerald-200 font-bold text-sm active:scale-95 transition"
+            >
+              ← Volver (J1)
+            </button>
           </div>
         )}
       </div>
@@ -493,6 +846,22 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               {sessionGain >= 0 ? "+" : ""}{sessionGain} 🌰
             </p>
           </div>
+          {gameMode === "2p" && (p1Wins + p2Wins + draws2P) > 0 && (
+            <>
+              <div className="text-center">
+                <p className="text-emerald-400 text-[10px] font-semibold uppercase">J1 gana</p>
+                <p className="text-white font-black text-lg leading-tight">{p1Wins}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-emerald-400 text-[10px] font-semibold uppercase">J2 gana</p>
+                <p className="text-white font-black text-lg leading-tight">{p2Wins}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-emerald-400 text-[10px] font-semibold uppercase">Empates</p>
+                <p className="text-white font-black text-lg leading-tight">{draws2P}</p>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
