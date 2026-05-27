@@ -331,14 +331,7 @@ function Accessory({ state, illnessType }: { state: TamaVisualState; illnessType
     </g>
   );
 
-  if (state === "triste" || state === "hambre") return null; // tears already in eyes
-
-  if (state === "triste") return (
-    <g>
-      <text x="55"  y="155" fontSize="11" fill="#93C5FD" style={tearStyle("0s")}>💧</text>
-      <text x="166" y="148" fontSize="11" fill="#93C5FD" style={tearStyle("0.7s")}>💧</text>
-    </g>
-  );
+  if (state === "triste") return null; // tears already in eyes (handled by EyePair)
 
   if (state === "enfadada") return (
     <g>

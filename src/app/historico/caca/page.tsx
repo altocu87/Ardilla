@@ -322,7 +322,8 @@ export default function HistoricoCaca() {
                 <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#94a3b8" }} tickLine={false} axisLine={false} interval={1} />
                 <YAxis domain={[0, 1]} hide />
-                <Tooltip formatter={(v: number) => [v === 1 ? "Con registro ✓" : "Sin registro", ""]} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <Tooltip formatter={((v: number) => [v === 1 ? "Con registro ✓" : "Sin registro", ""]) as any} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                   {chartData.map((d, i) => (
                     <Cell key={i} fill={d.value ? (d.isToday ? "#d97706" : "#fcd34d") : "#e2e8f0"} />

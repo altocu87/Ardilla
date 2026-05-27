@@ -1044,7 +1044,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const food = FOOD_CATALOG.find(f => f.id === foodId);
     if (!food) return;
     if (!consumeFood(foodId)) return;
-    let s;
+    let s: TamaStats;
     if (food.id === "food_pecan" && tamaStats?.isAngry) {
       // Pastel de nuez pecán cura el enfado
       s = cureAngry();
