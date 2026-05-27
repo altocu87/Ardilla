@@ -38,6 +38,8 @@ import MemoryCardGame from "@/components/MemoryCardGame";
 import SopaDeLetras from "@/components/SopaDeLetras";
 import MayorMenorGame from "@/components/MayorMenorGame";
 import AnimalRaceGame from "@/components/AnimalRaceGame";
+import TresEnRayaGame from "@/components/TresEnRayaGame";
+import Conecta4Game   from "@/components/Conecta4Game";
 import { unlockAudio, maybeRandomFart, maybeEructo, playFartRandom, playBurpRandom, playCositas } from "@/lib/sounds";
 
 /* ── Frases de bienvenida del caracol ───────────────────────────── */
@@ -779,6 +781,8 @@ export default function Home() {
   const [showSopaLetras,    setShowSopaLetras]    = useState(false);
   const [showMayorMenor,    setShowMayorMenor]    = useState(false);
   const [showAnimalRace,    setShowAnimalRace]    = useState(false);
+  const [showTresEnRaya,    setShowTresEnRaya]    = useState(false);
+  const [showConecta4,      setShowConecta4]      = useState(false);
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [tamaMessage,       setTamaMessage]       = useState("");
   const [brokenSleepItems,  setBrokenSleepItems]  = useState<string[]>([]);
@@ -1703,6 +1707,8 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             { label: "Sopa de letras",    emoji: "🔤", onClick: () => setShowSopaLetras(true) },
             { label: "Mayor o Menor",     emoji: "🎴", onClick: () => setShowMayorMenor(true) },
             { label: "Carrera del Bosque", emoji: "🏁", onClick: () => setShowAnimalRace(true) },
+            { label: "Tres en Raya",      emoji: "🐿️", onClick: () => setShowTresEnRaya(true) },
+            { label: "Conecta 4",         emoji: "🌰", onClick: () => setShowConecta4(true) },
           ]}
         />
       )}
@@ -1732,6 +1738,16 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       {showAnimalRace && (
         <AnimalRaceGame
           onClose={() => setShowAnimalRace(false)}
+        />
+      )}
+      {showTresEnRaya && (
+        <TresEnRayaGame
+          onClose={() => setShowTresEnRaya(false)}
+        />
+      )}
+      {showConecta4 && (
+        <Conecta4Game
+          onClose={() => setShowConecta4(false)}
         />
       )}
       {showMedicineModal && tamaStats?.illness && (
