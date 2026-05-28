@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 import { recordResult1P, record2PResult } from "@/lib/game-stats";
+import { unlockAudio, playMove, playWin, playLose, playDraw } from "@/lib/sounds";
 
 /* ── Types & constants ─────────────────────────────────────────────────── */
 const BET_OPTIONS = [1, 2, 5, 10];
@@ -123,14 +124,17 @@ export default function TresEnRayaGame({ onClose }: Props) {
     setWinInfo({ winner: result.winner, line: result.line });
     setPhase("result");
     if (result.winner === "p") {
+      playWin();
       setWins(w => w + 1);
       updateBellotas(+bet);
       recordResult1P("tres_en_raya", "win", +bet);
     } else if (result.winner === "a") {
+      playLose();
       setLosses(l => l + 1);
       updateBellotas(-bet);
       recordResult1P("tres_en_raya", "lose", -bet);
     } else {
+      playDraw();
       setDraws(d => d + 1);
       recordResult1P("tres_en_raya", "draw", 0);
     }
@@ -141,6 +145,7 @@ export default function TresEnRayaGame({ onClose }: Props) {
 
     const newBoard = [...board] as Cell[];
     newBoard[idx] = "p";
+    playMove();
     setBoard(newBoard);
 
     const result = checkWinner(newBoard);
@@ -177,18 +182,22 @@ export default function TresEnRayaGame({ onClose }: Props) {
 
     const newBoard = [...board2p] as Cell[];
     newBoard[idx] = turn2p;
+    playMove();
     setBoard2p(newBoard);
 
     const result = checkWinner(newBoard);
     if (result.winner) {
       setWinInfo2p({ winner: result.winner, line: result.line });
       if (result.winner === "p") {
+        playWin();
         setJ1Wins(w => w + 1);
         record2PResult("tres_en_raya", "p1");
       } else if (result.winner === "a") {
+        playWin();
         setJ2Wins(w => w + 1);
         record2PResult("tres_en_raya", "p2");
       } else {
+        playDraw();
         setDraws2p(d => d + 1);
         record2PResult("tres_en_raya", "draw");
       }
@@ -268,14 +277,14 @@ export default function TresEnRayaGame({ onClose }: Props) {
             </div>
 
             <button
-              onClick={() => setGameMode("1p")}
+              onClick={() => { unlockAudio(); setGameMode("1p"); }}
               className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl shadow-xl active:scale-95 transition flex items-center justify-center gap-3">
               <span className="text-3xl">🤖</span>
               <span>vs IA</span>
             </button>
 
             <button
-              onClick={() => { setGameMode("2p"); start2PGame(); }}
+              onClick={() => { unlockAudio(); setGameMode("2p"); start2PGame(); }}
               className="w-full py-5 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xl shadow-xl active:scale-95 transition flex items-center justify-center gap-3">
               <span className="text-3xl">👥</span>
               <span>2 Jugadores</span>

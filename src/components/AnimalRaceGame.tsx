@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 import { recordRaceResult, record2PResult } from "@/lib/game-stats";
+import { unlockAudio, playCountdownBeep, playRaceAmbient, playRaceFinish, playBet } from "@/lib/sounds";
 
 /* ── Configuración ───────────────────────────────────────────────────────── */
 const ANIMALS = [
@@ -41,6 +42,8 @@ const BET_OPTIONS = [1, 2, 5, 10];
 const PAYOUT_MULT = 4;    // ganancia neta = apuesta × 4  (total = ×5 si se incluye la apuesta)
 const TICK_MS     = 90;   // ms por paso de animación
 const COUNTDOWN   = 3;    // segundos de cuenta atrás
+const FINISH      = 300;  // longitud total de la carrera
+const VIEW_SIZE   = 100;  // ventana visible
 
 type Phase = "mode" | "betting" | "betting_p2" | "countdown" | "racing" | "result";
 type GameMode = "1p" | "2p";
@@ -53,16 +56,16 @@ function simulateRace(n: number): { ticks: number[][]; winner: number } {
 
   while (winner === -1) {
     for (let i = 0; i < n; i++) {
-      if (pos[i] < 100) {
+      if (pos[i] < FINISH) {
         // velocidad aleatoria: base 2 + bonus random 0–4.5
-        pos[i] = Math.min(100, pos[i] + 1.5 + Math.random() * 4.5);
+        pos[i] = Math.min(FINISH, pos[i] + 1.5 + Math.random() * 4.5);
       }
     }
     ticks.push([...pos]);
     // primer animal que cruza la meta
     if (winner === -1) {
       for (let i = 0; i < n; i++) {
-        if (pos[i] >= 100) { winner = i; break; }
+        if (pos[i] >= FINISH) { winner = i; break; }
       }
     }
   }
@@ -79,6 +82,8 @@ function Track({
   isChosenP2,
   isWinner,
   phase,
+  viewStart,
+  viewSize,
 }: {
   animal: typeof ANIMALS[0];
   index: number;
@@ -87,9 +92,11 @@ function Track({
   isChosenP2: boolean;
   isWinner: boolean;
   phase: Phase;
+  viewStart: number;
+  viewSize: number;
 }) {
-  // rango visual del emoji: de 5% a 85% (restamos 15% para el flag al final)
-  const pct = 5 + (position / 100) * 80;
+  const ratio = (position - viewStart) / viewSize;
+  const pct = Math.max(-10, Math.min(95, 5 + ratio * 80));
 
   const isChosen = isChosenP1 || isChosenP2;
 
@@ -202,9 +209,11 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (phase !== "countdown") return;
     if (countdown <= 0) {
+      playCountdownBeep(true);
       setPhase("racing");
       return;
     }
+    playCountdownBeep(false);
     const t = setTimeout(() => setCountdown(c => c - 1), 900);
     return () => clearTimeout(t);
   }, [phase, countdown]);
@@ -218,6 +227,10 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
     const interval = setInterval(() => {
       tickRef.current += 1;
       const tick = tickRef.current;
+
+      if (tick % 8 === 0) {
+        playRaceAmbient();
+      }
 
       if (tick >= data.ticks.length) {
         clearInterval(interval);
@@ -244,6 +257,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
             pickedEmoji: chosen !== null ? ANIMALS[chosen].emoji : undefined,
             wonRace: playerWon,
           });
+
+          playRaceFinish(playerWon);
         } else {
           // 2P: J1 wins if chosen===w, J2 wins if chosenP2===w, else neither (draw / house)
           const p1Won = chosen === w;
@@ -282,6 +297,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
             p2Emoji: chosenP2 !== null ? ANIMALS[chosenP2].emoji : undefined,
           });
           record2PResult("carrera", winner2P);
+
+          playRaceFinish(p1Won || p2Won);
         }
       } else {
         setPositions(data.ticks[tick]);
@@ -294,6 +311,7 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
 
   /* Seleccionar modo */
   function selectMode(mode: GameMode) {
+    unlockAudio();
     setGameMode(mode);
     setChosen(null);
     setChosenP2(null);
@@ -305,6 +323,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   /* Iniciar carrera desde apuesta J1 (1P) o confirmar J1 y pasar a J2 (2P) */
   function confirmBettingP1() {
     if (chosen === null || bellotas < bet) return;
+
+    playBet();
 
     if (gameMode === "1p") {
       // Descontar apuesta inmediatamente
@@ -329,6 +349,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   /* Confirmar apuesta J2 y arrancar carrera (2P) */
   function confirmBettingP2() {
     if (chosenP2 === null || bellotas < bet + betP2) return;
+
+    playBet();
 
     // Descontar ambas apuestas inmediatamente
     const afterBet = bellotas - bet - betP2;
@@ -438,6 +460,10 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
   const totalNeeded2P = bet + betP2;
   const canAfford2P   = bellotas >= totalNeeded2P;
 
+  // Viewport de cámara
+  const leaderPos = Math.max(...positions);
+  const viewStart = Math.max(0, Math.min(FINISH - VIEW_SIZE, leaderPos - VIEW_SIZE * 0.65));
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-emerald-900 via-green-800 to-teal-900 overflow-hidden">
 
@@ -468,6 +494,14 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
 
         {/* Pistas de carrera */}
         <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-3 flex flex-col gap-2">
+          {/* Barra de progreso general de la carrera */}
+          <div className="h-1.5 bg-white/20 rounded-full overflow-hidden mx-3 mb-2">
+            <div
+              className="h-full bg-emerald-300 rounded-full transition-all duration-100"
+              style={{ width: `${(leaderPos / FINISH) * 100}%` }}
+            />
+          </div>
+
           {ANIMALS.map((a, i) => (
             <Track
               key={i}
@@ -478,6 +512,8 @@ export default function AnimalRaceGame({ onClose }: { onClose: () => void }) {
               isChosenP2={chosenP2 === i}
               isWinner={winner === i}
               phase={phase}
+              viewStart={viewStart}
+              viewSize={VIEW_SIZE}
             />
           ))}
         </div>

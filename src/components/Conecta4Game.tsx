@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 import { recordResult1P, record2PResult } from "@/lib/game-stats";
+import { unlockAudio, playDrop, playWin, playLose, playDraw } from "@/lib/sounds";
 
 /* ── Constantes ────────────────────────────────────────────────────────── */
 const ROWS = 6;
@@ -235,12 +236,14 @@ export default function Conecta4Game({ onClose }: Props) {
     const result = dropPiece(board, col, "p");
     if (!result) return;
 
+    playDrop();
     setBoard(result.board);
     setLastCell([result.row, col]);
     setPreviewCol(null);
 
     const win = checkWin(result.board);
     if (win) {
+      playWin();
       setWinResult(win);
       setPhase("result");
       setWins(w => w + 1);
@@ -249,6 +252,7 @@ export default function Conecta4Game({ onClose }: Props) {
       return;
     }
     if (isFull(result.board)) {
+      playDraw();
       setIsDraw(true);
       setPhase("result");
       setDraws(d => d + 1);
@@ -264,12 +268,14 @@ export default function Conecta4Game({ onClose }: Props) {
       const aiResult = dropPiece(result.board, aiCol, "a");
       if (!aiResult) { setAiThinking(false); return; }
 
+      playDrop();
       setBoard(aiResult.board);
       setLastCell([aiResult.row, aiCol]);
       setAiThinking(false);
 
       const aiWin = checkWin(aiResult.board);
       if (aiWin) {
+        playLose();
         setWinResult(aiWin);
         setPhase("result");
         setLosses(l => l + 1);
@@ -278,6 +284,7 @@ export default function Conecta4Game({ onClose }: Props) {
         return;
       }
       if (isFull(aiResult.board)) {
+        playDraw();
         setIsDraw(true);
         setPhase("result");
         setDraws(d => d + 1);
@@ -295,12 +302,14 @@ export default function Conecta4Game({ onClose }: Props) {
     const result = dropPiece(board, col, player);
     if (!result) return;
 
+    playDrop();
     setBoard(result.board);
     setLastCell([result.row, col]);
     setPreviewCol(null);
 
     const win = checkWin(result.board);
     if (win) {
+      playWin();
       setWinResult(win);
       setPhase("result");
       if (player === "p") {
@@ -313,6 +322,7 @@ export default function Conecta4Game({ onClose }: Props) {
       return;
     }
     if (isFull(result.board)) {
+      playDraw();
       setIsDraw(true);
       setPhase("result");
       setP2Draws(d => d + 1);
@@ -350,6 +360,7 @@ export default function Conecta4Game({ onClose }: Props) {
   }
 
   function selectMode(mode: GameMode) {
+    unlockAudio();
     setGameMode(mode);
     setBoard(createBoard());
     setWinResult(null);

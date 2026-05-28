@@ -356,3 +356,219 @@ export function maybeEructo(): string | null {
   ];
   return msgs[Math.floor(Math.random() * msgs.length)];
 }
+
+/* ════════════════════════════════════════════════════
+   JUEGOS 🎮 — efectos de sonido para minijuegos
+════════════════════════════════════════════════════ */
+
+/** Colocar ficha (Tres en Raya, Conecta 4) */
+export function playMove(vol = 0.22): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const t = c.currentTime;
+  const osc = c.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(420, t);
+  osc.frequency.exponentialRampToValueAtTime(280, t + 0.09);
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+  osc.connect(gain); gain.connect(c.destination);
+  osc.start(t); osc.stop(t + 0.13);
+}
+
+/** Caída de pieza (Conecta 4) — tono descendente + golpe */
+export function playDrop(vol = 0.28): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const t = c.currentTime;
+  // Tono descendente
+  const osc = c.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(700, t);
+  osc.frequency.exponentialRampToValueAtTime(160, t + 0.13);
+  const g1 = c.createGain();
+  g1.gain.setValueAtTime(vol, t);
+  g1.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  osc.connect(g1); g1.connect(c.destination);
+  osc.start(t); osc.stop(t + 0.17);
+  // Golpe percusivo al llegar
+  const noise = brownNoise(c, 0.06);
+  const hpf = c.createBiquadFilter();
+  hpf.type = "highpass"; hpf.frequency.value = 1800;
+  const g2 = c.createGain();
+  g2.gain.setValueAtTime(vol * 0.6, t + 0.11);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  noise.connect(hpf); hpf.connect(g2); g2.connect(c.destination);
+  noise.start(t + 0.11); noise.stop(t + 0.19);
+}
+
+/** Voltear carta (Mayor o Menor) */
+export function playCardFlip(vol = 0.30): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const t = c.currentTime;
+  // Swish de papel
+  const noise = brownNoise(c, 0.09);
+  const hpf = c.createBiquadFilter();
+  hpf.type = "highpass"; hpf.frequency.value = 2400;
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  noise.connect(hpf); hpf.connect(gain); gain.connect(c.destination);
+  noise.start(t); noise.stop(t + 0.1);
+  // Tono de "reveal"
+  const osc = c.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(880, t + 0.05);
+  osc.frequency.exponentialRampToValueAtTime(1100, t + 0.12);
+  const g2 = c.createGain();
+  g2.gain.setValueAtTime(0, t + 0.05);
+  g2.gain.linearRampToValueAtTime(vol * 0.5, t + 0.07);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  osc.connect(g2); g2.connect(c.destination);
+  osc.start(t + 0.05); osc.stop(t + 0.2);
+}
+
+/** Victoria — fanfarria ascendente */
+export function playWin(vol = 0.30): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const notes = [523.25, 659.25, 783.99, 1046.50];
+  notes.forEach((freq, i) => {
+    const t = c.currentTime + i * 0.13;
+    const osc = c.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.42);
+  });
+  // Brillo final
+  const sparkT = c.currentTime + 0.52;
+  [1318.51, 1567.98].forEach((freq, i) => {
+    const t = sparkT + i * 0.07;
+    const osc = c.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol * 0.5, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.35);
+  });
+}
+
+/** Derrota — trombón triste descendente */
+export function playLose(vol = 0.22): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const notes = [392.00, 349.23, 311.13, 261.63];
+  notes.forEach((freq, i) => {
+    const t = c.currentTime + i * 0.19;
+    const osc = c.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.linearRampToValueAtTime(freq * 0.84, t + 0.22);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.28);
+  });
+}
+
+/** Empate — dos pulsos neutrales */
+export function playDraw(vol = 0.18): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  [440, 440].forEach((freq, i) => {
+    const t = c.currentTime + i * 0.18;
+    const osc = c.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.25);
+  });
+}
+
+/** Apuesta colocada — dos notas cortas */
+export function playBet(vol = 0.18): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  [330, 440].forEach((freq, i) => {
+    const t = c.currentTime + i * 0.09;
+    const osc = c.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.15);
+  });
+}
+
+/** Beep de cuenta atrás — grave normal / agudo en "¡YA!" */
+export function playCountdownBeep(isLast = false, vol = 0.32): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const t = c.currentTime;
+  if (isLast) {
+    // "¡YA!" — acorde de inicio
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const t2 = t + i * 0.05;
+      const osc = c.createOscillator();
+      osc.type = "square";
+      osc.frequency.value = freq;
+      const gain = c.createGain();
+      gain.gain.setValueAtTime(vol * 0.6, t2);
+      gain.gain.exponentialRampToValueAtTime(0.001, t2 + 0.35);
+      osc.connect(gain); gain.connect(c.destination);
+      osc.start(t2); osc.stop(t2 + 0.4);
+    });
+  } else {
+    // Beep normal
+    const osc = c.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 440;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(gain); gain.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.2);
+  }
+}
+
+/** Sonido de carrera en curso — ruido de pasos/ambiente */
+export function playRaceAmbient(vol = 0.08): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  const t = c.currentTime;
+  const noise = brownNoise(c, 0.12);
+  const bpf = c.createBiquadFilter();
+  bpf.type = "bandpass"; bpf.frequency.value = 600; bpf.Q.value = 1.5;
+  const gain = c.createGain();
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  noise.connect(bpf); bpf.connect(gain); gain.connect(c.destination);
+  noise.start(t); noise.stop(t + 0.14);
+}
+
+/** Meta cruzada — fanfarria */
+export function playRaceFinish(won: boolean, vol = 0.32): void {
+  const c = getCtx(); if (!c) return;
+  void c.resume();
+  if (won) {
+    playWin(vol);
+  } else {
+    playLose(vol * 0.9);
+  }
+}

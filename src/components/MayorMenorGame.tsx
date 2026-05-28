@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { getPlayerProfile, upsertPlayerProfile } from "@/lib/db";
 import { recordResult1P } from "@/lib/game-stats";
+import { unlockAudio, playCardFlip, playWin, playLose, playDraw } from "@/lib/sounds";
 
 /* ── Configuración del juego ─────────────────────────────────────────────── */
 const MIN_CARD = 1;
@@ -117,12 +118,14 @@ export default function MayorMenorGame({ onClose }: Props) {
   }
 
   function handleGuess(g: "mayor" | "menor") {
+    unlockAudio();
     if (phase !== "betting") return;
     if (bellotas < bet) return;
 
     const next = randomCard();
     setNextCard(next);
     setGuess(g);
+    playCardFlip();
     setPhase("revealing");
 
     setTimeout(() => {
@@ -135,9 +138,9 @@ export default function MayorMenorGame({ onClose }: Props) {
       setPhase("result");
       setRoundsDone(r => r + 1);
 
-      if (result === true)       { updateBellotas(+bet); recordResult1P("mayor_menor", "win", +bet); }
-      else if (result === false) { updateBellotas(-bet); recordResult1P("mayor_menor", "lose", -bet); }
-      else                       { recordResult1P("mayor_menor", "draw", 0); }
+      if (result === true)       { playWin(); updateBellotas(+bet); recordResult1P("mayor_menor", "win", +bet); }
+      else if (result === false) { playLose(); updateBellotas(-bet); recordResult1P("mayor_menor", "lose", -bet); }
+      else                       { playDraw(); recordResult1P("mayor_menor", "draw", 0); }
       // empate: no pierde ni gana
     }, 900);
   }
