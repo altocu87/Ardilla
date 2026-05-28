@@ -287,6 +287,7 @@ export default function HistoricoCaca() {
                 const dayEntries = log[cell.key] ?? [];
                 const hasEntry = dayEntries.length > 0;
                 const isToday = cell.key === new Date().toISOString().slice(0, 10);
+                const isSinCaca = dayEntries.length > 0 && dayEntries.every(e => e.bristol === 0);
                 const icons = dayEntries.slice(0, 4).map(e => e.bristolIcon);
                 const QUADRANTS = [
                   "absolute top-0 left-0 w-1/2 h-1/2 flex items-center justify-center",
@@ -297,7 +298,8 @@ export default function HistoricoCaca() {
                 return (
                   <div key={cell.key} title={cell.key}
                     className={`aspect-square rounded-md relative flex items-center justify-center leading-none overflow-hidden ${
-                      hasEntry ? "bg-amber-300 shadow-sm shadow-amber-100"
+                      isSinCaca ? "bg-slate-200 shadow-sm"
+                      : hasEntry ? "bg-amber-300 shadow-sm shadow-amber-100"
                       : isToday ? "border-2 border-amber-300 bg-amber-50"
                       : cell.isFuture ? "bg-white"
                       : "bg-slate-100"
@@ -341,18 +343,19 @@ export default function HistoricoCaca() {
               const isExpanded = expanded === key;
               const isConfirming = confirmDelete === key;
               const d = new Date(entry.savedAt);
+              const esSinCaca = entry.bristol === 0;
               return (
-                <div key={key} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div key={key} className={`rounded-2xl shadow-sm border overflow-hidden ${esSinCaca ? "bg-slate-50 border-slate-200" : "bg-white border-slate-100"}`}>
                   <button onClick={() => setExpanded(isExpanded ? null : key)}
                     className="w-full flex items-center justify-between px-4 py-3 text-left">
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">{entry.bristolIcon}</span>
                       <div>
-                        <p className="text-sm font-bold text-slate-700 capitalize">
+                        <p className={`text-sm font-bold capitalize ${esSinCaca ? "text-slate-500" : "text-slate-700"}`}>
                           {d.toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}
                         </p>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })} · {entry.bristolName}
+                          {d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })} · {esSinCaca ? "Sin caca ese día" : entry.bristolName}
                         </p>
                       </div>
                     </div>
@@ -361,15 +364,26 @@ export default function HistoricoCaca() {
 
                   {isExpanded && (
                     <div className="px-4 pb-4 flex flex-col gap-3 border-t border-slate-100 pt-3">
-                      <Field label="Cantidad"  value={`${CANTIDAD_ICONS[entry.cantidad] ?? ""} ${entry.cantidad}`} color="amber" />
-                      <Field label="Bristol"   value={`${entry.bristolIcon} ${entry.bristol} · ${entry.bristolName}`} color="orange" />
-                      <Field label="Sensación" value={`${SENSACION_OPTS.find(s => s.label === entry.sensacion)?.icon ?? ""} ${entry.sensacion}`} color="rose" />
+                      {esSinCaca ? (
+                        <div className="flex items-center gap-3 bg-slate-100 rounded-xl px-4 py-3">
+                          <span className="text-2xl">⭕</span>
+                          <p className="text-sm text-slate-500 font-medium">Día registrado sin caca</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Field label="Cantidad"  value={`${CANTIDAD_ICONS[entry.cantidad] ?? ""} ${entry.cantidad}`} color="amber" />
+                          <Field label="Bristol"   value={`${entry.bristolIcon} ${entry.bristol} · ${entry.bristolName}`} color="orange" />
+                          <Field label="Sensación" value={`${SENSACION_OPTS.find(s => s.label === entry.sensacion)?.icon ?? ""} ${entry.sensacion}`} color="rose" />
+                        </>
+                      )}
 
                       <div className="flex gap-2 mt-1">
-                        <button onClick={() => setEditing({ ...entry })}
-                          className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold active:scale-95 transition">
-                          ✏️ Editar
-                        </button>
+                        {!esSinCaca && (
+                          <button onClick={() => setEditing({ ...entry })}
+                            className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold active:scale-95 transition">
+                            ✏️ Editar
+                          </button>
+                        )}
                         {isConfirming ? (
                           <>
                             <button onClick={() => deleteEntry(entry.date, entry.idx)}

@@ -25,7 +25,7 @@ export async function getRegistroContext(): Promise<RegistroContext> {
     const cacaLog = await getCacaLog();
     for (const date of dates) {
       for (const entry of cacaLog[date] ?? []) {
-        if (entry.bristol <= 2) hasConstipation = true;
+        if (entry.bristol >= 1 && entry.bristol <= 2) hasConstipation = true;
         if (entry.bristol >= 6) hasDiarrhea     = true;
       }
     }

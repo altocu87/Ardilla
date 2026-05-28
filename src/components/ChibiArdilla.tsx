@@ -391,41 +391,41 @@ function Clothing({ equipped, catalog }: { equipped: EquippedClothing; catalog: 
   const body = get("body"); const eyes = get("eyes");
   return (
     <>
-      {/* Capa — renderizar antes para que quede detrás */}
+      {/* Capa — renderizar antes para que quede detrás, sin clipPath (es una capa que vuela) */}
       {body?.clothingType === "capa" && (
         <path d="M 84 162 Q 40 200 22 264 L 208 264 Q 190 200 146 162 Q 131 157 115 155 Q 99 157 84 162 Z"
           fill={body.color} opacity="0.90" stroke={C.dark} strokeWidth="2.5"/>
       )}
 
       {body?.clothingType === "jersey" && (
-        <g>
-          <rect x="52" y="170" width="106" height="68" rx="22" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="3"/>
-          <path d="M 76 170 Q 115 160 154 170" fill="none" stroke={body.color} strokeWidth="9" strokeLinecap="round"/>
+        <g clipPath="url(#sq-body-clip)">
+          <rect x="50" y="169" width="130" height="88" rx="22" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="3"/>
+          <path d="M 76 175 Q 115 162 154 175" fill="none" stroke={body.color} strokeWidth="9" strokeLinecap="round"/>
         </g>
       )}
       {body?.clothingType === "abrigo" && (
-        <g>
-          <rect x="50" y="168" width="130" height="72" rx="24" fill={body.color} opacity="0.93" stroke={C.dark} strokeWidth="3"/>
-          <path d="M 115 168 L 99 192 L 91 200 L 99 200 L 115 184 L 131 200 L 139 200 L 131 192 Z" fill="white" opacity="0.88"/>
-          <circle cx="115" cy="210" r="5" fill="#1e293b"/>
-          <circle cx="115" cy="225" r="5" fill="#1e293b"/>
+        <g clipPath="url(#sq-body-clip)">
+          <rect x="50" y="168" width="130" height="90" rx="22" fill={body.color} opacity="0.93" stroke={C.dark} strokeWidth="3"/>
+          <path d="M 115 172 L 99 196 L 91 204 L 99 204 L 115 188 L 131 204 L 139 204 L 131 196 Z" fill="white" opacity="0.88"/>
+          <circle cx="115" cy="214" r="5" fill="#1e293b"/>
+          <circle cx="115" cy="230" r="5" fill="#1e293b"/>
         </g>
       )}
       {body?.clothingType === "pijama" && (
-        <g>
-          <rect x="52" y="170" width="126" height="68" rx="22" fill={body.color} opacity="0.90" stroke={C.dark} strokeWidth="3"/>
-          <path d="M 76 170 Q 115 160 154 170" fill="none" stroke={body.color} strokeWidth="9" strokeLinecap="round"/>
-          {[188, 203, 218].map((y, i) => (
-            <path key={i} d={`M 62 ${y} Q 115 ${y+3} 168 ${y}`} fill="none" stroke={C.dark} strokeWidth="2" strokeDasharray="7 5" opacity="0.18"/>
+        <g clipPath="url(#sq-body-clip)">
+          <rect x="50" y="169" width="130" height="88" rx="22" fill={body.color} opacity="0.90" stroke={C.dark} strokeWidth="3"/>
+          <path d="M 76 175 Q 115 162 154 175" fill="none" stroke={body.color} strokeWidth="9" strokeLinecap="round"/>
+          {[190, 206, 222].map((y, i) => (
+            <path key={i} d={`M 58 ${y} Q 115 ${y+3} 172 ${y}`} fill="none" stroke={C.dark} strokeWidth="2" strokeDasharray="7 5" opacity="0.18"/>
           ))}
         </g>
       )}
       {body?.clothingType === "chaleco" && (
-        <g>
-          <rect x="62" y="170" width="106" height="64" rx="20" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="2.5"/>
-          <path d="M 96 170 L 115 193 L 134 170" fill={C.belly} stroke="none"/>
-          <circle cx="115" cy="205" r="4" fill="#1e293b" opacity="0.6"/>
-          <circle cx="115" cy="220" r="4" fill="#1e293b" opacity="0.6"/>
+        <g clipPath="url(#sq-body-clip)">
+          <rect x="50" y="169" width="130" height="88" rx="20" fill={body.color} opacity="0.92" stroke={C.dark} strokeWidth="2.5"/>
+          <path d="M 96 174 L 115 198 L 134 174" fill={C.belly} stroke="none"/>
+          <circle cx="115" cy="210" r="4" fill="#1e293b" opacity="0.6"/>
+          <circle cx="115" cy="226" r="4" fill="#1e293b" opacity="0.6"/>
         </g>
       )}
 
@@ -773,30 +773,55 @@ export default function ChibiArdilla({
             fill="none" stroke={C.body} strokeWidth={42} strokeLinecap="round"/>
           <path d="M 157 210 C 198 190 207 138 203 97 C 197 60 178 36 163 52"
             fill="none" stroke="#FBD080" strokeWidth={18} strokeLinecap="round"/>
-          <circle cx="165" cy="50" r="22" fill={C.dark} opacity="0.18"/>
+          {/* Fluffy tip */}
+          <circle cx="165" cy="50" r="26" fill={C.dark} opacity="0.18"/>
+          <circle cx="164" cy="48" r="20" fill="#FBD080" opacity="0.55"/>
         </g>
 
-        {/* ══ CUERPO ══ */}
-        <ellipse cx="115" cy="215" rx="55" ry="43" fill={C.dark} opacity="0.35"/>
-        <ellipse cx="115" cy="213" rx="52" ry="40" fill={C.body} stroke={C.dark} strokeWidth={C.sw}/>
-        <ellipse cx="115" cy="220" rx="33" ry="27" fill={C.belly} stroke={C.dark} strokeWidth={3.5}/>
+        {/* ══ CUERPO — forma orgánica de pera, no círculo ══ */}
+        {/* Shadow */}
+        <path d="M 89 178 C 61 192 57 229 71 255 Q 115 266 159 255 C 173 229 169 192 141 178 Q 128 171 115 171 Q 102 171 89 178 Z"
+          fill={C.dark} opacity="0.28"/>
+        {/* Torso */}
+        <path d="M 90 176 C 63 190 59 227 73 252 Q 115 263 157 252 C 171 227 167 190 140 176 Q 127 169 115 169 Q 103 169 90 176 Z"
+          fill={C.body} stroke={C.dark} strokeWidth={C.sw}/>
+        {/* Belly */}
+        <ellipse cx="115" cy="217" rx="34" ry="28" fill={C.belly} stroke={C.dark} strokeWidth={3.5}/>
         {state === "malita" && (
-          <ellipse cx="115" cy="220" rx="33" ry="27" fill="rgba(90,180,70,0.14)"/>
+          <path d="M 90 176 C 63 190 59 227 73 252 Q 115 263 157 252 C 171 227 167 190 140 176 Q 127 169 115 169 Q 103 169 90 176 Z"
+            fill="rgba(90,200,70,0.10)"/>
         )}
 
-        {/* ══ PATAS ══ */}
-        <ellipse cx="73"  cy="248" rx="22" ry="12" fill={C.dark} opacity="0.4"/>
-        <ellipse cx="73"  cy="246" rx="19" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
-        <ellipse cx="157" cy="248" rx="22" ry="12" fill={C.dark} opacity="0.4"/>
-        <ellipse cx="157" cy="246" rx="19" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        {/* ══ PATAS — con dedos para parecer patas reales ══ */}
+        {/* Left foot */}
+        <ellipse cx="76"  cy="257" rx="23" ry="12" fill={C.dark} opacity="0.4"/>
+        <ellipse cx="76"  cy="255" rx="21" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        <ellipse cx="64"  cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="76"  cy="248" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="88"  cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        {/* Right foot */}
+        <ellipse cx="154" cy="257" rx="23" ry="12" fill={C.dark} opacity="0.4"/>
+        <ellipse cx="154" cy="255" rx="21" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        <ellipse cx="142" cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="154" cy="248" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="166" cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
 
-        {/* ══ BRAZOS ══ */}
-        <ellipse cx="52"  cy="200" rx="15" ry="23" fill={C.dark} opacity="0.35" transform="rotate(-22 52 200)"/>
-        <ellipse cx="52"  cy="199" rx="13" ry="21" fill={C.body} stroke={C.dark} strokeWidth={3} transform="rotate(-22 52 199)"/>
-        <ellipse cx="178" cy="200" rx="15" ry="23" fill={C.dark} opacity="0.35" transform="rotate(22 178 200)"/>
-        <ellipse cx="178" cy="199" rx="13" ry="21" fill={C.body} stroke={C.dark} strokeWidth={3} transform="rotate(22 178 199)"/>
-        <ellipse cx="44"  cy="220" rx="13" ry="9" fill={C.body} stroke={C.dark} strokeWidth={3}/>
-        <ellipse cx="186" cy="220" rx="13" ry="9" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        {/* ══ BRAZOS — formas de brazo real, no elipses flotantes ══ */}
+        {/* Left arm shadow */}
+        <path d="M 67 189 C 46 196 36 218 43 234 Q 52 242 63 235 C 60 220 62 202 75 192 Z"
+          fill={C.dark} opacity="0.28"/>
+        {/* Left arm */}
+        <path d="M 68 188 C 48 195 38 216 45 232 Q 54 240 64 233 C 61 218 63 200 76 191 Z"
+          fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        {/* Right arm shadow */}
+        <path d="M 163 189 C 184 196 194 218 187 234 Q 178 242 167 235 C 170 220 168 202 155 192 Z"
+          fill={C.dark} opacity="0.28"/>
+        {/* Right arm */}
+        <path d="M 162 188 C 182 195 192 216 185 232 Q 176 240 166 233 C 169 218 167 200 154 191 Z"
+          fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        {/* Paws */}
+        <ellipse cx="46"  cy="228" rx="14" ry="10" fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="184" cy="228" rx="14" ry="10" fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
 
         {/* ══ OREJAS (con ear twitch) ══ */}
         <g style={{ transformBox: "fill-box" as const, transformOrigin: "bottom center", animation: earAnim }}>
@@ -828,6 +853,14 @@ export default function ChibiArdilla({
         <Mouth state={state}/>
 
         {/* ══ ROPA ══ */}
+        {/* clipPath que sigue la silueta del cuerpo + brazos para que la ropa no salga fuera */}
+        <defs>
+          <clipPath id="sq-body-clip">
+            <path d="M 85 172 C 56 186 52 224 67 255 Q 115 267 163 255 C 178 224 174 186 145 172 Q 130 165 115 165 Q 100 165 85 172 Z"/>
+            <ellipse cx="46" cy="220" rx="20" ry="16"/>
+            <ellipse cx="184" cy="220" rx="20" ry="16"/>
+          </clipPath>
+        </defs>
         <Clothing equipped={equipped} catalog={catalog}/>
 
         {/* ══ EVOLUCIÓN ══ */}

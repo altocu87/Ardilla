@@ -81,6 +81,7 @@ export default function RegistroCaca() {
   const [bristol, setBristol] = useState<number | null>(null);
   const [sensacion, setSensacion] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [sinCaca, setSinCaca] = useState(false);
   const [xpGained, setXpGained] = useState<import("@/lib/profile").AwardResult | null>(null);
   const [sobreData, setSobreData] = useState<SobreReward | null>(null);
   const [misionResult, setMisionResult] = useState<MissionCompletionResult | null>(null);
@@ -97,6 +98,31 @@ export default function RegistroCaca() {
   }, []);
 
   const canSave = !!cantidad && bristol !== null && !!sensacion;
+
+  async function saveSinCaca() {
+    const now = new Date();
+    setSinCaca(true);
+    setDone(true);
+    try {
+      await saveCacaEntry({
+        cantidad: "Sin caca",
+        bristol: 0,
+        bristolName: "Sin caca",
+        bristolIcon: "⭕",
+        sensacion: "—",
+        savedAt: now.toISOString(),
+      });
+    } catch (e) { console.error("saveCacaEntry error:", e); }
+    try {
+      setXpGained(await awardXp("caca"));
+    } catch (e) { console.error("awardXp error:", e); }
+    try {
+      const mision = await completeMission("caca");
+      setMisionResult(mision);
+    } catch (e) { console.error("completeMission error:", e); }
+    try { applyActivityToTama("caca"); } catch { /* noop */ }
+    setSobreData(generarSobre());
+  }
 
   async function save() {
     const now = new Date();
@@ -123,7 +149,45 @@ export default function RegistroCaca() {
     setSobreData(generarSobre());
   }
 
-  /* ── celebración ── */
+  /* ── celebración sin caca ── */
+  if (done && sinCaca) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-100 via-slate-50 to-stone-50 flex flex-col overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center gap-5 max-w-xs mx-auto">
+          <div className="text-8xl" style={{ animation: "bounce 1.2s ease-in-out infinite" }}>⭕</div>
+          <h2 className="text-2xl font-bold text-slate-600">¡Anotado!</h2>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white w-full">
+            <p className="text-slate-500 text-sm font-medium italic">
+              &quot;Hoy el intestino ha decidido descansar. También es válido.&quot;
+            </p>
+          </div>
+          {xpGained && (
+            <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl px-5 py-2 shadow-md border border-white">
+              <span className="text-lg font-bold text-slate-500">+{xpGained.xp} XP</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-lg font-bold text-amber-500">+{xpGained.bellotas} 🌰</span>
+            </div>
+          )}
+          {misionResult && (
+            <div className="flex items-center gap-2 bg-emerald-500 rounded-2xl px-4 py-2 shadow-md w-full justify-center">
+              <span className="text-xl">{misionResult.mission.emoji}</span>
+              <div className="text-left">
+                <p className="text-white text-xs font-extrabold leading-tight">¡Misión completada!</p>
+                <p className="text-emerald-100 text-[10px]">{misionResult.mission.label} · +{misionResult.mission.bellotas}🌰 +{misionResult.mission.xp}XP{misionResult.isBonus ? ` · BONUS +${misionResult.bonusBellotas}🌰 +${misionResult.bonusXp}XP` : ""}</p>
+              </div>
+            </div>
+          )}
+          <button onClick={() => router.push("/registro")}
+            className="w-full py-4 rounded-2xl bg-slate-500 text-white font-bold shadow-lg shadow-slate-200 active:scale-95 transition">
+            Volver al registro
+          </button>
+        </div>
+        {sobreData && <SobreModal reward={sobreData} onClose={() => setSobreData(null)} />}
+      </div>
+    );
+  }
+
+  /* ── celebración con caca ── */
   if (done) {
     return (
       <div className="fixed inset-0 bg-gradient-to-b from-amber-100 via-orange-50 to-yellow-50 flex flex-col overflow-hidden">
@@ -189,6 +253,16 @@ export default function RegistroCaca() {
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
         <div className="max-w-lg mx-auto flex flex-col gap-5">
+
+          {/* ── Sin caca ── */}
+          <button onClick={saveSinCaca}
+            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-dashed border-slate-300 bg-white/70 text-left transition-all active:scale-[0.98] hover:border-slate-400">
+            <span className="text-4xl shrink-0">⭕</span>
+            <div>
+              <p className="text-sm font-bold text-slate-600">Hoy no he hecho caca</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Registrar un día sin visita al baño</p>
+            </div>
+          </button>
 
           {/* ── Cantidad ── */}
           <Section title="¿Cuánto ha sido?">
