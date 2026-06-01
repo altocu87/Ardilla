@@ -373,7 +373,10 @@ export function wakeUpTama(angry: boolean): TamaStats {
   if (angry) {
     s.isAngry = true;
   } else {
-    s.energia  = Math.min(100, s.energia + 10);
+    const goodSleep = !s.badSleep;
+    const energyMin = goodSleep ? 80 : 70;
+    const energyMax = goodSleep ? 90 : 79;
+    s.energia  = energyMin + Math.round(Math.random() * (energyMax - energyMin));
     s.animo    = Math.min(100, s.animo   + 3);
     s.badSleep = false;
   }
