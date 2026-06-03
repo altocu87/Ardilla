@@ -83,8 +83,10 @@ export function resetGoodNightStreak(): void {
 }
 
 export function isNightTime(): boolean {
-  const h = new Date().getHours();
-  return h >= 22 || h < 8;
+  const now = new Date();
+  const totalMinutes = now.getHours() * 60 + now.getMinutes();
+  // Noche: 00:30 – 08:00
+  return totalMinutes >= 30 && totalMinutes < 8 * 60;
 }
 
 export function getEvolutionProgress(): {
