@@ -15,7 +15,7 @@ import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
   canSleepNow, startSleepTimer, wakeUpTama, cureAngry, rollAngry,
-  wakeUpAngryNight, clearNightAngry,
+  wakeUpAngryNight, clearNightAngry, rollBuenosDias,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
@@ -619,6 +619,13 @@ function StatsRow({
           <span className="text-[9px] font-bold shrink-0">💤</span>
         </div>
       )}
+      {stats.energia > 5 && stats.energia <= 25 && !stats.isAngry && !isNightTime() && !(stats.sleepUntil && Date.now() < stats.sleepUntil) && (
+        <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-amber-50 border-amber-300 text-amber-700">
+          <span className="text-sm">⚡</span>
+          <span className="text-[10px] font-bold flex-1 text-left">Energía baja · dale una siestecita cuando puedas</span>
+          <span className="text-[9px] font-bold shrink-0">😪</span>
+        </div>
+      )}
       {stats.badSleep && !stats.isAngry && (
         <div className="w-full flex items-center gap-1.5 mb-1.5 rounded-xl px-2 py-1.5 border bg-indigo-100 border-indigo-300 text-indigo-700"
           style={{ animation: "badge-pulse 2s ease-in-out infinite" }}>
@@ -661,6 +668,12 @@ function StatsRow({
           <span className="text-[9px]">{PHASE_INFO[evoProg.nextPhase].emoji}</span>
         </div>
       )}
+      <div className="flex items-center gap-1 mt-1 pt-1 border-t border-slate-100">
+        <span className="text-[9px]">🌙</span>
+        <span className="text-[9px] text-indigo-400 font-semibold">Duerme 00:00 – 09:00</span>
+        <span className="text-[9px] text-slate-300 mx-0.5">·</span>
+        <span className="text-[9px] text-slate-400">{isNightTime() ? "descansando ahora" : "despierta"}</span>
+      </div>
     </div>
   );
 }
@@ -871,6 +884,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const sleepCount = getSleepItemCount();
     rollBadSleep(sleepCount);
     rollAngry();
+    rollBuenosDias();
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -1288,7 +1302,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       return; // no hacer más cosas mientras duerme
     }
 
-    /* Si está durmiendo de noche (22h–8h): 5 toques = enfado nocturno 5 min */
+    /* Si está durmiendo de noche (0h–9h): 5 toques = enfado nocturno 5 min */
     const isNight = isNightTime();
     if (isNight && !tamaStats?.sleepUntil) {
       nightTapRef.current += 1;
