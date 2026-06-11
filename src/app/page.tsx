@@ -1288,7 +1288,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       return; // no hacer más cosas mientras duerme
     }
 
-    /* Si está durmiendo de noche (22h–8h): 5 toques = enfado nocturno 5 min */
+    /* Si está durmiendo de noche (0h–9h): 5 toques = enfado nocturno 5 min */
     const isNight = isNightTime();
     if (isNight && !tamaStats?.sleepUntil) {
       nightTapRef.current += 1;

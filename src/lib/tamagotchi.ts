@@ -247,7 +247,11 @@ export function getTamaStats(): TamaStats {
 
     if (hrs > 0.016) {
       s.hambre  = Math.max(0, s.hambre  - DECAY.hambre  * hrs);
-      s.energia = Math.max(0, s.energia - DECAY.energia * hrs);
+      // Durante el sueño nocturno (medianoche–9h) la energía no baja del 20%
+      const nightSleep = new Date().getHours() < 9;
+      s.energia = nightSleep
+        ? Math.max(20, s.energia - DECAY.energia * hrs)
+        : Math.max(0,  s.energia - DECAY.energia * hrs);
       const animoDecay = s.illness ? DECAY.animo * 1.6 : s.badSleep ? DECAY.animo * 1.3 : DECAY.animo;
       s.animo   = Math.max(0, s.animo   - animoDecay * hrs);
       s.salud   = computeSalud(s.hambre, s.energia, s.animo);

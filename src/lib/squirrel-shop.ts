@@ -92,7 +92,10 @@ export const TOY_CATALOG: SquirrelToy[] = [
   { id: "toy_frisbee",  emoji: "🥏", name: "Frisbee brillante", desc: "Vuela por todo el bosque",           price: 28, animoBoost: 28, cooldownMinutes: 35 },
   { id: "toy_pluma",    emoji: "🪶", name: "Pluma mágica",      desc: "Le fascina perseguirla por el aire", price: 32, animoBoost: 30, cooldownMinutes: 40 },
   { id: "toy_estrella", emoji: "⭐", name: "Estrella de goma",  desc: "Blanda y muy divertida",             price: 18, animoBoost: 18, cooldownMinutes: 20 },
-  { id: "toy_arcoiris", emoji: "🌈", name: "Aro multicolor",    desc: "Ruleta de colores del bosque",       price: 38, animoBoost: 35, cooldownMinutes: 50 },
+  { id: "toy_arcoiris",        emoji: "🌈", name: "Aro multicolor",         desc: "Ruleta de colores del bosque",       price: 38, animoBoost: 35, cooldownMinutes: 50 },
+  // ── Peluches ─────────────────────────────────────────────────────────────────
+  { id: "toy_peluche_caracol", emoji: "🐌", name: "Peluche de caracol",      desc: "El caracol del bosque en versión abrazable 🌿", price: 35, animoBoost: 30, cooldownMinutes: 45 },
+  { id: "toy_peluche_gatito",  emoji: "🐱", name: "Peluche de gatito blanco", desc: "Suavecito y muy reconfortante 🤍",              price: 40, animoBoost: 28, cooldownMinutes: 40 },
 ];
 
 /* ════════════════════════════════════════════════════
