@@ -504,52 +504,76 @@ export default function Tienda() {
 
 
         {/* ══ TAB: JUGUETES ══ */}
-        {tab === "juguetes" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-slate-400 px-1">Compra juguetes y equípalos para que la ardilla los lleve</p>
-            {TOY_CATALOG.map(toy => {
-              const owned     = ownedToys.includes(toy.id);
-              const equipped  = equippedToy === toy.id;
-              const canAfford = bellotas >= toy.price;
-              const isBuying  = buying === toy.id;
-              return (
-                <div key={toy.id} className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${equipped ? "border-emerald-300 bg-emerald-50" : "border-transparent"}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-2xl shadow-sm shrink-0">
-                      {toy.emoji}
+        {tab === "juguetes" && (() => {
+          const regularToys = TOY_CATALOG.filter(t => !t.id.startsWith("toy_peluche_"));
+          const pelucheToys = TOY_CATALOG.filter(t => t.id.startsWith("toy_peluche_"));
+
+          function ToyCard({ toy }: { toy: typeof TOY_CATALOG[0] }) {
+            const isOwned   = ownedToys.includes(toy.id);
+            const equipped  = equippedToy === toy.id;
+            const canAfford = bellotas >= toy.price;
+            const isBuying  = buying === toy.id;
+            const isPeluche = toy.id.startsWith("toy_peluche_");
+            const grad = isPeluche ? "from-pink-400 to-rose-400" : "from-emerald-400 to-teal-500";
+            const btnBuy = isPeluche ? "bg-gradient-to-br from-pink-400 to-rose-400 text-white shadow-md" : "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md";
+            const btnEq  = isPeluche
+              ? (equipped ? "bg-rose-200 text-rose-800" : "bg-rose-100 text-rose-700")
+              : (equipped ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700");
+            const border = equipped ? (isPeluche ? "border-rose-300 bg-rose-50" : "border-emerald-300 bg-emerald-50") : "border-transparent";
+            return (
+              <div className={`rounded-2xl border-2 p-4 shadow-sm bg-white transition-all ${border}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${grad} flex items-center justify-center text-2xl shadow-sm shrink-0`}>
+                    {toy.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-bold text-slate-700">{toy.name}</p>
+                      {equipped && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isPeluche ? "text-rose-600 bg-rose-100" : "text-emerald-600 bg-emerald-100"}`}>Equipado ✓</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm font-bold text-slate-700">{toy.name}</p>
-                        {equipped && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">Equipado ✓</span>}
-                      </div>
-                      <p className="text-xs text-slate-400">{toy.desc}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">+{toy.animoBoost} ánimo · recarga {toy.cooldownMinutes} min</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm font-extrabold text-amber-700">🌰 {toy.price}</span>
-                        {!owned ? (
-                          <button onClick={() => buySquirrelItem(toy.id, toy.price, "toy")} disabled={!canAfford || !!isBuying}
-                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${
-                              canAfford ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md"
-                              : "bg-slate-100 text-slate-400"}`}>
-                            {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
-                          </button>
-                        ) : (
-                          <button onClick={() => handleToggleToy(toy.id)}
-                            className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${
-                              equipped ? "bg-emerald-200 text-emerald-800" : "bg-emerald-100 text-emerald-700"
-                            }`}>
-                            {equipped ? "Quitar" : "Equipar"}
-                          </button>
-                        )}
-                      </div>
+                    <p className="text-xs text-slate-400">{toy.desc}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">+{toy.animoBoost} ánimo · recarga {toy.cooldownMinutes} min</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm font-extrabold text-amber-700">🌰 {toy.price}</span>
+                      {!isOwned ? (
+                        <button onClick={() => buySquirrelItem(toy.id, toy.price, "toy")} disabled={!canAfford || !!isBuying}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${canAfford ? btnBuy : "bg-slate-100 text-slate-400"}`}>
+                          {isBuying ? "…" : canAfford ? "Comprar" : "Sin 🌰"}
+                        </button>
+                      ) : (
+                        <button onClick={() => handleToggleToy(toy.id)}
+                          className={`px-4 py-1.5 rounded-xl text-xs font-bold active:scale-95 ${btnEq}`}>
+                          {equipped ? "Quitar" : "Equipar"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-3">
+              {/* ── Sección: Peluches ── */}
+              <div className="rounded-2xl bg-rose-50 border-2 border-rose-200 p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🧸</span>
+                  <div>
+                    <p className="text-sm font-bold text-rose-700">Peluches de confort 🤍</p>
+                    <p className="text-[10px] text-rose-400">Para abrazar y ganar ánimo · reconfortantes y suavecitos</p>
+                  </div>
+                </div>
+                {pelucheToys.map(toy => <ToyCard key={toy.id} toy={toy} />)}
+              </div>
+
+              {/* ── Sección: Juguetes ── */}
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mt-1">Juguetes activos</p>
+              <p className="text-xs text-slate-400 px-1 -mt-2">Compra juguetes y equípalos para que la ardilla los lleve</p>
+              {regularToys.map(toy => <ToyCard key={toy.id} toy={toy} />)}
+            </div>
+          );
+        })()}
 
         {/* ══ TAB: TÍTULOS ══ */}
         {tab === "titulos" && (

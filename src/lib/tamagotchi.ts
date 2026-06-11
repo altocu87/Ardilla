@@ -377,8 +377,8 @@ export function wakeUpTama(angry: boolean): TamaStats {
   if (angry) {
     s.isAngry = true;
   } else {
-    s.energia  = Math.min(100, s.energia + 10);
-    s.animo    = Math.min(100, s.animo   + 3);
+    s.energia  = Math.min(100, s.energia + 25);
+    s.animo    = Math.min(100, s.animo   + 5);
     s.badSleep = false;
   }
   s.salud     = computeSalud(s.hambre, s.energia, s.animo);
@@ -440,12 +440,27 @@ export function rollBadSleep(sleepItemCount = 0): TamaStats {
   const today = new Date().toISOString().slice(0, 10);
   if (!s.badSleep && (s.lastBadSleepCheck ?? "1970") < today) {
     s.lastBadSleepCheck = today;
-    const chance = Math.max(0, 0.40 - 0.10 * sleepItemCount);
+    const chance = Math.max(0.05, 0.25 - 0.10 * sleepItemCount);
     if (Math.random() < chance) s.badSleep = true;
     s.lastSaved = new Date().toISOString();
     saveTamaStats(s);
   }
   return s;
+}
+
+/** Una vez al día entre las 9h y las 12h: +10 ánimo al despertar (buenos días). */
+export function rollBuenosDias(): void {
+  if (typeof window === "undefined") return;
+  const h = new Date().getHours();
+  if (h < 9 || h >= 12) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if ((localStorage.getItem("sq_buenos_dias") ?? "") >= today) return;
+  localStorage.setItem("sq_buenos_dias", today);
+  const s = getTamaStats();
+  s.animo     = Math.min(100, s.animo + 10);
+  s.salud     = computeSalud(s.hambre, s.energia, s.animo);
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
 }
 
 export function playTama(animoBoost: number): TamaStats {
