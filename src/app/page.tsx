@@ -34,6 +34,7 @@ import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
 import SceneForeground from "@/components/SceneForeground";
 import { getSeason, type TimeSegment } from "@/lib/scene";
+import { recordCareEvent, type CareMissionKind } from "@/lib/care-missions";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
@@ -846,6 +847,21 @@ export default function Home() {
       .catch(() => setLoaded(true));
   }, []);
 
+  /* Registra un evento de cuidado: refresca bellotas y muestra toast si premia. */
+  const onCareEvent = useCallback((kind: CareMissionKind) => {
+    recordCareEvent(kind).then(rewards => {
+      if (!rewards.length) return;
+      loadProfile();
+      const last = rewards[rewards.length - 1];
+      const total = rewards.reduce((a, r) => a + r.mission.bellotas, 0) + (last.isBonus ? last.bonusBellotas : 0);
+      const txt = last.isBonus
+        ? `🏆 ¡Misiones de cuidado completas! +${total}🌰`
+        : `${last.mission.emoji} ${last.mission.label} ✓ +${total}🌰`;
+      setInfoToast(txt);
+      setTimeout(() => setInfoToast(null), 3000);
+    }).catch(() => { /* noop */ });
+  }, [loadProfile]);
+
   const loadEquipped = useCallback(() => {
     const avatar = getEquippedAvatar();
     const titulo = getEquippedTitulo();
@@ -907,6 +923,12 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
     const stats = getTamaStats();
     setTamaStats(stats);
+
+    /* Misión de cuidado pasiva: tenerla contenta */
+    if (!stats.illness && !stats.isAngry) {
+      const vsMood = computeVisualState(stats);
+      if (vsMood === "feliz" || vsMood === "muy_feliz") recordCareEvent("mood_high");
+    }
 
     /* Evolution tick (once per day) */
     const avgStats = (stats.hambre + stats.energia + stats.animo) / 3;
@@ -996,6 +1018,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         setVisualState(vs);
         const gain = Math.round(s.energia - before);
         setTamaMessage(`¡Mmm, qué rica siesta! 🌟 +${gain} energía`);
+        onCareEvent("sleep");
         setTimeout(() => setTamaMessage(getContextualMessage(vs, 0)), 3000);
         setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
       }
@@ -1069,6 +1092,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       s = feedTama(food.hambreRestore, 0); // también da hambre restore
       setTamaStats({ ...s });
       triggerAction("comiendo", 2500);
+      onCareEvent("feed"); onCareEvent("cure");
       setTamaMessage("Mmmm... bueno, quizás no estoy tan enfadada 😤🥜");
       setTimeout(() => {
         const vs = computeVisualState(s);
@@ -1081,11 +1105,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       s = cureIllness();
       const a = tryUnlock("cured_sick");
       if (a) showAchievement(a);
+      onCareEvent("cure");
     } else {
       s = feedTama(food.hambreRestore, food.animoBoost ?? 0);
     }
     setTamaStats(s);
     triggerAction("comiendo", 2500);
+    onCareEvent("feed");
     // Posible eructo tras comer 😮‍💨
     const burpMsg = maybeEructo();
     if (burpMsg) {
@@ -1105,6 +1131,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     setTamaStats(s);
     const a = tryUnlock("cured_sick");
     if (a) showAchievement(a);
+    onCareEvent("cure");
     setShowMedicineModal(false);
     const vs = computeVisualState(s);
     setVisualState(vs);
@@ -1148,6 +1175,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     recordToyUse(toyId);
     const s = playTama(toy.animoBoost); setTamaStats(s);
     triggerAction("jugando", 2500);
+    onCareEvent("play");
   }
 
   function handleCositas() {
@@ -1167,6 +1195,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
     // Curar enfado de cualquier tipo
     let s = getTamaStats();
+    const calmedAnger = !!(s.isAngry || s.nightAngryUntil);
     if (s.isAngry)        s = cureAngry();
     if (s.nightAngryUntil) s = clearNightAngry();
     s.animo = Math.min(100, s.animo + 25);
@@ -1174,6 +1203,8 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     s.lastSaved = new Date().toISOString();
     saveTamaStats(s);
     setTamaStats({ ...s });
+    onCareEvent("tickle");
+    if (calmedAnger) onCareEvent("cure");
 
     unlockAudio();
     playCositas();
@@ -1348,6 +1379,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       setVisualState("muy_feliz");
       const a = tryUnlock("tickle");
       if (a) showAchievement(a);
+      onCareEvent("tickle");
       setTimeout(() => {
         setIsTickling(false);
         const fresh = getTamaStats();
