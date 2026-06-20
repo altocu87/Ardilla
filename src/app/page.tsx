@@ -32,6 +32,8 @@ import {
 } from "@/lib/tama-evolution";
 import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
+import SceneForeground from "@/components/SceneForeground";
+import { getSeason, type TimeSegment } from "@/lib/scene";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
@@ -359,7 +361,6 @@ function pickWelcomePhrase(): string {
 }
 
 /* ── Hora del día ─────────────────────────────────────────────── */
-type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
 function getTimeSegment(): TimeSegment {
   const h = new Date().getHours();
   if (h < 5)  return "madrugada";
@@ -1479,6 +1480,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       <div className="flex-1 min-h-0 px-4 py-2">
         <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-xl border border-white/20">
           <div className="absolute inset-0"><SceneBg seg={timeSegment}/></div>
+          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={getSeason()}/></div>
           <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
