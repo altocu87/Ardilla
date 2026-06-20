@@ -1,4 +1,5 @@
 import type { ActivityKey } from "./rewards";
+import type { Personality } from "./tama-bond";
 import { pushToCloud } from "./cloudsync";
 
 /* ════════════════════════════════════════════════════
@@ -188,6 +189,35 @@ const STREAK_MESSAGES: Record<number, string> = {
 export type MessageContext = {
   tristeza?:    boolean;
   cacaIllness?: boolean;
+  flavor?:      Personality;
+};
+
+/* Frases con sabor de personalidad (estable durante el día). Se usan ~la mitad
+   del tiempo cuando hay frase disponible para ese estado; si no, frases base. */
+const PERSONALITY_LINES: Partial<Record<Personality, Partial<Record<TamaVisualState, string[]>>>> = {
+  dulce: {
+    neutral: ["Hoy me siento mimosa contigo 🥰", "Solo quería decirte que te quiero 💛"],
+    feliz:   ["¡Eres lo mejor de mi bosque! 🥰", "Contigo me derrito de cariño 💕"],
+    triste:  ["¿Me das un abracito? Hoy estoy sensible 🥺💛"],
+  },
+  gruñona: {
+    neutral: ["Mmm... no me molestes mucho hoy 😤", "Estoy de morros, pero te aguanto 😒"],
+    hambre:  ["¡Tráeme comida YA, no estoy de humor! 😤🌰"],
+    feliz:   ["Vale, vale... hoy estoy contenta. No te acostumbres 😏"],
+  },
+  juguetona: {
+    neutral: ["¡Vamos a jugaaar! ¿A qué esperas? 🤹", "¡Tengo demasiada energía hoy! 🎈"],
+    feliz:   ["¡Otra ronda! ¡Otra! 🎉🤸", "¡El bosque entero es mi parque! 🌳🎮"],
+  },
+  dramatica: {
+    neutral: ["Hoy mi vida es una telenovela del bosque 🎭", "Suspiro... nadie entiende mi arte 🌹"],
+    triste:  ["¡Es el FIN! ...bueno, quizá con un mimo se arregle 😭🎭"],
+    hambre:  ["¡Llevo SIGLOS sin comer! (10 minutos) 😩🎭"],
+  },
+  tranquila: {
+    neutral: ["Todo fluye, como el río del bosque 😌", "Respiremos juntas un momentito 🍃"],
+    feliz:   ["Qué paz tan bonita contigo 😌🌿"],
+  },
 };
 
 export function getContextualMessage(
@@ -204,6 +234,10 @@ export function getContextualMessage(
   }
   if (ctx?.tristeza && (state === "triste" || state === "neutral")) {
     return ENCOURAGEMENT_MESSAGES[t % ENCOURAGEMENT_MESSAGES.length];
+  }
+  if (ctx?.flavor) {
+    const fp = PERSONALITY_LINES[ctx.flavor]?.[state];
+    if (fp && fp.length && t % 2 === 0) return fp[t % fp.length];
   }
   const pool = BASE_MESSAGES[state] ?? BASE_MESSAGES.neutral;
   return pool[t % pool.length];
@@ -417,14 +451,14 @@ export function clearNightAngry(): TamaStats {
 }
 
 /** Una vez por hora: 2% de posibilidad de enfadarse espontáneamente. */
-export function rollAngry(): TamaStats {
+export function rollAngry(mult = 1): TamaStats {
   const s = getTamaStats();
   if (s.isAngry) return s;
   if (s.sleepUntil && Date.now() < s.sleepUntil) return s; // durmiendo
   const nowHour = new Date().toISOString().slice(0, 13); // "2026-05-23T15"
   if ((s.lastAngryCheck ?? "") >= nowHour) return s;
   s.lastAngryCheck = nowHour;
-  if (Math.random() < 0.02) s.isAngry = true;
+  if (Math.random() < 0.02 * mult) s.isAngry = true;
   s.lastSaved = new Date().toISOString();
   saveTamaStats(s);
   return s;
@@ -435,12 +469,12 @@ export function sleepTama(): TamaStats { return wakeUpTama(false); }
 
 /* Tirada nocturna de mal descanso — una vez por día.
    40% base, -10% por cada ítem de sueño equipado (mín. 10%). */
-export function rollBadSleep(sleepItemCount = 0): TamaStats {
+export function rollBadSleep(sleepItemCount = 0, mult = 1): TamaStats {
   const s = getTamaStats();
   const today = new Date().toISOString().slice(0, 10);
   if (!s.badSleep && (s.lastBadSleepCheck ?? "1970") < today) {
     s.lastBadSleepCheck = today;
-    const chance = Math.max(0.05, 0.25 - 0.10 * sleepItemCount);
+    const chance = Math.max(0.05, (0.25 - 0.10 * sleepItemCount) * mult);
     if (Math.random() < chance) s.badSleep = true;
     s.lastSaved = new Date().toISOString();
     saveTamaStats(s);

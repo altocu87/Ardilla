@@ -35,6 +35,10 @@ import ChibiArdilla from "@/components/ChibiArdilla";
 import SceneForeground from "@/components/SceneForeground";
 import { getSeason, type TimeSegment } from "@/lib/scene";
 import { recordCareEvent, type CareMissionKind } from "@/lib/care-missions";
+import {
+  getBondData, addBond, pickPersonalityForToday, angerMultiplier,
+  BOND_LEVEL_INFO, PERSONALITY_INFO, type Personality,
+} from "@/lib/tama-bond";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
@@ -806,6 +810,8 @@ export default function Home() {
 
   /* Evolution & tickle */
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
+  const [bondLevelState, setBondLevelState] = useState(0);
+  const [personality,    setPersonality]    = useState<Personality>("tranquila");
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
@@ -847,11 +853,18 @@ export default function Home() {
       .catch(() => setLoaded(true));
   }, []);
 
-  /* Registra un evento de cuidado: refresca bellotas y muestra toast si premia. */
+  /* Registra un evento de cuidado: sube el vínculo, refresca bellotas y muestra toast. */
   const onCareEvent = useCallback((kind: CareMissionKind) => {
+    const { leveledUp, data } = addBond(2);
+    setBondLevelState(data.level);
+    if (leveledUp) {
+      setInfoToast(`${BOND_LEVEL_INFO[data.level].emoji} Vuestro vínculo sube: ¡${BOND_LEVEL_INFO[data.level].label}!`);
+      setTimeout(() => setInfoToast(null), 3200);
+    }
     recordCareEvent(kind).then(rewards => {
       if (!rewards.length) return;
       loadProfile();
+      if (leveledUp) return; // no pisar el toast de vínculo
       const last = rewards[rewards.length - 1];
       const total = rewards.reduce((a, r) => a + r.mission.bellotas, 0) + (last.isBonus ? last.bonusBellotas : 0);
       const txt = last.isBonus
@@ -898,11 +911,18 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     }
 
     /* Procesado periódico (protegidos con guardas internas) */
+    /* Personalidad del día → sabor de mensajes y probabilidad de enfado */
+    const todayPersonality = pickPersonalityForToday();
+    setPersonality(todayPersonality);
+    regCtxRef.current = { ...regCtxRef.current, flavor: todayPersonality };
+    const angerMult = angerMultiplier(todayPersonality);
+
     const sleepCount = getSleepItemCount();
-    rollBadSleep(sleepCount);
-    rollAngry();
+    rollBadSleep(sleepCount, angerMult);
+    rollAngry(angerMult);
     rollBuenosDias();
     rollMorningEnergy();
+    setBondLevelState(getBondData().level);
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -1541,10 +1561,24 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             </button>
           </div>
 
-          {/* Evolution phase badge */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
-            <span className="text-xs">{phaseInfo.emoji}</span>
-            <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
+          {/* Evolution phase badge + vínculo + personalidad del día */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
+              <span className="text-xs">{phaseInfo.emoji}</span>
+              <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/20"
+                title={`Vínculo: ${BOND_LEVEL_INFO[bondLevelState].label}`}>
+                <span className="text-[10px]">{BOND_LEVEL_INFO[bondLevelState].emoji}</span>
+                <span className="text-[9px] font-bold text-white">Nv.{bondLevelState}</span>
+              </span>
+              <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/20"
+                title={`Hoy está ${PERSONALITY_INFO[personality].label}`}>
+                <span className="text-[10px]">{PERSONALITY_INFO[personality].emoji}</span>
+                <span className="text-[9px] font-bold text-white">{PERSONALITY_INFO[personality].label}</span>
+              </span>
+            </div>
           </div>
 
           {/* Top icons — derecha: tienda + armario */}
