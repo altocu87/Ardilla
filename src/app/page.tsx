@@ -15,7 +15,7 @@ import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
   canSleepNow, startSleepTimer, wakeUpTama, cureAngry, rollAngry,
-  wakeUpAngryNight, clearNightAngry, rollBuenosDias,
+  wakeUpAngryNight, clearNightAngry, rollBuenosDias, rollMorningEnergy,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
@@ -885,6 +885,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     rollBadSleep(sleepCount);
     rollAngry();
     rollBuenosDias();
+    rollMorningEnergy();
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -987,11 +988,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       setSleepSecondsLeft(Math.ceil(remaining));
       if (remaining <= 0) {
         clearInterval(tick);
+        const before = getTamaStats().energia;
         const s = wakeUpTama(false);
         setTamaStats({ ...s });
         const vs = computeVisualState(s);
         setVisualState(vs);
-        setTamaMessage("¡Mmm, qué rica siesta! 🌟 +10 energía");
+        const gain = Math.round(s.energia - before);
+        setTamaMessage(`¡Mmm, qué rica siesta! 🌟 +${gain} energía`);
         setTimeout(() => setTamaMessage(getContextualMessage(vs, 0)), 3000);
         setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
       }

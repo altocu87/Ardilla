@@ -46,7 +46,7 @@ export type TamaVisualState =
 /* ════════════════════════════════════════════════════
    DECAY (por hora)
 ════════════════════════════════════════════════════ */
-const DECAY = { hambre: 2.8, energia: 6.5, animo: 2.2 };
+const DECAY = { hambre: 2.8, energia: 3.5, animo: 2.2 };
 
 /* ════════════════════════════════════════════════════
    ACTIVITY BOOSTS
@@ -331,8 +331,8 @@ export function feedTama(hambreRestore: number, animoBoost = 0): TamaStats {
 /* ════════════════════════════════════════════════════
    SLEEP COOLDOWN
 ════════════════════════════════════════════════════ */
-export const SLEEP_COOLDOWN_H  = 6;    // horas entre cada sueño
-export const SLEEP_ENERGY_GATE = 50;   // energía máxima para poder dormir
+export const SLEEP_COOLDOWN_H  = 3;    // horas entre cada sueño
+export const SLEEP_ENERGY_GATE = 70;   // energía máxima para poder dormir
 const LAST_SLEEP_KEY = "sq_last_sleep_ts";
 
 export function getLastSleepTime(): number {
@@ -377,7 +377,7 @@ export function wakeUpTama(angry: boolean): TamaStats {
   if (angry) {
     s.isAngry = true;
   } else {
-    s.energia  = Math.min(100, s.energia + 25);
+    s.energia  = Math.min(100, s.energia + 38);
     s.animo    = Math.min(100, s.animo   + 5);
     s.badSleep = false;
   }
@@ -458,6 +458,25 @@ export function rollBuenosDias(): void {
   localStorage.setItem("sq_buenos_dias", today);
   const s = getTamaStats();
   s.animo     = Math.min(100, s.animo + 10);
+  s.salud     = computeSalud(s.hambre, s.energia, s.animo);
+  s.lastSaved = new Date().toISOString();
+  saveTamaStats(s);
+}
+
+/** Una vez al día, tras las 9h: si ha descansado bien (sin badSleep), amanece con
+ *  energía recuperada (el sueño nocturno repone, no solo evita que baje). */
+export function rollMorningEnergy(): void {
+  if (typeof window === "undefined") return;
+  const h = new Date().getHours();
+  if (h < 9) return; // todavía es de noche/madrugada
+  const today = new Date().toISOString().slice(0, 10);
+  if ((localStorage.getItem("sq_morning_energy") ?? "") >= today) return;
+  localStorage.setItem("sq_morning_energy", today);
+  const s = getTamaStats();
+  if (s.badSleep) return; // mala noche → no recupera (ya está en estado ojeras)
+  // Si está durmiendo una siesta activa, no interferir
+  if (s.sleepUntil && Date.now() < s.sleepUntil) return;
+  s.energia   = Math.max(s.energia, Math.min(100, s.energia + 45));
   s.salud     = computeSalud(s.hambre, s.energia, s.animo);
   s.lastSaved = new Date().toISOString();
   saveTamaStats(s);
