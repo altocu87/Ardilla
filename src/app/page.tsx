@@ -33,7 +33,9 @@ import {
 import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
 import SceneForeground from "@/components/SceneForeground";
-import { getSeason, type TimeSegment } from "@/lib/scene";
+import { getSeason, type TimeSegment, type WeatherKind, type SeasonKind } from "@/lib/scene";
+import { getTodayWeather } from "@/lib/weather";
+import { rollDailyEvents, claimEvent, type GameEvent } from "@/lib/tama-events";
 import { recordCareEvent, type CareMissionKind } from "@/lib/care-missions";
 import {
   getBondData, addBond, pickPersonalityForToday, angerMultiplier,
@@ -812,6 +814,9 @@ export default function Home() {
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
   const [bondLevelState, setBondLevelState] = useState(0);
   const [personality,    setPersonality]    = useState<Personality>("tranquila");
+  const [weather,        setWeather]        = useState<WeatherKind>("clear");
+  const [season,         setSeason]         = useState<SeasonKind>("verano");
+  const [activeEvent,    setActiveEvent]    = useState<GameEvent | null>(null);
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
@@ -923,6 +928,11 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     rollBuenosDias();
     rollMorningEnergy();
     setBondLevelState(getBondData().level);
+
+    /* Clima del día + evento sorpresa */
+    setWeather(getTodayWeather());
+    setSeason(getSeason());
+    setActiveEvent(rollDailyEvents());
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -1171,6 +1181,25 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     setVisualState(vs);
     setTamaMessage(getContextualMessage(vs, 0));
     setShowMemoryGame(false);
+  }
+
+  function handleClaimEvent() {
+    if (!activeEvent) return;
+    const ev = activeEvent;
+    setActiveEvent(null);
+    if (ev.kind === "snail") { // el caracol la pone contenta
+      const s = getTamaStats();
+      s.animo = Math.min(100, s.animo + 8);
+      s.salud = Math.min(100, (s.hambre + s.energia + s.animo) / 3);
+      s.lastSaved = new Date().toISOString();
+      saveTamaStats(s);
+      setTamaStats({ ...s });
+    }
+    claimEvent(ev.id).then(reward => {
+      loadProfile();
+      setInfoToast(`${ev.emoji} ${ev.message}${reward ? `  +${reward}🌰` : ""}`);
+      setTimeout(() => setInfoToast(null), 3800);
+    }).catch(() => { /* noop */ });
   }
 
   function handleSleep() {
@@ -1532,7 +1561,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       <div className="flex-1 min-h-0 px-4 py-2">
         <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-xl border border-white/20">
           <div className="absolute inset-0"><SceneBg seg={timeSegment}/></div>
-          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={getSeason()}/></div>
+          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={season} weather={weather}/></div>
           <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
@@ -1580,6 +1609,15 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
               </span>
             </div>
           </div>
+
+          {/* Evento sorpresa (tappable) */}
+          {activeEvent && (
+            <button onClick={handleClaimEvent}
+              className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-amber-400/95 backdrop-blur-sm rounded-full pl-2 pr-3 py-1 border border-white/40 shadow-lg active:scale-95 animate-bounce">
+              <span className="text-base">{activeEvent.emoji}</span>
+              <span className="text-[10px] font-extrabold text-amber-950">{activeEvent.title}</span>
+            </button>
+          )}
 
           {/* Top icons — derecha: tienda + armario */}
           <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
