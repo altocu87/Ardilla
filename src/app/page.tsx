@@ -15,7 +15,7 @@ import {
   getTamaStats, saveTamaStats, computeVisualState, feedTama, playTama,
   cureIllness, getContextualMessage, ILLNESS_INFO, rollBadSleep,
   canSleepNow, startSleepTimer, wakeUpTama, cureAngry, rollAngry,
-  wakeUpAngryNight, clearNightAngry, rollBuenosDias,
+  wakeUpAngryNight, clearNightAngry, rollBuenosDias, rollMorningEnergy,
   type TamaStats, type TamaVisualState, type IllnessType, type MessageContext,
 } from "@/lib/tamagotchi";
 import { syncCacaIllness, getRegistroContext, type RegistroContext } from "@/lib/registro-sync";
@@ -32,6 +32,18 @@ import {
 } from "@/lib/tama-evolution";
 import { tryUnlock, type Achievement } from "@/lib/tama-achievements";
 import ChibiArdilla from "@/components/ChibiArdilla";
+import SceneForeground from "@/components/SceneForeground";
+import { getSeason, type TimeSegment, type WeatherKind, type SeasonKind } from "@/lib/scene";
+import { getTodayWeather } from "@/lib/weather";
+import { rollDailyEvents, claimEvent, type GameEvent } from "@/lib/tama-events";
+import { checkMilestones } from "@/lib/tama-milestones";
+import { getEquippedDecor } from "@/lib/room-decor";
+import DecorModal from "@/components/DecorModal";
+import { recordCareEvent, type CareMissionKind } from "@/lib/care-missions";
+import {
+  getBondData, addBond, pickPersonalityForToday, angerMultiplier,
+  BOND_LEVEL_INFO, PERSONALITY_INFO, type Personality,
+} from "@/lib/tama-bond";
 import MisionesModal from "@/components/MisionesModal";
 import TamaMiniGame from "@/components/TamaMiniGame";
 import MemoryCardGame from "@/components/MemoryCardGame";
@@ -359,7 +371,6 @@ function pickWelcomePhrase(): string {
 }
 
 /* ── Hora del día ─────────────────────────────────────────────── */
-type TimeSegment = "madrugada" | "amanecer" | "dia" | "atardecer" | "noche";
 function getTimeSegment(): TimeSegment {
   const h = new Date().getHours();
   if (h < 5)  return "madrugada";
@@ -804,6 +815,13 @@ export default function Home() {
 
   /* Evolution & tickle */
   const [evolutionPhase, setEvolutionPhase] = useState<EvolutionPhase>("bebe");
+  const [bondLevelState, setBondLevelState] = useState(0);
+  const [personality,    setPersonality]    = useState<Personality>("tranquila");
+  const [weather,        setWeather]        = useState<WeatherKind>("clear");
+  const [season,         setSeason]         = useState<SeasonKind>("verano");
+  const [activeEvent,    setActiveEvent]    = useState<GameEvent | null>(null);
+  const [equippedDecor,  setEquippedDecor]  = useState<string[]>([]);
+  const [showDecorModal, setShowDecorModal] = useState(false);
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
@@ -845,6 +863,28 @@ export default function Home() {
       .catch(() => setLoaded(true));
   }, []);
 
+  /* Registra un evento de cuidado: sube el vínculo, refresca bellotas y muestra toast. */
+  const onCareEvent = useCallback((kind: CareMissionKind) => {
+    const { leveledUp, data } = addBond(2);
+    setBondLevelState(data.level);
+    if (leveledUp) {
+      setInfoToast(`${BOND_LEVEL_INFO[data.level].emoji} Vuestro vínculo sube: ¡${BOND_LEVEL_INFO[data.level].label}!`);
+      setTimeout(() => setInfoToast(null), 3200);
+    }
+    recordCareEvent(kind).then(rewards => {
+      if (!rewards.length) return;
+      loadProfile();
+      if (leveledUp) return; // no pisar el toast de vínculo
+      const last = rewards[rewards.length - 1];
+      const total = rewards.reduce((a, r) => a + r.mission.bellotas, 0) + (last.isBonus ? last.bonusBellotas : 0);
+      const txt = last.isBonus
+        ? `🏆 ¡Misiones de cuidado completas! +${total}🌰`
+        : `${last.mission.emoji} ${last.mission.label} ✓ +${total}🌰`;
+      setInfoToast(txt);
+      setTimeout(() => setInfoToast(null), 3000);
+    }).catch(() => { /* noop */ });
+  }, [loadProfile]);
+
   const loadEquipped = useCallback(() => {
     const avatar = getEquippedAvatar();
     const titulo = getEquippedTitulo();
@@ -881,10 +921,24 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     }
 
     /* Procesado periódico (protegidos con guardas internas) */
+    /* Personalidad del día → sabor de mensajes y probabilidad de enfado */
+    const todayPersonality = pickPersonalityForToday();
+    setPersonality(todayPersonality);
+    regCtxRef.current = { ...regCtxRef.current, flavor: todayPersonality };
+    const angerMult = angerMultiplier(todayPersonality);
+
     const sleepCount = getSleepItemCount();
-    rollBadSleep(sleepCount);
-    rollAngry();
+    rollBadSleep(sleepCount, angerMult);
+    rollAngry(angerMult);
     rollBuenosDias();
+    rollMorningEnergy();
+    setBondLevelState(getBondData().level);
+
+    /* Clima del día + evento sorpresa + decoración */
+    setWeather(getTodayWeather());
+    setSeason(getSeason());
+    setActiveEvent(rollDailyEvents());
+    setEquippedDecor(getEquippedDecor());
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -906,6 +960,12 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     const stats = getTamaStats();
     setTamaStats(stats);
 
+    /* Misión de cuidado pasiva: tenerla contenta */
+    if (!stats.illness && !stats.isAngry) {
+      const vsMood = computeVisualState(stats);
+      if (vsMood === "feliz" || vsMood === "muy_feliz") recordCareEvent("mood_high");
+    }
+
     /* Evolution tick (once per day) */
     const avgStats = (stats.hambre + stats.energia + stats.animo) / 3;
     const newPhase = tickDailyEvolution(avgStats);
@@ -916,6 +976,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       if (newPhase === "adulta")  { const a = tryUnlock("adult");   if (a) showAchievement(a); }
       if (newPhase === "anciana") { const a = tryUnlock("wise");    if (a) showAchievement(a); }
     }
+
+    /* Hitos de largo plazo (vínculo, días de cuidado) */
+    checkMilestones().then(list => {
+      if (!list.length) return;
+      list.forEach(showAchievement);
+      loadProfile();
+    }).catch(() => { /* noop */ });
 
     getPregLog()
       .then(log => {
@@ -946,6 +1013,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         setVisualState(vs);
         setTamaMessage(getContextualMessage(vs, 0, regCtxRef.current));
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAction]);
 
   /* Bienvenida del caracol — una vez por sesión */
@@ -987,11 +1055,14 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       setSleepSecondsLeft(Math.ceil(remaining));
       if (remaining <= 0) {
         clearInterval(tick);
+        const before = getTamaStats().energia;
         const s = wakeUpTama(false);
         setTamaStats({ ...s });
         const vs = computeVisualState(s);
         setVisualState(vs);
-        setTamaMessage("¡Mmm, qué rica siesta! 🌟 +10 energía");
+        const gain = Math.round(s.energia - before);
+        setTamaMessage(`¡Mmm, qué rica siesta! 🌟 +${gain} energía`);
+        onCareEvent("sleep");
         setTimeout(() => setTamaMessage(getContextualMessage(vs, 0)), 3000);
         setEquippedCloth(isNightTime() ? getNightClothing() : getDayClothing());
       }
@@ -1065,6 +1136,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       s = feedTama(food.hambreRestore, 0); // también da hambre restore
       setTamaStats({ ...s });
       triggerAction("comiendo", 2500);
+      onCareEvent("feed"); onCareEvent("cure");
       setTamaMessage("Mmmm... bueno, quizás no estoy tan enfadada 😤🥜");
       setTimeout(() => {
         const vs = computeVisualState(s);
@@ -1077,11 +1149,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       s = cureIllness();
       const a = tryUnlock("cured_sick");
       if (a) showAchievement(a);
+      onCareEvent("cure");
     } else {
       s = feedTama(food.hambreRestore, food.animoBoost ?? 0);
     }
     setTamaStats(s);
     triggerAction("comiendo", 2500);
+    onCareEvent("feed");
     // Posible eructo tras comer 😮‍💨
     const burpMsg = maybeEructo();
     if (burpMsg) {
@@ -1101,6 +1175,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     setTamaStats(s);
     const a = tryUnlock("cured_sick");
     if (a) showAchievement(a);
+    onCareEvent("cure");
     setShowMedicineModal(false);
     const vs = computeVisualState(s);
     setVisualState(vs);
@@ -1120,6 +1195,25 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     setVisualState(vs);
     setTamaMessage(getContextualMessage(vs, 0));
     setShowMemoryGame(false);
+  }
+
+  function handleClaimEvent() {
+    if (!activeEvent) return;
+    const ev = activeEvent;
+    setActiveEvent(null);
+    if (ev.kind === "snail") { // el caracol la pone contenta
+      const s = getTamaStats();
+      s.animo = Math.min(100, s.animo + 8);
+      s.salud = Math.min(100, (s.hambre + s.energia + s.animo) / 3);
+      s.lastSaved = new Date().toISOString();
+      saveTamaStats(s);
+      setTamaStats({ ...s });
+    }
+    claimEvent(ev.id).then(reward => {
+      loadProfile();
+      setInfoToast(`${ev.emoji} ${ev.message}${reward ? `  +${reward}🌰` : ""}`);
+      setTimeout(() => setInfoToast(null), 3800);
+    }).catch(() => { /* noop */ });
   }
 
   function handleSleep() {
@@ -1144,6 +1238,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     recordToyUse(toyId);
     const s = playTama(toy.animoBoost); setTamaStats(s);
     triggerAction("jugando", 2500);
+    onCareEvent("play");
   }
 
   function handleCositas() {
@@ -1163,6 +1258,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
 
     // Curar enfado de cualquier tipo
     let s = getTamaStats();
+    const calmedAnger = !!(s.isAngry || s.nightAngryUntil);
     if (s.isAngry)        s = cureAngry();
     if (s.nightAngryUntil) s = clearNightAngry();
     s.animo = Math.min(100, s.animo + 25);
@@ -1170,6 +1266,8 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     s.lastSaved = new Date().toISOString();
     saveTamaStats(s);
     setTamaStats({ ...s });
+    onCareEvent("tickle");
+    if (calmedAnger) onCareEvent("cure");
 
     unlockAudio();
     playCositas();
@@ -1344,6 +1442,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       setVisualState("muy_feliz");
       const a = tryUnlock("tickle");
       if (a) showAchievement(a);
+      onCareEvent("tickle");
       setTimeout(() => {
         setIsTickling(false);
         const fresh = getTamaStats();
@@ -1476,6 +1575,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       <div className="flex-1 min-h-0 px-4 py-2">
         <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-xl border border-white/20">
           <div className="absolute inset-0"><SceneBg seg={timeSegment}/></div>
+          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={season} weather={weather} equippedDecor={equippedDecor}/></div>
           <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
@@ -1502,13 +1602,40 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
               <span className="text-sm">🎮</span>
             </button>
+            <button onClick={() => setShowDecorModal(true)}
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🏡</span>
+            </button>
           </div>
 
-          {/* Evolution phase badge */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
-            <span className="text-xs">{phaseInfo.emoji}</span>
-            <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
+          {/* Evolution phase badge + vínculo + personalidad del día */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/20">
+              <span className="text-xs">{phaseInfo.emoji}</span>
+              <span className="text-[10px] font-bold text-white">{phaseInfo.label}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/20"
+                title={`Vínculo: ${BOND_LEVEL_INFO[bondLevelState].label}`}>
+                <span className="text-[10px]">{BOND_LEVEL_INFO[bondLevelState].emoji}</span>
+                <span className="text-[9px] font-bold text-white">Nv.{bondLevelState}</span>
+              </span>
+              <span className="flex items-center gap-0.5 bg-black/30 backdrop-blur-sm rounded-full px-2 py-0.5 border border-white/20"
+                title={`Hoy está ${PERSONALITY_INFO[personality].label}`}>
+                <span className="text-[10px]">{PERSONALITY_INFO[personality].emoji}</span>
+                <span className="text-[9px] font-bold text-white">{PERSONALITY_INFO[personality].label}</span>
+              </span>
+            </div>
           </div>
+
+          {/* Evento sorpresa (tappable) */}
+          {activeEvent && (
+            <button onClick={handleClaimEvent}
+              className="absolute top-[88px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-amber-400/95 backdrop-blur-sm rounded-full pl-2 pr-3 py-1 border border-white/40 shadow-lg active:scale-95 animate-bounce">
+              <span className="text-base">{activeEvent.emoji}</span>
+              <span className="text-[10px] font-extrabold text-amber-950">{activeEvent.title}</span>
+            </button>
+          )}
 
           {/* Top icons — derecha: tienda + armario */}
           <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
@@ -1772,6 +1899,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       )}
       {showGameStats && (
         <GameStatsModal onClose={() => setShowGameStats(false)} />
+      )}
+      {showDecorModal && (
+        <DecorModal
+          bellotas={bellotas}
+          onClose={() => setShowDecorModal(false)}
+          onChanged={() => { loadProfile(); setEquippedDecor(getEquippedDecor()); }}
+        />
       )}
       {showMedicineModal && tamaStats?.illness && (
         <MedicineModal

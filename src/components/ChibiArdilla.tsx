@@ -148,6 +148,7 @@ function EyePair({ state, cx1=84, cx2=146, cy=106 }: {
           <circle cx={cx+3} cy={cy+4} r={14} fill={C.dark}/>
           <circle cx={cx-5} cy={cy-4} r={6} fill="white"/>
           <circle cx={cx+9} cy={cy-2} r={3} fill="white" opacity={0.7}/>
+          <circle cx={cx+1} cy={cy+10} r={2.6} fill="white" opacity={0.85}/>
         </g>
       ))}
     </g>
@@ -596,6 +597,9 @@ export default function ChibiArdilla({
     ? "tama-ear-twitch 2s ease-in-out infinite"
     : "none";
 
+  /* Parpadeo en reposo solo en estados con ojos redondos abiertos */
+  const canBlink = state === "neutral" || state === "feliz";
+
   return (
     <div className={`select-none ${className}`} style={{ width: "100%", maxWidth: 190 }}>
       <style>{`
@@ -691,6 +695,10 @@ export default function ChibiArdilla({
           90%{transform:rotate(18deg);}
           95%{transform:rotate(-8deg);}
         }
+        @keyframes tama-blink {
+          0%,92%,100%{transform:scaleY(1);}
+          96%{transform:scaleY(0.08);}
+        }
         @keyframes tama-heartfloat {
           0%,25%{opacity:0;transform:translateY(0) scale(0.8);}
           55%{opacity:1;transform:translateY(-18px) scale(1.15);}
@@ -761,6 +769,33 @@ export default function ChibiArdilla({
         className="tama-body w-full h-auto"
         style={{ animation: `${anim} ${dur[state]} ease-in-out infinite`, transform: `scale(${scale})` }}
       >
+        {/* ══ DEGRADADOS (volumen, sombreado, rubor) ══ */}
+        <defs>
+          <radialGradient id="sq-fur" cx="38%" cy="28%" r="78%">
+            <stop offset="0%"   stopColor="#FFD680"/>
+            <stop offset="52%"  stopColor={C.body}/>
+            <stop offset="100%" stopColor="#E08A12"/>
+          </radialGradient>
+          <radialGradient id="sq-fur-dark" cx="42%" cy="32%" r="82%">
+            <stop offset="0%"   stopColor="#FBC468"/>
+            <stop offset="55%"  stopColor="#EE9A1E"/>
+            <stop offset="100%" stopColor="#CF7D0C"/>
+          </radialGradient>
+          <radialGradient id="sq-belly" cx="50%" cy="32%" r="75%">
+            <stop offset="0%"   stopColor="#FFFDF7"/>
+            <stop offset="60%"  stopColor={C.belly}/>
+            <stop offset="100%" stopColor="#F4DEB6"/>
+          </radialGradient>
+          <linearGradient id="sq-ao" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#7C3E00" stopOpacity="0"/>
+            <stop offset="100%" stopColor="#7C3E00" stopOpacity="0.22"/>
+          </linearGradient>
+          <radialGradient id="sq-cheek" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor="#FF7E5A" stopOpacity="0.55"/>
+            <stop offset="100%" stopColor="#FF7E5A" stopOpacity="0"/>
+          </radialGradient>
+        </defs>
+
         {/* ══ COLA (tail with wag animation) ══ */}
         <g style={{
           transformBox: "fill-box" as const,
@@ -770,12 +805,17 @@ export default function ChibiArdilla({
           <path d="M 158 214 C 203 192 213 138 208 95 C 202 54 180 28 162 46"
             fill="none" stroke={C.dark} strokeWidth={52} strokeLinecap="round"/>
           <path d="M 158 214 C 203 192 213 138 208 95 C 202 54 180 28 162 46"
-            fill="none" stroke={C.body} strokeWidth={42} strokeLinecap="round"/>
+            fill="none" stroke="url(#sq-fur-dark)" strokeWidth={42} strokeLinecap="round"/>
           <path d="M 157 210 C 198 190 207 138 203 97 C 197 60 178 36 163 52"
             fill="none" stroke="#FBD080" strokeWidth={18} strokeLinecap="round"/>
-          {/* Fluffy tip */}
+          {/* Fluffy tip + mechones */}
           <circle cx="165" cy="50" r="26" fill={C.dark} opacity="0.18"/>
           <circle cx="164" cy="48" r="20" fill="#FBD080" opacity="0.55"/>
+          <g fill="#FBD080" stroke={C.dark} strokeWidth={1.5} strokeLinejoin="round">
+            <path d="M 150 46 L 138 31 L 157 41 Z"/>
+            <path d="M 162 38 L 159 18 L 175 33 Z"/>
+            <path d="M 177 44 L 191 35 L 179 53 Z"/>
+          </g>
         </g>
 
         {/* ══ CUERPO — forma orgánica de pera, no círculo ══ */}
@@ -784,9 +824,9 @@ export default function ChibiArdilla({
           fill={C.dark} opacity="0.28"/>
         {/* Torso */}
         <path d="M 90 176 C 63 190 59 227 73 252 Q 115 263 157 252 C 171 227 167 190 140 176 Q 127 169 115 169 Q 103 169 90 176 Z"
-          fill={C.body} stroke={C.dark} strokeWidth={C.sw}/>
+          fill="url(#sq-fur)" stroke={C.dark} strokeWidth={C.sw}/>
         {/* Belly */}
-        <ellipse cx="115" cy="217" rx="34" ry="28" fill={C.belly} stroke={C.dark} strokeWidth={3.5}/>
+        <ellipse cx="115" cy="217" rx="34" ry="28" fill="url(#sq-belly)" stroke={C.dark} strokeWidth={3.5}/>
         {state === "malita" && (
           <path d="M 90 176 C 63 190 59 227 73 252 Q 115 263 157 252 C 171 227 167 190 140 176 Q 127 169 115 169 Q 103 169 90 176 Z"
             fill="rgba(90,200,70,0.10)"/>
@@ -795,13 +835,13 @@ export default function ChibiArdilla({
         {/* ══ PATAS — con dedos para parecer patas reales ══ */}
         {/* Left foot */}
         <ellipse cx="76"  cy="257" rx="23" ry="12" fill={C.dark} opacity="0.4"/>
-        <ellipse cx="76"  cy="255" rx="21" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        <ellipse cx="76"  cy="255" rx="21" ry="10" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={3}/>
         <ellipse cx="64"  cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
         <ellipse cx="76"  cy="248" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
         <ellipse cx="88"  cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
         {/* Right foot */}
         <ellipse cx="154" cy="257" rx="23" ry="12" fill={C.dark} opacity="0.4"/>
-        <ellipse cx="154" cy="255" rx="21" ry="10" fill={C.body} stroke={C.dark} strokeWidth={3}/>
+        <ellipse cx="154" cy="255" rx="21" ry="10" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={3}/>
         <ellipse cx="142" cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
         <ellipse cx="154" cy="248" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
         <ellipse cx="166" cy="250" rx="9"  ry="7"  fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
@@ -812,42 +852,63 @@ export default function ChibiArdilla({
           fill={C.dark} opacity="0.28"/>
         {/* Left arm */}
         <path d="M 68 188 C 48 195 38 216 45 232 Q 54 240 64 233 C 61 218 63 200 76 191 Z"
-          fill={C.body} stroke={C.dark} strokeWidth={3}/>
+          fill="url(#sq-fur-dark)" stroke={C.dark} strokeWidth={3}/>
         {/* Right arm shadow */}
         <path d="M 163 189 C 184 196 194 218 187 234 Q 178 242 167 235 C 170 220 168 202 155 192 Z"
           fill={C.dark} opacity="0.28"/>
         {/* Right arm */}
         <path d="M 162 188 C 182 195 192 216 185 232 Q 176 240 166 233 C 169 218 167 200 154 191 Z"
-          fill={C.body} stroke={C.dark} strokeWidth={3}/>
+          fill="url(#sq-fur-dark)" stroke={C.dark} strokeWidth={3}/>
         {/* Paws */}
-        <ellipse cx="46"  cy="228" rx="14" ry="10" fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
-        <ellipse cx="184" cy="228" rx="14" ry="10" fill={C.body} stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="46"  cy="228" rx="14" ry="10" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={2.5}/>
+        <ellipse cx="184" cy="228" rx="14" ry="10" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={2.5}/>
 
         {/* ══ OREJAS (con ear twitch) ══ */}
         <g style={{ transformBox: "fill-box" as const, transformOrigin: "bottom center", animation: earAnim }}>
           <ellipse cx="60"  cy="42" rx="19" ry="29" fill={C.dark} transform="rotate(-12 60 42)"/>
-          <ellipse cx="60"  cy="42" rx="15" ry="25" fill={C.body} stroke={C.dark} strokeWidth={3.5} transform="rotate(-12 60 42)"/>
+          <ellipse cx="60"  cy="42" rx="15" ry="25" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={3.5} transform="rotate(-12 60 42)"/>
           <ellipse cx="60"  cy="40" rx="8"  ry="15" fill={C.ear} opacity="0.85" transform="rotate(-12 60 40)"/>
+          <path d="M 53 18 L 60 4 L 67 18 Z" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={2} strokeLinejoin="round" transform="rotate(-12 60 42)"/>
         </g>
         <ellipse cx="170" cy="42" rx="19" ry="29" fill={C.dark} transform="rotate(12 170 42)"/>
-        <ellipse cx="170" cy="42" rx="15" ry="25" fill={C.body} stroke={C.dark} strokeWidth={3.5} transform="rotate(12 170 42)"/>
+        <ellipse cx="170" cy="42" rx="15" ry="25" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={3.5} transform="rotate(12 170 42)"/>
         <ellipse cx="170" cy="40" rx="8"  ry="15" fill={C.ear} opacity="0.85" transform="rotate(12 170 40)"/>
+        <path d="M 163 18 L 170 4 L 177 18 Z" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={2} strokeLinejoin="round" transform="rotate(12 170 42)"/>
 
         {/* ══ CABEZA ══ */}
+        {/* Mechones laterales (silueta de pelo, no geométrica) */}
+        <g fill="url(#sq-fur)" stroke={C.dark} strokeWidth={2} strokeLinejoin="round">
+          <path d="M 50 104 L 33 110 L 49 117 Z"/>
+          <path d="M 49 118 L 31 126 L 50 131 Z"/>
+          <path d="M 51 132 L 35 143 L 55 145 Z"/>
+          <path d="M 180 104 L 197 110 L 181 117 Z"/>
+          <path d="M 181 118 L 199 126 L 180 131 Z"/>
+          <path d="M 179 132 L 195 143 L 175 145 Z"/>
+        </g>
         <circle cx="115" cy="110" r="74" fill={C.dark} opacity="0.3"/>
-        <circle cx="115" cy="108" r="70" fill={C.body} stroke={C.dark} strokeWidth={C.sw}/>
+        <circle cx="115" cy="108" r="70" fill="url(#sq-fur)" stroke={C.dark} strokeWidth={C.sw}/>
+        {/* Oclusión ambiental (sombra suave bajo el mentón) */}
+        <ellipse cx="115" cy="150" rx="58" ry="26" fill="url(#sq-ao)"/>
         {state === "malita" && (
           <circle cx="115" cy="108" r="70" fill="rgba(90,200,70,0.10)"/>
         )}
-        <circle cx="90"  cy="80"  r="28" fill="#FBD080" opacity="0.18"/>
+        {/* Brillos de luz */}
+        <circle cx="90"  cy="80"  r="28" fill="#FBD080" opacity="0.22"/>
+        <circle cx="146" cy="72"  r="14" fill="#FFE9B0" opacity="0.30"/>
 
         {/* ══ MEJILLAS ══ */}
-        <circle cx="57"  cy="120" r="22" fill="rgba(255,110,80,0.28)"/>
-        <circle cx="173" cy="120" r="22" fill="rgba(255,110,80,0.28)"/>
+        <circle cx="57"  cy="121" r="21" fill="url(#sq-cheek)"/>
+        <circle cx="173" cy="121" r="21" fill="url(#sq-cheek)"/>
 
         {/* ══ CARA ══ */}
         <Eyebrows state={state}/>
-        <EyePair   state={state}/>
+        <g style={canBlink ? {
+          transformBox: "fill-box" as const,
+          transformOrigin: "center",
+          animation: "tama-blink 4.6s ease-in-out infinite",
+        } : undefined}>
+          <EyePair state={state}/>
+        </g>
         <ellipse cx="115" cy="119" rx="9" ry="7" fill={C.dark}/>
         <ellipse cx="115" cy="117" rx="5" ry="3.5" fill="#A0522D" opacity="0.55"/>
         <Mouth state={state}/>
