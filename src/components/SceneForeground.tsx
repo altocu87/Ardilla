@@ -54,9 +54,91 @@ function palette(seg: TimeSegment, season: SeasonKind): GP {
   };
 }
 
+/* ── Decoración de la madriguera (por id) ── */
+function DecorSprite({ id }: { id: string }) {
+  switch (id) {
+    case "deco_farolillos":
+      return (
+        <g>
+          <path d="M 280 90 Q 330 70 384 92" fill="none" stroke="#7c3e00" strokeWidth="1.5"/>
+          {[286, 308, 330, 352, 374].map((x, i) => (
+            <g key={i}>
+              <line x1={x} y1={84 + Math.abs(i - 2) * 3} x2={x} y2={90 + Math.abs(i - 2) * 3} stroke="#7c3e00" strokeWidth="1"/>
+              <circle cx={x} cy={95 + Math.abs(i - 2) * 3} r="5" fill={["#ff6b6b", "#ffd43b", "#74c0fc", "#ffa94d", "#da77f2"][i]} opacity="0.92"/>
+            </g>
+          ))}
+        </g>
+      );
+    case "deco_columpio":
+      return (
+        <g stroke="#5e3514" strokeWidth="2">
+          <line x1="296" y1="150" x2="292" y2="196"/>
+          <line x1="316" y1="150" x2="320" y2="196"/>
+          <rect x="288" y="196" width="36" height="6" rx="2" fill="#8a5a2b" stroke="#5e3514"/>
+        </g>
+      );
+    case "deco_seta":
+      return (
+        <g>
+          <rect x="282" y="222" width="12" height="20" rx="5" fill="#ffe8cc" stroke="#d6b48a" strokeWidth="1.5"/>
+          <ellipse cx="288" cy="222" rx="20" ry="13" fill="#e03131"/>
+          <circle cx="280" cy="220" r="2.5" fill="white"/><circle cx="293" cy="224" r="2" fill="white"/><circle cx="288" cy="216" r="2.2" fill="white"/>
+        </g>
+      );
+    case "deco_valla":
+      return (
+        <g stroke="#6b4423" strokeWidth="2" fill="#8a5a2b">
+          {[70, 92, 114, 136].map((x, i) => (
+            <path key={i} d={`M ${x} 246 L ${x} 226 L ${x + 4} 222 L ${x + 8} 226 L ${x + 8} 246 Z`}/>
+          ))}
+          <line x1="66" y1="230" x2="148" y2="230"/>
+          <line x1="66" y1="238" x2="148" y2="238"/>
+        </g>
+      );
+    case "deco_farol":
+      return (
+        <g>
+          <rect x="172" y="200" width="4" height="44" fill="#3b3b3b"/>
+          <rect x="166" y="190" width="16" height="14" rx="2" fill="#ffe066" stroke="#3b3b3b" strokeWidth="1.5"/>
+          <circle cx="174" cy="197" r="9" fill="#fff3bf" opacity="0.5"/>
+        </g>
+      );
+    case "deco_banderines":
+      return (
+        <g>
+          <path d="M 8 30 Q 200 14 392 30" fill="none" stroke="#ffffff" strokeWidth="1" opacity="0.6"/>
+          {Array.from({ length: 13 }, (_, i) => {
+            const x = 14 + i * 29;
+            const y = 22 + Math.abs((i % 6) - 3);
+            return <path key={i} d={`M ${x} ${y} L ${x + 12} ${y} L ${x + 6} ${y + 11} Z`}
+              fill={["#ff6b6b", "#ffd43b", "#74c0fc", "#69db7c", "#da77f2"][i % 5]} opacity="0.9"/>;
+          })}
+        </g>
+      );
+    case "deco_charco":
+      return (
+        <g>
+          <ellipse cx="120" cy="248" rx="40" ry="10" fill="#74c0fc" opacity="0.55"/>
+          <ellipse cx="110" cy="246" rx="14" ry="3" fill="#ffffff" opacity="0.5"/>
+        </g>
+      );
+    case "deco_buzon":
+      return (
+        <g>
+          <rect x="362" y="214" width="5" height="22" fill="#5e3514"/>
+          <rect x="352" y="202" width="24" height="15" rx="6" fill="#e03131" stroke="#a01919" strokeWidth="1.5"/>
+          <rect x="366" y="205" width="6" height="3" fill="#fff"/>
+          <rect x="374" y="206" width="2" height="8" fill="#ffd43b"/>
+        </g>
+      );
+    default:
+      return null;
+  }
+}
+
 export default function SceneForeground({
-  seg, weather = "clear", season = "verano",
-}: { seg: TimeSegment; weather?: WeatherKind; season?: SeasonKind }) {
+  seg, weather = "clear", season = "verano", equippedDecor = [],
+}: { seg: TimeSegment; weather?: WeatherKind; season?: SeasonKind; equippedDecor?: string[] }) {
   const p = palette(seg, season);
   const isNight = seg === "noche" || seg === "madrugada";
   const showFlowers = (season === "primavera" || season === "verano") && !isNight;
@@ -123,6 +205,9 @@ export default function SceneForeground({
           <circle cx={x} cy={y - 9} r="2.4" fill="#ffd43b"/>
         </g>
       ))}
+
+      {/* ── Decoración de la madriguera ── */}
+      {equippedDecor.map(id => <DecorSprite key={id} id={id}/>)}
 
       {/* ── Arbusto de primer plano (izquierda) ── */}
       <ellipse cx="30" cy="246" rx="42" ry="24" fill={p.bush2}/>

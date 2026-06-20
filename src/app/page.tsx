@@ -36,6 +36,9 @@ import SceneForeground from "@/components/SceneForeground";
 import { getSeason, type TimeSegment, type WeatherKind, type SeasonKind } from "@/lib/scene";
 import { getTodayWeather } from "@/lib/weather";
 import { rollDailyEvents, claimEvent, type GameEvent } from "@/lib/tama-events";
+import { checkMilestones } from "@/lib/tama-milestones";
+import { getEquippedDecor } from "@/lib/room-decor";
+import DecorModal from "@/components/DecorModal";
 import { recordCareEvent, type CareMissionKind } from "@/lib/care-missions";
 import {
   getBondData, addBond, pickPersonalityForToday, angerMultiplier,
@@ -817,6 +820,8 @@ export default function Home() {
   const [weather,        setWeather]        = useState<WeatherKind>("clear");
   const [season,         setSeason]         = useState<SeasonKind>("verano");
   const [activeEvent,    setActiveEvent]    = useState<GameEvent | null>(null);
+  const [equippedDecor,  setEquippedDecor]  = useState<string[]>([]);
+  const [showDecorModal, setShowDecorModal] = useState(false);
   const [isTickling,     setIsTickling]     = useState(false);
   const [achToast,       setAchToast]       = useState<Achievement | null>(null);
   const [infoToast,      setInfoToast]      = useState<string | null>(null);
@@ -929,10 +934,11 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
     rollMorningEnergy();
     setBondLevelState(getBondData().level);
 
-    /* Clima del día + evento sorpresa */
+    /* Clima del día + evento sorpresa + decoración */
     setWeather(getTodayWeather());
     setSeason(getSeason());
     setActiveEvent(rollDailyEvents());
+    setEquippedDecor(getEquippedDecor());
     const fartMsg = maybeRandomFart();
     if (fartMsg) {
       setTimeout(() => {
@@ -971,6 +977,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       if (newPhase === "anciana") { const a = tryUnlock("wise");    if (a) showAchievement(a); }
     }
 
+    /* Hitos de largo plazo (vínculo, días de cuidado) */
+    checkMilestones().then(list => {
+      if (!list.length) return;
+      list.forEach(showAchievement);
+      loadProfile();
+    }).catch(() => { /* noop */ });
+
     getPregLog()
       .then(log => {
         const today = new Date();
@@ -1000,6 +1013,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
         setVisualState(vs);
         setTamaMessage(getContextualMessage(vs, 0, regCtxRef.current));
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentAction]);
 
   /* Bienvenida del caracol — una vez por sesión */
@@ -1561,7 +1575,7 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       <div className="flex-1 min-h-0 px-4 py-2">
         <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-xl border border-white/20">
           <div className="absolute inset-0"><SceneBg seg={timeSegment}/></div>
-          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={season} weather={weather}/></div>
+          <div className="absolute inset-0 pointer-events-none"><SceneForeground seg={timeSegment} season={season} weather={weather} equippedDecor={equippedDecor}/></div>
           <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
             style={{ backgroundImage:"radial-gradient(circle,rgba(0,0,0,1) 1px,transparent 1px)", backgroundSize:"3px 3px" }}/>
           <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{ boxShadow:"inset 0 0 60px rgba(0,0,0,0.35)" }}/>
@@ -1587,6 +1601,10 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
             <button onClick={() => setShowGameStats(true)}
               className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
               <span className="text-sm">🎮</span>
+            </button>
+            <button onClick={() => setShowDecorModal(true)}
+              className="flex items-center gap-1 bg-black/30 backdrop-blur-sm rounded-full px-2.5 py-1.5 active:scale-95 border border-white/20">
+              <span className="text-sm">🏡</span>
             </button>
           </div>
 
@@ -1881,6 +1899,13 @@ setOwnedTitulos(getShopTitulos().filter(t => (t.price ?? 0) === 0 || owned.inclu
       )}
       {showGameStats && (
         <GameStatsModal onClose={() => setShowGameStats(false)} />
+      )}
+      {showDecorModal && (
+        <DecorModal
+          bellotas={bellotas}
+          onClose={() => setShowDecorModal(false)}
+          onChanged={() => { loadProfile(); setEquippedDecor(getEquippedDecor()); }}
+        />
       )}
       {showMedicineModal && tamaStats?.illness && (
         <MedicineModal
